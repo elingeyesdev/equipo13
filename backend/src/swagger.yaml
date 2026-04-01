@@ -1,0 +1,291 @@
+openapi: 3.0.0
+info:
+  title: UPC System API - Sistema de Costeo
+  description: API Backend para el Sistema de Costeo Estándar Productivo Universal (Sprint 0). Manejo de Unidades, Materiales, Conversiones e Inventario.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor de Desarrollo Local
+
+tags:
+  - name: Unidades de Medida
+    description: Gestión de categorías industriales y biológicas
+  - name: Materiales e Insumos
+    description: Mantenimiento de materias primas y biológicas
+  - name: Conversiones
+    description: Tabla de factores de conversión entre unidades
+  - name: Inventario y Lotes
+    description: Entradas de stock físico y carga masiva (Hoja de Vida Financiera)
+
+paths:
+  # ----------------------------------------------------
+  # MÓDULO: UNIDADES 
+  # ----------------------------------------------------
+  /units:
+    get:
+      summary: Listar todas las unidades
+      tags: [Unidades de Medida]
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filtrar por "Industrial" o "Biológico"
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Crear nueva unidad de medida
+      tags: [Unidades de Medida]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string, example: "ml" }
+                name: { type: string, example: "Mililitro" }
+                abbreviation: { type: string, example: "ml" }
+                base_unit_id: { type: string, example: "L", nullable: true }
+                category: { type: string, example: "Industrial" }
+      responses:
+        '201':
+          description: Unidad Creada
+
+  /units/{id}:
+    get:
+      summary: Obtener unidad por ID
+      tags: [Unidades de Medida]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Actualizar unidad
+      tags: [Unidades de Medida]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 name: { type: string, example: "Mililitro Nuevo" }
+                 abbreviation: { type: string }
+                 base_unit_id: { type: string }
+                 category: { type: string }
+      responses:
+        '200':
+          description: Actualizado
+    delete:
+      summary: Eliminar unidad
+      tags: [Unidades de Medida]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eliminado
+
+  # ----------------------------------------------------
+  # MÓDULO: MATERIALES
+  # ----------------------------------------------------
+  /materials:
+    get:
+      summary: Listar todos los insumos y materias
+      tags: [Materiales e Insumos]
+      parameters:
+        - in: query
+          name: type
+          schema:
+             type: string
+          description: Filtrar por "Industrial" o "Biológico"
+        - in: query
+          name: category
+          schema:
+             type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Crear insumo/material
+      tags: [Materiales e Insumos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+             schema:
+               type: object
+               properties:
+                 id: { type: string, example: "BIO-008" }
+                 sku: { type: string, example: "SKU-TEST" }
+                 name: { type: string, example: "Vacuna Prueba" }
+                 description: { type: string }
+                 category: { type: string, example: "Sanidad" }
+                 type: { type: string, example: "Biológico" }
+                 primary_unit_id: { type: string, example: "dosis" }
+                 cost_standard: { type: number, example: 5.50 }
+                 stage: { type: string, example: "Cría" }
+      responses:
+        '201':
+          description: Material creado
+
+  /materials/{id}:
+    put:
+      summary: Actualizar material
+      tags: [Materiales e Insumos]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 name: { type: string }
+                 type: { type: string }
+                 primary_unit_id: { type: string }
+      responses:
+        '200':
+          description: Actualizado
+    delete:
+      summary: Eliminar material
+      tags: [Materiales e Insumos]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+             type: string
+      responses:
+        '200':
+          description: Eliminado
+          
+  # ----------------------------------------------------
+  # MÓDULO: CONVERSIONES
+  # ----------------------------------------------------
+  /conversions:
+    get:
+      summary: Lista de todas las conversiones de unidades
+      tags: [Conversiones]
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Registrar un factor de conversión entre 2 unidades
+      tags: [Conversiones]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                 source_unit_id: { type: string, example: "L" }
+                 target_unit_id: { type: string, example: "dosis" }
+                 factor: { type: number, example: 1000.0 }
+                 type: { type: string, example: "Biológico" }
+                 note: { type: string, example: "1 Litro contiene 1000 dosis" }
+      responses:
+         '201':
+           description: Conversión registrada
+
+  /conversions/{id}:
+     delete:
+        summary: Eliminar una conversión
+        tags: [Conversiones]
+        parameters:
+          - in: path
+            name: id
+            required: true
+            schema:
+               type: integer
+        responses:
+          '200':
+            description: Eliminado
+
+  # ----------------------------------------------------
+  # MÓDULO: INVENTARIO BATCHES
+  # ----------------------------------------------------
+  /inventory:
+    get:
+      summary: Historial de lotes/inventario
+      tags: [Inventario y Lotes]
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Crear ingreso de lote/stock individual
+      tags: [Inventario y Lotes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                batch_number: { type: string, example: "LOT-002" }
+                material_id: { type: string, example: "BIO-007" }
+                quantity: { type: number, example: 50 }
+                location: { type: string, example: "Corral 2" }
+                acquisition_cost: { type: number, example: 35.0 }
+                entry_date: { type: string, format: date, example: "2026-03-15" }
+                initial_weight: { type: number, example: 8.5 }
+      responses:
+        '201':
+           description: Lote creado
+
+  /inventory/bulk:
+    post:
+      summary: Carga Masiva (Bulk Insert CSV)
+      description: Endpoint especial que recibe un arreglo JSON de múltiples registros de lotes. Se sube de manera transaccional y veloz.
+      tags: [Inventario y Lotes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  batch_number: { type: string, example: "LOT-003" }
+                  material_id: { type: string, example: "RM-001" }
+                  quantity: { type: number, example: 1500 }
+      responses:
+        '201':
+           description: Insertados exitosamente
+
+  /inventory/{id}:
+     delete:
+        summary: Eliminar Lote de invetario
+        tags: [Inventario y Lotes]
+        parameters:
+          - in: path
+            name: id
+            required: true
+            schema:
+               type: integer
+        responses:
+          '200':
+            description: Eliminado
