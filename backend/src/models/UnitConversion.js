@@ -56,7 +56,7 @@ class UnitConversion {
   static async update(id, { source_unit_id, target_unit_id, factor, type, note }) {
     const { rows } = await db.query(
       `UPDATE unit_conversions
-       SET source_unit_id = $1, target_unit_id = $2, factor = $3, type = $4, note = $5, updated_at = CURRENT_TIMESTAMP
+       SET source_unit_id = $1, target_unit_id = $2, factor = $3, type = $4, note = $5
        WHERE id = $6
        RETURNING *`,
       [source_unit_id, target_unit_id, factor, type || null, note || null, id]

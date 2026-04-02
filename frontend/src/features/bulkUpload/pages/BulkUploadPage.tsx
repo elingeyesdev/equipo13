@@ -323,9 +323,9 @@ export const BulkUploadPage: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {(isIndustrial
                   ? [
-                      ['LOTE-001', 'MAT-001', '100'],
-                      ['LOTE-002', 'MAT-002', '50'],
-                      ['LOTE-003', 'MAT-003', '200'],
+                      ['LOTE-001', 'RM-001', '100'],
+                      ['LOTE-002', 'RM-002', '50'],
+                      ['LOTE-003', 'RM-003', '200'],
                     ]
                   : [
                       ['LOT-BIO-001', 'BIO-001', '25'],

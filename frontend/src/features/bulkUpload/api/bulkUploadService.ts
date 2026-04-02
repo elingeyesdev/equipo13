@@ -19,9 +19,9 @@ export const bulkUploadService = {
 export const downloadCsvTemplate = (tab: UploadTab): void => {
   const industrialHeaders = ['batch_number', 'material_id', 'quantity'];
   const industrialExample = [
-    ['LOTE-001', 'MAT-001', '100'],
-    ['LOTE-002', 'MAT-002', '50'],
-    ['LOTE-003', 'MAT-003', '200'],
+    ['LOTE-001', 'RM-001', '100'],
+    ['LOTE-002', 'RM-002', '50'],
+    ['LOTE-003', 'RM-003', '200'],
   ];
 
   const biologicalHeaders = ['batch_number', 'material_id', 'quantity'];
