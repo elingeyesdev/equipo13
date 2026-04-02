@@ -80,16 +80,17 @@ export const UnitManagementPage = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div>
-          <h1 className="text-3xl font-bold text-charcoal">Unidades de Medida</h1>
-          <p className="text-gray-500 mt-1">Administra las unidades base e interdependencias del sistema</p>
+          <h1 className="text-2xl font-bold text-charcoal">Administración de Unidades de Medida</h1>
+          <p className="text-sm text-gray-600">
+            Alta y edición de unidades; los cambios se reflejan en insumos y conversiones.
+          </p>
         </div>
-        <button 
+        <button
           onClick={openNewModal}
-          className="bg-professionalBlue hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition-colors shadow-sm"
+          className="bg-professionalBlue hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0"
         >
           <Plus className="w-5 h-5" /> Nueva Unidad
         </button>
