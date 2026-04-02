@@ -3,44 +3,35 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale } from 'lucide-react';
 
 const navigation = [
-  { to: '/units', label: 'Unidades de Medida', icon: Scale },
-  { to: '/materials', label: 'Insumos y Materia Prima', icon: Layers },
-  { to: '/upload', label: 'Carga Masiva', icon: CloudUpload },
-  { to: '/conversions', label: 'Equivalencias y Conversiones', icon: LayoutDashboard },
+  {
+    name: 'Unidades de Medida',
+    href: '/units',
+    icon: Scale,
+    subtitle: 'Unidades estándar y personalizadas para producción e inventario',
+  },
+  {
+    name: 'Insumos y Materia Prima',
+    href: '/materials',
+    icon: Layers,
+    subtitle: 'Seguimiento de insumos, precios y categorías activas',
+  },
+  {
+    name: 'Carga Masiva',
+    href: '/upload',
+    icon: CloudUpload,
+    subtitle: 'Importación masiva de inventario industrial y lotes biológicos',
+  },
+  {
+    name: 'Equivalencias y Conversiones',
+    href: '/conversions',
+    icon: LayoutDashboard,
+    subtitle: 'Factores de conversión para costeo preciso',
+  },
 ];
-
-function getPageTitle(pathname: string): string {
-  switch (pathname) {
-    case '/units':
-      return 'Administración de Unidades de Medida';
-    case '/materials':
-      return 'Gestión de Insumos y Materia Prima';
-    case '/upload':
-      return 'Carga Masiva de Inventario Inicial';
-    case '/conversions':
-      return 'Equivalencias y Conversiones';
-    default:
-      return 'Dashboard';
-  }
-}
-
-function getPageSubtitle(pathname: string): string {
-  switch (pathname) {
-    case '/units':
-      return 'Unidades estándar y personalizadas para producción e inventario';
-    case '/materials':
-      return 'Seguimiento de insumos, precios y categorías activas';
-    case '/upload':
-      return 'Importación masiva de inventario industrial y lotes biológicos';
-    case '/conversions':
-      return 'Factores de conversión para costeo preciso';
-    default:
-      return '';
-  }
-}
 
 export const DashboardLayout = () => {
   const location = useLocation();
+  const currentPage = navigation.find((n) => location.pathname.startsWith(n.href));
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50 font-sans antialiased">
@@ -61,8 +52,8 @@ export const DashboardLayout = () => {
           <p className="px-3 mb-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Módulos</p>
           {navigation.map((item) => (
             <NavLink
-              key={item.to}
-              to={item.to}
+              key={item.href}
+              to={item.href}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
                   isActive
@@ -78,7 +69,7 @@ export const DashboardLayout = () => {
                       isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
                     }`}
                   />
-                  <span className="font-medium text-sm flex-1 leading-snug">{item.label}</span>
+                  <span className="font-medium text-sm flex-1 leading-snug">{item.name}</span>
                   {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" />}
                 </>
               )}
@@ -101,10 +92,14 @@ export const DashboardLayout = () => {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-[72px] shrink-0 bg-white border-b border-gray-200 flex items-center px-8 shadow-sm">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">{getPageTitle(location.pathname)}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{getPageSubtitle(location.pathname)}</p>
-          </div>
+          {currentPage ? (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 leading-tight">{currentPage.name}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{currentPage.subtitle}</p>
+            </div>
+          ) : (
+            <h2 className="text-xl font-bold text-gray-900 leading-tight">Dashboard</h2>
+          )}
         </header>
 
         <main className="flex-1 overflow-y-auto bg-gray-50/80">
