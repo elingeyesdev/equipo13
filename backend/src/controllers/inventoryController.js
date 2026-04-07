@@ -73,13 +73,18 @@ exports.createBulk = async (req, res) => {
     }
 
     const items = await InventoryBatch.createBulk(batches);
-    res.status(201).json({ success: true, message: `Se insertaron ${items.length} registros exitosamente`, data: items });
+    const ignorados = batches.length - items.length;
+    let message = `Se insertaron ${items.length} registros exitosamente.`;
+    if (ignorados > 0) message += ` Se omitieron ${ignorados} registros que ya existían.`;
+    
+    res.status(201).json({ success: true, message: message, data: items });
   } catch (error) {
     if (error.code === '23503') {
       return res.status(400).json({ success: false, error: 'Uno o más material_id asignados en la carga masiva no existen.' });
     }
-    if (error.code === '23505') { // Unique violation
-        return res.status(409).json({ success: false, error: 'Uno o más números de lote enviados ya existen en la base de datos.' });
+    // Si quedan otras violaciones (no debería por el ON CONFLICT DO NOTHING)
+    if (error.code === '23505') { 
+        return res.status(409).json({ success: false, error: 'Conflicto de unicidad detectado.' });
     }
     console.error('Error al procesar carga masiva:', error.message);
     res.status(500).json({ success: false, error: 'Error interno del servidor' });

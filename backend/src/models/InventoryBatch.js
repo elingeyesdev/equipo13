@@ -53,17 +53,36 @@ class InventoryBatch {
 
   // ── CREATE BULK ──────────────────────────────────
   static async createBulk(batches) {
-    const results = [];
-    for (const batch of batches) {
-      // Auto-completar la fecha de ingreso actual si el CSV no la trae
-      if (!batch.entry_date) {
-        batch.entry_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      }
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const results = [];
+      for (const batch of batches) {
+        if (!batch.entry_date) {
+          batch.entry_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        }
 
-      const result = await this.create(batch);
-      results.push(result);
+        const { rows } = await client.query(
+          `INSERT INTO inventory_batches 
+           (batch_number, material_id, quantity, location, acquisition_cost, entry_date, initial_weight)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (batch_number) DO NOTHING
+           RETURNING *`,
+          [batch.batch_number, batch.material_id, batch.quantity, batch.location || null, batch.acquisition_cost || null, batch.entry_date || null, batch.initial_weight || null]
+        );
+        
+        if (rows[0]) {
+          results.push(rows[0]);
+        }
+      }
+      await client.query('COMMIT');
+      return results;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
     }
-    return results;
   }
 
   // ── UPDATE ───────────────────────────────────────
