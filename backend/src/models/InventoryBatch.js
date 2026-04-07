@@ -53,19 +53,16 @@ class InventoryBatch {
 
   // ── CREATE BULK ──────────────────────────────────
   static async createBulk(batches) {
-    // Usamos una transacción para el bulk insert (o todo se inserta, o nada)
-    const client = await require('../config/db').query('BEGIN'); // Iniciar transacción virtual a nivel aplicación o mejor usar el Pool completo
-    
-    // El 'db' exporta 'query' directo pero para transacciones reales es mejor obtener un client.
-    // Como pre-armamos db.js muy simple, usaremos un loop de promesas. PostgreSQL procesará rápido. 
-    // Si falla uno, tirará error y la ruta de catch procesará el error.
-    
     const results = [];
     for (const batch of batches) {
+      // Auto-completar la fecha de ingreso actual si el CSV no la trae
+      if (!batch.entry_date) {
+        batch.entry_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      }
+
       const result = await this.create(batch);
       results.push(result);
     }
-    
     return results;
   }
 
