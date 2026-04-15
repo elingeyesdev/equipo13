@@ -15,7 +15,7 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
   const [formData, setFormData] = useState({
     source_unit_id: '',
     target_unit_id: '',
-    factor: 1,
+    factor: '1',
     type: 'Industrial' as 'Industrial' | 'Biológico' | null,
     note: ''
   });
@@ -28,7 +28,7 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
       setFormData({
         source_unit_id: editingConversion.source_unit_id,
         target_unit_id: editingConversion.target_unit_id,
-        factor: Number(editingConversion.factor),
+        factor: String(editingConversion.factor),
         type: editingConversion.type || 'Industrial',
         note: editingConversion.note || ''
       });
@@ -36,7 +36,7 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
       setFormData({
         source_unit_id: '',
         target_unit_id: '',
-        factor: 1,
+        factor: '1',
         type: 'Industrial',
         note: ''
       });
@@ -52,16 +52,20 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
     setError(null);
 
     try {
+      const numericFactor = parseFloat(formData.factor);
       if (formData.source_unit_id === formData.target_unit_id) {
         throw new Error('La unidad de origen y destino no pueden ser la misma.');
       }
-      if (formData.factor <= 0) {
-        throw new Error('El factor de conversión debe ser mayor a 0.');
+      if (isNaN(numericFactor) || numericFactor <= 0) {
+        throw new Error('El factor de conversión debe ser un número mayor a 0.');
       }
 
       await onSave({
-        ...formData,
-        type: formData.type === null ? undefined : formData.type
+        source_unit_id: formData.source_unit_id,
+        target_unit_id: formData.target_unit_id,
+        factor: numericFactor,
+        type: formData.type === null ? undefined : formData.type,
+        note: formData.note
       });
       onClose();
     } catch (err: any) {
@@ -155,16 +159,21 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-charcoal">Factor de Multiplicación</label>
               <input
-                type="number"
-                step="0.000001"
-                min="0.000001"
+                type="text"
+                inputMode="decimal"
                 required
                 value={formData.factor}
-                onChange={e => setFormData({...formData, factor: parseFloat(e.target.value) || 0})}
+                onChange={e => {
+                  const val = e.target.value;
+                  // Solo permitir dígitos, punto decimal y campo vacío
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setFormData({...formData, factor: val});
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-professionalBlue focus:border-professionalBlue outline-none font-mono text-sm"
                 placeholder="Ej. 1000"
               />
-              <p className="text-[11px] text-gray-500">1 Origen = {formData.factor} Destino</p>
+              <p className="text-[11px] text-gray-500">1 Origen = {formData.factor || '?'} Destino</p>
             </div>
 
             <div className="flex flex-col gap-1.5">

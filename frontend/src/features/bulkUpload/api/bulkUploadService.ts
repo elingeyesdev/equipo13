@@ -50,28 +50,70 @@ export const downloadCsvTemplate = (tab: UploadTab): void => {
   URL.revokeObjectURL(url);
 };
 
+import { read, utils } from 'xlsx';
+
 /**
- * Parses a CSV string into an array of typed InventoryRecord objects.
+ * Parses a File (CSV or XLSX) into an array of typed InventoryRecord objects.
+ * Supports cases where pseudo-CSVs contain comma-separated strings inside a single Excel cell.
  */
-export const parseCsv = (csvText: string): InventoryRecord[] => {
-  const lines = csvText.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
+export const parseFile = async (file: File): Promise<InventoryRecord[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        // The read function supports ArrayBuffer natively
+        const workbook = read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Convert sheet to a 2D array [row][col]
+        const rows: any[][] = utils.sheet_to_json(worksheet, { header: 1 });
+        if (!rows || rows.length < 2) return resolve([]);
 
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const records: InventoryRecord[] = [];
+        let headers: string[] = [];
+        let dataRows: any[][] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map((v) => v.trim());
-    if (values.length !== headers.length) continue;
+        const firstRowFirstCol = String(rows[0][0] || '');
+        
+        // Si Excel cargó un CSV mal separado por punto y coma/coma y todo quedó en la columna A:
+        if (rows[0].length === 1 && firstRowFirstCol.includes(',')) {
+          headers = firstRowFirstCol.split(',').map((h) => h.trim());
+          for (let i = 1; i < rows.length; i++) {
+            const cellStr = String(rows[i][0] || '');
+            if (!cellStr.trim()) continue;
+            dataRows.push(cellStr.split(',').map((v) => v.trim()));
+          }
+        } else {
+          // Es un formato de columnas nativo válido
+          headers = rows[0].map((h) => String(h).trim());
+          dataRows = rows.slice(1);
+        }
 
-    const row: Record<string, unknown> = {};
-    headers.forEach((header, idx) => {
-      const val = values[idx];
-      // Cast 'quantity' to number, everything else stays string
-      row[header] = header === 'quantity' ? Number(val) : val;
-    });
-    records.push(row as InventoryRecord);
-  }
+        const records: InventoryRecord[] = [];
+        for (const values of dataRows) {
+          if (!values || values.length === 0) continue;
+          
+          const row: Record<string, unknown> = {};
+          headers.forEach((header, idx) => {
+            const rawVal = values[idx];
+            const valStr = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+            // Cast 'quantity' to number, everything else stays string
+            row[header] = header === 'quantity' ? Number(valStr) : valStr;
+          });
+          
+          // No empujar líneas completamente vacías, deben tener al menos batch_number
+          if (row['batch_number']) {
+            records.push(row as InventoryRecord);
+          }
+        }
 
-  return records;
+        resolve(records);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsArrayBuffer(file);
+  });
 };

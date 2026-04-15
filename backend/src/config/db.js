@@ -19,4 +19,5 @@ pool.on('error', (err, client) => {
 module.exports = {
   // Exportar 'query' pre-envuelve la ejecución de SQL y liberación del cliente
   query: (text, params) => pool.query(text, params),
+  pool,
 };

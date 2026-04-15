@@ -12,7 +12,7 @@ import { DropZone } from '../components/DropZone';
 import { AlertBanner } from '../components/AlertBanner';
 import { PreviewTable } from '../components/PreviewTable';
 import { TemplateDownloadBanner } from '../components/TemplateDownloadBanner';
-import { bulkUploadService, parseCsv } from '../api/bulkUploadService';
+import { bulkUploadService, parseFile } from '../api/bulkUploadService';
 import { Alert, CsvRow, InventoryRecord, UploadTab } from '../types';
 
 type Stage = 'idle' | 'preview' | 'uploading' | 'success' | 'error';
@@ -52,8 +52,7 @@ export const BulkUploadPage: React.FC = () => {
     setAlert(null);
 
     try {
-      const text = await file.text();
-      const parsed = parseCsv(text);
+      const parsed = await parseFile(file);
 
       if (parsed.length === 0) {
         setParseError('El archivo no contiene filas de datos válidas. Verifica el formato.');
