@@ -11,6 +11,7 @@ import {
 import { DropZone } from '../components/DropZone';
 import { AlertBanner } from '../components/AlertBanner';
 import { PreviewTable } from '../components/PreviewTable';
+import { DuplicatesModal } from '../components/DuplicatesModal';
 import { TemplateDownloadBanner } from '../components/TemplateDownloadBanner';
 import { bulkUploadService, parseFile } from '../api/bulkUploadService';
 import { Alert, CsvRow, InventoryRecord, UploadTab } from '../types';
@@ -27,6 +28,11 @@ export const BulkUploadPage: React.FC = () => {
   const [alert, setAlert] = useState<Alert | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [resultMessage, setResultMessage] = useState('');
+  // Modal de duplicados
+  const [duplicatesModal, setDuplicatesModal] = useState<{
+    skipped: string[];
+    insertedCount: number;
+  } | null>(null);
 
   /* ── helpers ─────────────────────────────────────────── */
   const resetAll = () => {
@@ -38,6 +44,7 @@ export const BulkUploadPage: React.FC = () => {
     setAlert(null);
     setUploadProgress(0);
     setResultMessage('');
+    setDuplicatesModal(null);
   };
 
   const switchTab = (t: UploadTab) => {
@@ -101,8 +108,19 @@ export const BulkUploadPage: React.FC = () => {
       setUploadProgress(100);
 
       if (result.success) {
-        setResultMessage(result.message ?? `${result.data?.length ?? records.length} registros insertados exitosamente.`);
-        setStage('success');
+        const msg = result.message ?? `${result.data?.length ?? records.length} registros insertados exitosamente.`;
+        setResultMessage(msg);
+
+        // Si hay duplicados → mostrar modal antes de pasar a éxito
+        if (result.skipped && result.skipped.length > 0) {
+          setDuplicatesModal({
+            skipped: result.skipped,
+            insertedCount: result.data?.length ?? 0,
+          });
+          setStage('preview'); // mantener la pantalla de preview de fondo
+        } else {
+          setStage('success');
+        }
       } else {
         setAlert({
           type: 'error',
@@ -126,11 +144,33 @@ export const BulkUploadPage: React.FC = () => {
     }
   };
 
+  /* ── modal confirm (cerrar modal → mostrar éxito) ─────── */
+  const handleDuplicatesConfirm = () => {
+    setDuplicatesModal(null);
+    setStage('success');
+  };
+
+  const handleDuplicatesClose = () => {
+    setDuplicatesModal(null);
+    setStage('success'); // igual muestra éxito al cerrar
+  };
+
   /* ── render ─────────────────────────────────────────── */
   const isIndustrial = tab === 'industrial';
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
+
+      {/* Modal de duplicados (se muestra sobre todo si hay conflictos) */}
+      {duplicatesModal && (
+        <DuplicatesModal
+          skipped={duplicatesModal.skipped}
+          insertedCount={duplicatesModal.insertedCount}
+          tab={tab}
+          onConfirm={handleDuplicatesConfirm}
+          onClose={handleDuplicatesClose}
+        />
+      )}
 
       {/* Tab Selector */}
       <div className="flex items-center gap-1 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm w-fit">
@@ -262,28 +302,33 @@ export const BulkUploadPage: React.FC = () => {
 
               <TemplateDownloadBanner tab={tab} />
 
-              {/* Confirm upload button (only in preview) */}
+              {/* Preview table inline (preview stage) */}
               {stage === 'preview' && (
-                <div className="pt-2 flex items-center justify-between gap-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
-                    <AlertTriangle size={14} className="shrink-0" />
-                    <span>
-                      Revisa la vista previa antes de confirmar. Esta acción insertará{' '}
-                      <span className="font-bold">{records.length} registros</span> en la base de datos.
-                    </span>
+                <div className="mt-2 space-y-4">
+                  <PreviewTable rows={parsedRows} tab={tab} />
+
+                  {/* Confirm upload button */}
+                  <div className="pt-2 flex items-center justify-between gap-4 border-t border-gray-100">
+                    <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
+                      <AlertTriangle size={14} className="shrink-0" />
+                      <span>
+                        Revisa la vista previa antes de confirmar. Esta acción insertará{' '}
+                        <span className="font-bold">{records.length} registros</span> en la base de datos.
+                      </span>
+                    </div>
+                    <button
+                      id="btn-confirm-upload"
+                      onClick={handleUpload}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-95 shrink-0 ${
+                        isIndustrial
+                          ? 'bg-professionalBlue hover:bg-blue-800'
+                          : 'bg-agroGreen hover:bg-green-800'
+                      }`}
+                    >
+                      <Upload size={16} />
+                      Confirmar y Subir ({records.length})
+                    </button>
                   </div>
-                  <button
-                    id="btn-confirm-upload"
-                    onClick={handleUpload}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-95 shrink-0 ${
-                      isIndustrial
-                        ? 'bg-professionalBlue hover:bg-blue-800'
-                        : 'bg-agroGreen hover:bg-green-800'
-                    }`}
-                  >
-                    <Upload size={16} />
-                    Confirmar y Subir ({records.length})
-                  </button>
                 </div>
               )}
             </>
@@ -291,10 +336,6 @@ export const BulkUploadPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Preview table (only when file is parsed and not yet uploaded) */}
-      {(stage === 'preview') && (
-        <PreviewTable rows={parsedRows} tab={tab} />
-      )}
 
       {/* Expected format table (shown only when idle) */}
       {stage === 'idle' && !parseError && (

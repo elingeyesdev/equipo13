@@ -1,0 +1,25 @@
+﻿On branch gerardo
+Your branch is up to date with 'origin/gerardo'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   backend/src/migrations/003_normalize_constraints.sql
+	modified:   backend/src/models/InventoryBatch.js
+	modified:   backend/src/models/UnitConversion.js
+	modified:   frontend/src/App.tsx
+	modified:   frontend/src/components/layout/DashboardLayout.tsx
+	modified:   frontend/src/features/bulkUpload/api/bulkUploadService.ts
+	modified:   frontend/src/features/bulkUpload/pages/BulkUploadPage.tsx
+	new file:   frontend/src/features/conversions/api/conversionService.ts
+	new file:   frontend/src/features/conversions/components/ConversionModal.tsx
+	new file:   frontend/src/features/conversions/pages/ConversionManagementPage.tsx
+	new file:   frontend/src/features/conversions/types/index.ts
+	new file:   frontend/src/features/materials/api/materialService.ts
+	new file:   frontend/src/features/materials/components/MaterialModal.tsx
+	new file:   frontend/src/features/materials/pages/MaterialManagementPage.tsx
+	new file:   frontend/src/features/materials/types/index.ts
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	status_output_gerardo.txt
+

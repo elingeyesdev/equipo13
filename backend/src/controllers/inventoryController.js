@@ -72,12 +72,11 @@ exports.createBulk = async (req, res) => {
         }
     }
 
-    const items = await InventoryBatch.createBulk(batches);
-    const ignorados = batches.length - items.length;
-    let message = `Se insertaron ${items.length} registros exitosamente.`;
-    if (ignorados > 0) message += ` Se omitieron ${ignorados} registros que ya existían.`;
+    const { inserted, skipped } = await InventoryBatch.createBulk(batches);
+    let message = `Se insertaron ${inserted.length} registros exitosamente.`;
+    if (skipped.length > 0) message += ` Se omitieron ${skipped.length} registros que ya existían.`;
     
-    res.status(201).json({ success: true, message: message, data: items });
+    res.status(201).json({ success: true, message, data: inserted, skipped });
   } catch (error) {
     if (error.code === '23503') {
       return res.status(400).json({ success: false, error: 'Uno o más material_id asignados en la carga masiva no existen.' });
