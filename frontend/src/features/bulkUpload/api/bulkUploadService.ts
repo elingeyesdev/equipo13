@@ -1,3 +1,4 @@
+import { read, utils } from 'xlsx';
 import { apiClient } from '../../../api/axiosConfig';
 import { BulkUploadResult, InventoryRecord, UploadTab } from '../types';
 
@@ -49,8 +50,6 @@ export const downloadCsvTemplate = (tab: UploadTab): void => {
   link.click();
   URL.revokeObjectURL(url);
 };
-
-import { read, utils } from 'xlsx';
 
 /**
  * Parses a File (CSV or XLSX) into an array of typed InventoryRecord objects.

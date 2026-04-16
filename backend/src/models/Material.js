@@ -6,9 +6,11 @@ class Material {
   // Lista materiales. Opcionalmente filtra por type ('Industrial', 'Biológico') o category
   static async findAll(filters = {}) {
     let query = `
-      SELECT m.*, u.name AS primary_unit_name, u.abbreviation AS primary_unit_abbreviation
+      SELECT m.*, u.name AS primary_unit_name, u.abbreviation AS primary_unit_abbreviation,
+             c.name AS category_name
       FROM materials m
       JOIN units u ON m.primary_unit_id = u.id
+      LEFT JOIN categories c ON m.category_id = c.id
       WHERE 1=1
     `;
     const params = [];
@@ -20,9 +22,9 @@ class Material {
       paramCounter++;
     }
     
-    if (filters.category) {
-      query += ` AND m.category = $${paramCounter}`;
-      params.push(filters.category);
+    if (filters.category_id) {
+      query += ` AND m.category_id = $${paramCounter}`;
+      params.push(filters.category_id);
       paramCounter++;
     }
 
@@ -35,9 +37,11 @@ class Material {
   // ── GET BY ID ────────────────────────────────────
   static async findById(id) {
     const { rows } = await db.query(
-      `SELECT m.*, u.name AS primary_unit_name, u.abbreviation AS primary_unit_abbreviation
+      `SELECT m.*, u.name AS primary_unit_name, u.abbreviation AS primary_unit_abbreviation,
+              c.name AS category_name
        FROM materials m
        JOIN units u ON m.primary_unit_id = u.id
+       LEFT JOIN categories c ON m.category_id = c.id
        WHERE m.id = $1`,
       [id]
     );
@@ -45,24 +49,24 @@ class Material {
   }
 
   // ── CREATE ───────────────────────────────────────
-  static async create({ id, sku, name, description, category, type, primary_unit_id, cost_standard, stage }) {
+  static async create({ id, sku, name, description, category_id, type, primary_unit_id, cost_standard, stage }) {
     const { rows } = await db.query(
-      `INSERT INTO materials (id, sku, name, description, category, type, primary_unit_id, cost_standard, stage)
+      `INSERT INTO materials (id, sku, name, description, category_id, type, primary_unit_id, cost_standard, stage)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [id, sku || null, name, description || null, category || null, type, primary_unit_id, cost_standard || null, stage || null]
+      [id, sku || null, name, description || null, category_id || null, type, primary_unit_id, cost_standard || null, stage || null]
     );
     return rows[0];
   }
 
   // ── UPDATE ───────────────────────────────────────
-  static async update(id, { sku, name, description, category, type, primary_unit_id, cost_standard, stage }) {
+  static async update(id, { sku, name, description, category_id, type, primary_unit_id, cost_standard, stage }) {
     const { rows } = await db.query(
       `UPDATE materials
-       SET sku = $1, name = $2, description = $3, category = $4, type = $5, primary_unit_id = $6, cost_standard = $7, stage = $8, updated_at = CURRENT_TIMESTAMP
+       SET sku = $1, name = $2, description = $3, category_id = $4, type = $5, primary_unit_id = $6, cost_standard = $7, stage = $8, updated_at = CURRENT_TIMESTAMP
        WHERE id = $9
        RETURNING *`,
-      [sku || null, name, description || null, category || null, type, primary_unit_id, cost_standard || null, stage || null, id]
+      [sku || null, name, description || null, category_id || null, type, primary_unit_id, cost_standard || null, stage || null, id]
     );
     return rows[0] || null;
   }

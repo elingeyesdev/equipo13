@@ -55,7 +55,7 @@ export const MaterialManagementPage = () => {
     setCategoryOptions((prev) => {
       const next = new Set(prev);
       items.forEach((m) => {
-        if (m.category) next.add(m.category);
+        if (m.category_name) next.add(m.category_name);
       });
       return Array.from(next).sort((a, b) => a.localeCompare(b, 'es'));
     });
@@ -78,10 +78,12 @@ export const MaterialManagementPage = () => {
   const loadMaterials = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: { type?: string; category?: string } = {};
+      const params: { type?: string; category_id?: string } = {};
       if (filterType) params.type = filterType;
-      if (filterCategory) params.category = filterCategory;
-      const matRes = await materialService.getAll(params);
+      // We are filtering by category_name in the frontend or we can wait for backend. 
+      // Actually backend filters by category_id. The dynamic filter here uses category_name strings... Wait, backend changed to category_id
+      // For now we'll do frontend filtering only for `filterCategory` since `filterCategory` is derived from `mergeCategoriesFrom`.
+      const matRes = await materialService.getAll({ type: filterType || undefined });
       setMaterials(matRes.data);
       mergeCategoriesFrom(matRes.data);
     } catch (error) {
@@ -115,17 +117,21 @@ export const MaterialManagementPage = () => {
   }, [refreshGlobalStats]);
 
   const filtered = useMemo(() => {
-    if (!searchTerm.trim()) return materials;
+    let result = materials;
+    if (filterCategory) {
+      result = result.filter(m => m.category_name === filterCategory);
+    }
+    if (!searchTerm.trim()) return result;
     const lower = searchTerm.toLowerCase();
-    return materials.filter(
+    return result.filter(
       (m) =>
         m.id.toLowerCase().includes(lower) ||
         m.name.toLowerCase().includes(lower) ||
         (m.sku && m.sku.toLowerCase().includes(lower)) ||
-        (m.category && m.category.toLowerCase().includes(lower)) ||
+        (m.category_name && m.category_name.toLowerCase().includes(lower)) ||
         (m.description && m.description.toLowerCase().includes(lower))
     );
-  }, [materials, searchTerm]);
+  }, [materials, searchTerm, filterCategory]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 
@@ -169,7 +175,7 @@ export const MaterialManagementPage = () => {
         primary_unit_id: payload.primary_unit_id,
         sku: payload.sku,
         description: payload.description,
-        category: payload.category,
+        category_id: payload.category_id,
         cost_standard: payload.cost_standard,
         stage: payload.stage,
       };
@@ -324,7 +330,7 @@ export const MaterialManagementPage = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paginated.map((m) => {
-              const catIcon = getCategoryIcon(m.category);
+              const catIcon = getCategoryIcon(m.category_name || null);
               const isBio = m.type === 'Biológico';
               return (
                 <div
@@ -340,7 +346,7 @@ export const MaterialManagementPage = () => {
                       }`}
                     >
                       {catIcon}
-                      <span className="truncate">{m.category || 'Sin categoría'}</span>
+                      <span className="truncate">{m.category_name || 'Sin categoría'}</span>
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-xs text-gray-400 font-mono hidden sm:inline max-w-[4.5rem] truncate">

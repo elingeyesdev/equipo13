@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale } from 'lucide-react';
+import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree } from 'lucide-react';
 
 const navigation = [
   {
@@ -14,6 +14,12 @@ const navigation = [
     href: '/materials',
     icon: Layers,
     subtitle: 'Seguimiento de insumos, precios y categorías activas',
+  },
+  {
+    name: 'Categorías y Agrupaciones',
+    href: '/categories',
+    icon: FolderTree,
+    subtitle: 'Gestión dinámica de tipos y familias de insumos/unidades',
   },
   {
     name: 'Carga Masiva',

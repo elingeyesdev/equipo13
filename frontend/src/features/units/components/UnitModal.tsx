@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Unit, CreateUnitPayload } from '../types';
 import { X } from 'lucide-react';
+import { categoryService } from '../../categories/api/categoryService';
+import { Category } from '../../categories/types';
 
 interface UnitModalProps {
   isOpen: boolean;
@@ -16,11 +18,19 @@ export const UnitModal: React.FC<UnitModalProps> = ({ isOpen, onClose, onSave, e
     name: '',
     abbreviation: '',
     base_unit_id: '',
-    category: 'Industrial',
+    type: 'Industrial',
+    category_id: null,
   });
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      categoryService.getAll('Units', formData.type).then(setCategories).catch(console.error);
+    }
+  }, [isOpen, formData.type]);
 
   useEffect(() => {
     if (editingUnit) {
@@ -29,7 +39,8 @@ export const UnitModal: React.FC<UnitModalProps> = ({ isOpen, onClose, onSave, e
         name: editingUnit.name,
         abbreviation: editingUnit.abbreviation,
         base_unit_id: editingUnit.base_unit_id || '',
-        category: editingUnit.category,
+        type: editingUnit.type,
+        category_id: editingUnit.category_id || null,
       });
     } else {
       setFormData({
@@ -37,7 +48,8 @@ export const UnitModal: React.FC<UnitModalProps> = ({ isOpen, onClose, onSave, e
         name: '',
         abbreviation: '',
         base_unit_id: '',
-        category: 'Industrial',
+        type: 'Industrial',
+        category_id: null,
       });
     }
     setError(null);
@@ -127,15 +139,28 @@ export const UnitModal: React.FC<UnitModalProps> = ({ isOpen, onClose, onSave, e
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Unidad</label>
                  <select
                    required
-                   value={formData.category}
-                   onChange={(e) => setFormData({ ...formData, category: e.target.value as 'Industrial' | 'Biológico' })}
+                   value={formData.type}
+                   onChange={(e) => setFormData({ ...formData, type: e.target.value as 'Industrial' | 'Biológico' })}
                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-professionalBlue focus:border-professionalBlue bg-white outline-none"
                  >
                    <option value="Industrial">Industrial</option>
                    <option value="Biológico">Biológico</option>
+                 </select>
+              </div>
+              <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoría General (Opcional)</label>
+                 <select
+                   value={formData.category_id || ''}
+                   onChange={(e) => setFormData({ ...formData, category_id: e.target.value ? Number(e.target.value) : null })}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-professionalBlue focus:border-professionalBlue bg-white text-sm outline-none cursor-pointer"
+                 >
+                   <option value="">Ninguna / Sin agrupar</option>
+                   {categories.map(c => (
+                     <option key={c.id} value={c.id}>{c.name}</option>
+                   ))}
                  </select>
               </div>
               <div>

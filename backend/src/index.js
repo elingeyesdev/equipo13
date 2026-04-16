@@ -21,11 +21,13 @@ const unitRoutes = require('./routes/unitRoutes');
 const materialRoutes = require('./routes/materialRoutes');
 const conversionRoutes = require('./routes/conversionRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 app.use('/api/units', unitRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/conversions', conversionRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // ── Ruta de health check ────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -43,5 +45,6 @@ app.listen(PORT, () => {
   console.log(`📦 API Materials:   http://localhost:${PORT}/api/materials`);
   console.log(`📦 API Conversions: http://localhost:${PORT}/api/conversions`);
   console.log(`📦 API Inventory:   http://localhost:${PORT}/api/inventory`);
+  console.log(`📦 API Categories:  http://localhost:${PORT}/api/categories`);
   console.log(`\n📚 Swagger Docs:    http://localhost:${PORT}/api-docs\n`);
 });

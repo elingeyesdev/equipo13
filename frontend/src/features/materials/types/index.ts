@@ -5,7 +5,8 @@ export interface Material {
   sku: string | null;
   name: string;
   description: string | null;
-  category: string | null;
+  category_id: number | null;
+  category_name?: string | null;
   type: MaterialType;
   primary_unit_id: string;
   primary_unit_name?: string | null;
@@ -23,7 +24,7 @@ export interface CreateMaterialPayload {
   primary_unit_id: string;
   sku?: string | null;
   description?: string | null;
-  category?: string | null;
+  category_id?: number | null;
   cost_standard?: number | null;
   stage?: string | null;
 }

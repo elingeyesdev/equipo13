@@ -4,6 +4,7 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { UnitManagementPage } from './features/units/pages/UnitManagementPage';
 import { MaterialManagementPage } from './features/materials/pages/MaterialManagementPage';
 import { BulkUploadPage } from './features/bulkUpload/pages/BulkUploadPage';
+import CategoryManagementPage from './features/categories/pages/CategoryManagementPage';
 
 import { ConversionManagementPage } from './features/conversions/pages/ConversionManagementPage';
 
@@ -15,6 +16,7 @@ function App() {
           <Route index element={<Navigate to="/units" replace />} />
           <Route path="units" element={<UnitManagementPage />} />
           <Route path="materials" element={<MaterialManagementPage />} />
+          <Route path="categories" element={<CategoryManagementPage />} />
           <Route path="upload" element={<BulkUploadPage />} />
           <Route path="conversions" element={<ConversionManagementPage />} />
         </Route>

@@ -5,7 +5,7 @@ exports.getAll = async (req, res) => {
   try {
     const filters = {};
     if (req.query.type) filters.type = req.query.type;
-    if (req.query.category) filters.category = req.query.category;
+    if (req.query.category_id) filters.category_id = req.query.category_id;
 
     const items = await Material.findAll(filters);
     res.json({ success: true, data: items, count: items.length });
@@ -32,7 +32,7 @@ exports.getById = async (req, res) => {
 // ── POST /api/materials ────────────────────────────────
 exports.create = async (req, res) => {
   try {
-    const { id, sku, name, description, category, type, primary_unit_id, cost_standard, stage } = req.body;
+    const { id, sku, name, description, category_id, type, primary_unit_id, cost_standard, stage } = req.body;
 
     // Validaciones
     if (!id || !name || !type || !primary_unit_id) {

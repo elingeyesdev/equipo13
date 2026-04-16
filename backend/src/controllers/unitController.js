@@ -4,8 +4,8 @@ const Unit = require('../models/Unit');
 // Lista todas las unidades. Soporta ?category=Industrial o ?category=Biológico
 exports.getAll = async (req, res) => {
   try {
-    const { category } = req.query;
-    const units = await Unit.findAll(category || null);
+    const { type, category_id } = req.query;
+    const units = await Unit.findAll(type || null, category_id || null);
     res.json({ success: true, data: units, count: units.length });
   } catch (error) {
     console.error('Error al obtener unidades:', error.message);
@@ -32,20 +32,20 @@ exports.getById = async (req, res) => {
 // Crea una nueva unidad de medida
 exports.create = async (req, res) => {
   try {
-    const { id, name, abbreviation, base_unit_id, category } = req.body;
+    const { id, name, abbreviation, base_unit_id, type, category_id } = req.body;
 
     // Validaciones
-    if (!id || !name || !abbreviation || !category) {
+    if (!id || !name || !abbreviation || !type) {
       return res.status(400).json({
         success: false,
-        error: 'Campos requeridos: id, name, abbreviation, category'
+        error: 'Campos requeridos: id, name, abbreviation, type'
       });
     }
 
-    if (!['Industrial', 'Biológico'].includes(category)) {
+    if (!['Industrial', 'Biológico'].includes(type)) {
       return res.status(400).json({
         success: false,
-        error: 'Categoría debe ser "Industrial" o "Biológico"'
+        error: 'El type debe ser "Industrial" o "Biológico"'
       });
     }
 
@@ -65,7 +65,7 @@ exports.create = async (req, res) => {
       });
     }
 
-    const unit = await Unit.create({ id, name, abbreviation, base_unit_id, category });
+    const unit = await Unit.create({ id, name, abbreviation, base_unit_id, type, category_id });
     res.status(201).json({ success: true, data: unit });
   } catch (error) {
     console.error('Error al crear unidad:', error.message);
@@ -78,20 +78,20 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, abbreviation, base_unit_id, category } = req.body;
+    const { name, abbreviation, base_unit_id, type, category_id } = req.body;
 
     // Validaciones
-    if (!name || !abbreviation || !category) {
+    if (!name || !abbreviation || !type) {
       return res.status(400).json({
         success: false,
-        error: 'Campos requeridos: name, abbreviation, category'
+        error: 'Campos requeridos: name, abbreviation, type'
       });
     }
 
-    if (!['Industrial', 'Biológico'].includes(category)) {
+    if (!['Industrial', 'Biológico'].includes(type)) {
       return res.status(400).json({
         success: false,
-        error: 'Categoría debe ser "Industrial" o "Biológico"'
+        error: 'El type debe ser "Industrial" o "Biológico"'
       });
     }
 
@@ -116,7 +116,7 @@ exports.update = async (req, res) => {
       }
     }
 
-    const unit = await Unit.update(id, { name, abbreviation, base_unit_id, category });
+    const unit = await Unit.update(id, { name, abbreviation, base_unit_id, type, category_id });
     res.json({ success: true, data: unit });
   } catch (error) {
     console.error('Error al actualizar unidad:', error.message);

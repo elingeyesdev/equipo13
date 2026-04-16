@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Material, CreateMaterialPayload } from '../types';
 import { Unit } from '../../units/types';
 import { X, Factory, Leaf } from 'lucide-react';
+import { categoryService } from '../../categories/api/categoryService';
+import { Category } from '../../categories/types';
 
 interface MaterialModalProps {
   isOpen: boolean;
@@ -18,7 +20,7 @@ const emptyForm = (): CreateMaterialPayload => ({
   primary_unit_id: '',
   sku: '',
   description: '',
-  category: '',
+  category_id: null,
   cost_standard: null,
   stage: '',
 });
@@ -34,6 +36,13 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
   const [costInput, setCostInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+       categoryService.getAll('Materials', formData.type).then(setCategories).catch(console.error);
+    }
+  }, [isOpen, formData.type]);
 
   useEffect(() => {
     if (editingMaterial) {
@@ -50,7 +59,7 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
         primary_unit_id: editingMaterial.primary_unit_id,
         sku: editingMaterial.sku ?? '',
         description: editingMaterial.description ?? '',
-        category: editingMaterial.category ?? '',
+        category_id: editingMaterial.category_id ?? null,
         cost_standard:
           cs === null || cs === undefined || cs === ''
             ? null
@@ -86,7 +95,6 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
         ...formData,
         sku: formData.sku === '' ? null : formData.sku,
         description: formData.description === '' ? null : formData.description,
-        category: formData.category === '' ? null : formData.category,
         stage: formData.stage === '' ? null : formData.stage,
         cost_standard: costNum,
       };
@@ -189,13 +197,16 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Categoría (opcional)</label>
-                <input
-                  type="text"
-                  value={formData.category ?? ''}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-professionalBlue/40 focus:border-professionalBlue text-sm bg-gray-50 hover:bg-white transition-colors"
-                  placeholder="Sanidad, Nutrición…"
-                />
+                <select
+                  value={formData.category_id || ''}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-professionalBlue/40 focus:border-professionalBlue text-sm bg-gray-50 hover:bg-white transition-colors cursor-pointer"
+                >
+                  <option value="">Ninguna / Sin categoría</option>
+                  {categories.map(c => (
+                     <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Unidad primaria</label>

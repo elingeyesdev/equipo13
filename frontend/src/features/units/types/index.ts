@@ -4,7 +4,9 @@ export interface Unit {
   abbreviation: string;
   base_unit_id: string | null;
   base_unit_name?: string | null;
-  category: 'Industrial' | 'Biológico';
+  type: 'Industrial' | 'Biológico';
+  category_id?: number | null;
+  category_name?: string | null;
   created_at?: string;
 }
 

@@ -53,7 +53,7 @@ export const UnitManagementPage = () => {
   useEffect(() => {
     let result = units;
     if (filterCategory) {
-      result = result.filter((u) => u.category === filterCategory);
+      result = result.filter((u) => u.type === filterCategory);
     }
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -132,13 +132,13 @@ export const UnitManagementPage = () => {
           },
           {
             label: 'Industriales',
-            value: units.filter((u) => u.category === 'Industrial').length,
+            value: units.filter((u) => u.type === 'Industrial').length,
             icon: <ShieldCheck size={20} className="text-professionalBlue" />,
             bg: 'bg-blue-50',
           },
           {
             label: 'Biológicos',
-            value: units.filter((u) => u.category === 'Biológico').length,
+            value: units.filter((u) => u.type === 'Biológico').length,
             icon: <Sprout size={20} className="text-agroGreen" />,
             bg: 'bg-green-50',
           },
@@ -264,22 +264,25 @@ export const UnitManagementPage = () => {
                         {unit.abbreviation}
                       </span>
                     </td>
-                    {/* Category */}
+                    {/* Category (Type) */}
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                          unit.category === 'Biológico'
+                          unit.type === 'Biológico'
                             ? 'bg-green-50 text-agroGreen border-green-200'
                             : 'bg-blue-50 text-professionalBlue border-blue-200'
                         }`}
                       >
-                        {unit.category === 'Biológico' ? (
+                        {unit.type === 'Biológico' ? (
                           <Sprout className="w-3 h-3" />
                         ) : (
                           <ShieldCheck className="w-3 h-3" />
                         )}
-                        {unit.category}
+                        {unit.type}
                       </span>
+                      {unit.category_name && (
+                         <span className="block mt-1 text-xs text-gray-500 font-medium">Cat: {unit.category_name}</span>
+                      )}
                     </td>
                     {/* Base unit */}
                     <td className="px-6 py-4 text-gray-500">

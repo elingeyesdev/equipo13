@@ -3,21 +3,31 @@ const db = require('../config/db');
 class Unit {
 
   // ── GET ALL ──────────────────────────────────────
-  // Obtiene todas las unidades, opcionalmente filtradas por categoría
-  static async findAll(category = null) {
+  // Obtiene todas las unidades, opcionalmente filtradas por type y category_id
+  static async findAll(type = null, category_id = null) {
     let query = `
-      SELECT u.*, bu.name AS base_unit_name
+      SELECT u.*, bu.name AS base_unit_name, c.name AS category_name
       FROM units u
       LEFT JOIN units bu ON u.base_unit_id = bu.id
+      LEFT JOIN categories c ON u.category_id = c.id
+      WHERE 1=1
     `;
     const params = [];
+    let paramCounter = 1;
 
-    if (category) {
-      query += ' WHERE u.category = $1';
-      params.push(category);
+    if (type) {
+      query += ` AND u.type = $${paramCounter}`;
+      params.push(type);
+      paramCounter++;
     }
 
-    query += ' ORDER BY u.category, u.name';
+    if (category_id) {
+       query += ` AND u.category_id = $${paramCounter}`;
+       params.push(category_id);
+       paramCounter++;
+    }
+
+    query += ' ORDER BY u.type, u.name';
 
     const { rows } = await db.query(query, params);
     return rows;
@@ -26,9 +36,10 @@ class Unit {
   // ── GET BY ID ────────────────────────────────────
   static async findById(id) {
     const { rows } = await db.query(
-      `SELECT u.*, bu.name AS base_unit_name
+      `SELECT u.*, bu.name AS base_unit_name, c.name AS category_name
        FROM units u
        LEFT JOIN units bu ON u.base_unit_id = bu.id
+       LEFT JOIN categories c ON u.category_id = c.id
        WHERE u.id = $1`,
       [id]
     );
@@ -36,24 +47,24 @@ class Unit {
   }
 
   // ── CREATE ───────────────────────────────────────
-  static async create({ id, name, abbreviation, base_unit_id, category }) {
+  static async create({ id, name, abbreviation, base_unit_id, type, category_id }) {
     const { rows } = await db.query(
-      `INSERT INTO units (id, name, abbreviation, base_unit_id, category)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO units (id, name, abbreviation, base_unit_id, type, category_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [id, name, abbreviation, base_unit_id || null, category]
+      [id, name, abbreviation, base_unit_id || null, type, category_id || null]
     );
     return rows[0];
   }
 
   // ── UPDATE ───────────────────────────────────────
-  static async update(id, { name, abbreviation, base_unit_id, category }) {
+  static async update(id, { name, abbreviation, base_unit_id, type, category_id }) {
     const { rows } = await db.query(
       `UPDATE units
-       SET name = $1, abbreviation = $2, base_unit_id = $3, category = $4
-       WHERE id = $5
+       SET name = $1, abbreviation = $2, base_unit_id = $3, type = $4, category_id = $5
+       WHERE id = $6
        RETURNING *`,
-      [name, abbreviation, base_unit_id || null, category, id]
+      [name, abbreviation, base_unit_id || null, type, category_id || null, id]
     );
     return rows[0] || null;
   }
