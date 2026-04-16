@@ -22,6 +22,7 @@ export interface BulkUploadResult {
   message?: string;
   error?: string;
   data?: InventoryRecord[];
+  skipped?: string[];   // batch_numbers que ya existían en la BD
 }
 
 /** One parsed row from CSV (all string values before conversion) */

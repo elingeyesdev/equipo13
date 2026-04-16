@@ -56,7 +56,9 @@ class InventoryBatch {
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
-      const results = [];
+      const inserted = [];
+      const skipped = [];   // batch_numbers omitidos por duplicado
+
       for (const batch of batches) {
         if (!batch.entry_date) {
           batch.entry_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -70,13 +72,15 @@ class InventoryBatch {
            RETURNING *`,
           [batch.batch_number, batch.material_id, batch.quantity, batch.location || null, batch.acquisition_cost || null, batch.entry_date || null, batch.initial_weight || null]
         );
-        
+
         if (rows[0]) {
-          results.push(rows[0]);
+          inserted.push(rows[0]);
+        } else {
+          skipped.push(batch.batch_number); // registrar cuál fue duplicado
         }
       }
       await client.query('COMMIT');
-      return results;
+      return { inserted, skipped };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
