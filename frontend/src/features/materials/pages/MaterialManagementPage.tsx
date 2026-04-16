@@ -19,7 +19,10 @@ import {
   Syringe,
   Bug,
   Package,
+  Star,
+  StarOff,
 } from 'lucide-react';
+import { loadFavoriteMaterialIds, saveFavoriteMaterialIds } from '../../../utils/favorites';
 
 const PAGE_SIZE = 12;
 
@@ -45,6 +48,7 @@ export const MaterialManagementPage = () => {
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [favoriteMaterialIds, setFavoriteMaterialIds] = useState<Set<string>>(() => loadFavoriteMaterialIds());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -115,17 +119,41 @@ export const MaterialManagementPage = () => {
   }, [refreshGlobalStats]);
 
   const filtered = useMemo(() => {
-    if (!searchTerm.trim()) return materials;
-    const lower = searchTerm.toLowerCase();
-    return materials.filter(
-      (m) =>
-        m.id.toLowerCase().includes(lower) ||
-        m.name.toLowerCase().includes(lower) ||
-        (m.sku && m.sku.toLowerCase().includes(lower)) ||
-        (m.category && m.category.toLowerCase().includes(lower)) ||
-        (m.description && m.description.toLowerCase().includes(lower))
-    );
-  }, [materials, searchTerm]);
+    let result = materials;
+    if (filterCategory) {
+      result = result.filter(m => m.category === filterCategory);
+    }
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(
+        (m) =>
+          m.id.toLowerCase().includes(lower) ||
+          m.name.toLowerCase().includes(lower) ||
+          (m.sku && m.sku.toLowerCase().includes(lower)) ||
+          (m.category && m.category.toLowerCase().includes(lower)) ||
+          (m.description && m.description.toLowerCase().includes(lower))
+      );
+    }
+
+    const sorted = [...result].sort((a, b) => {
+      const af = favoriteMaterialIds.has(a.id);
+      const bf = favoriteMaterialIds.has(b.id);
+      if (af !== bf) return bf ? 1 : -1; // favoritos primero
+      return a.name.localeCompare(b.name, 'es');
+    });
+
+    return sorted;
+  }, [materials, searchTerm, filterCategory, favoriteMaterialIds]);
+
+  const toggleMaterialFavorite = (materialId: string) => {
+    setFavoriteMaterialIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(materialId)) next.delete(materialId);
+      else next.add(materialId);
+      saveFavoriteMaterialIds(next);
+      return next;
+    });
+  };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 
@@ -347,6 +375,22 @@ export const MaterialManagementPage = () => {
                         {m.id}
                       </span>
                       <div className="flex items-center gap-0.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => toggleMaterialFavorite(m.id)}
+                          className={`p-1 text-gray-400 hover:bg-blue-50 hover:text-professionalBlue rounded transition-colors ${
+                            favoriteMaterialIds.has(m.id)
+                              ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50'
+                              : ''
+                          }`}
+                          title={favoriteMaterialIds.has(m.id) ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                        >
+                          {favoriteMaterialIds.has(m.id) ? (
+                            <Star className="w-[15px] h-[15px]" fill="currentColor" />
+                          ) : (
+                            <StarOff className="w-[15px] h-[15px]" />
+                          )}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {

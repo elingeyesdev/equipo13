@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { unitService } from '../api/unitService';
 import { Unit } from '../types';
 import { UnitModal } from '../components/UnitModal';
-import { Plus, Pencil, Trash2, Search, FilterX, ShieldCheck, Sprout } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, FilterX, ShieldCheck, Sprout, Star, StarOff } from 'lucide-react';
+import { loadFavoriteUnitIds, saveFavoriteUnitIds } from '../../../utils/favorites';
 
 export const UnitManagementPage = () => {
   const [units, setUnits] = useState<Unit[]>([]);
@@ -10,6 +11,7 @@ export const UnitManagementPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [favoriteUnitIds, setFavoriteUnitIds] = useState<Set<string>>(() => loadFavoriteUnitIds());
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,8 +47,24 @@ export const UnitManagementPage = () => {
         u.id.toLowerCase().includes(lower)
       );
     }
-    setFilteredUnits(result);
-  }, [searchTerm, filterCategory, units]);
+    const sorted = [...result].sort((a, b) => {
+      const af = favoriteUnitIds.has(a.id);
+      const bf = favoriteUnitIds.has(b.id);
+      if (af !== bf) return bf ? 1 : -1; // favoritos primero
+      return a.name.localeCompare(b.name, 'es');
+    });
+    setFilteredUnits(sorted);
+  }, [searchTerm, filterCategory, units, favoriteUnitIds]);
+
+  const toggleUnitFavorite = (unitId: string) => {
+    setFavoriteUnitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(unitId)) next.delete(unitId);
+      else next.add(unitId);
+      saveFavoriteUnitIds(next);
+      return next;
+    });
+  };
 
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`¿Estás seguro de que deseas eliminar la unidad "${name}"?`)) {
@@ -188,15 +206,33 @@ export const UnitManagementPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          id={`btn-fav-${unit.id}`}
+                          onClick={() => toggleUnitFavorite(unit.id)}
+                          className={`p-1.5 rounded-md transition-colors ${
+                            favoriteUnitIds.has(unit.id)
+                              ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50'
+                              : 'text-gray-400 hover:text-professionalBlue hover:bg-blue-50'
+                          }`}
+                          title={favoriteUnitIds.has(unit.id) ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                        >
+                          {favoriteUnitIds.has(unit.id) ? (
+                            <Star className="w-4 h-4" fill="currentColor" />
+                          ) : (
+                            <StarOff className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          id={`btn-edit-${unit.id}`}
                           onClick={() => openEditModal(unit)}
                           className="p-1.5 text-gray-400 hover:text-professionalBlue hover:bg-blue-50 rounded-md transition-colors"
                           title="Editar Unidad"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(unit.id, unit.name)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                           title="Eliminar Unidad"
