@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Material, CreateMaterialPayload } from '../types';
 import { Unit } from '../../units/types';
 import { X, Factory, Leaf } from 'lucide-react';
 import { categoryService } from '../../categories/api/categoryService';
 import { Category } from '../../categories/types';
+import { loadFavoriteUnitIds } from '../../../utils/favorites';
 
 interface MaterialModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [favoriteUnitIds, setFavoriteUnitIds] = useState<Set<string>>(() => loadFavoriteUnitIds());
 
   useEffect(() => {
     if (isOpen) {
@@ -74,6 +76,22 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
     }
     setError(null);
   }, [editingMaterial, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Re-load favorites when opening, so unit ordering stays in sync with changes from the Units page.
+    setFavoriteUnitIds(loadFavoriteUnitIds());
+  }, [isOpen]);
+
+  const sortedUnits = useMemo(() => {
+    const sorted = [...units].sort((a, b) => {
+      const af = favoriteUnitIds.has(a.id);
+      const bf = favoriteUnitIds.has(b.id);
+      if (af !== bf) return bf ? 1 : -1;
+      return a.name.localeCompare(b.name, 'es');
+    });
+    return sorted;
+  }, [units, favoriteUnitIds]);
 
   if (!isOpen) return null;
 
@@ -217,7 +235,7 @@ export const MaterialModal: React.FC<MaterialModalProps> = ({
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-professionalBlue/40 focus:border-professionalBlue text-sm bg-gray-50 hover:bg-white cursor-pointer"
                 >
                   <option value="">Seleccionar…</option>
-                  {units.map((u) => (
+                  {sortedUnits.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.abbreviation})
                     </option>
