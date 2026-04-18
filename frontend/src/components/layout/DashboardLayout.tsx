@@ -1,43 +1,72 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree } from 'lucide-react';
+import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree, Package } from 'lucide-react';
 
-const navigation = [
+const navigationGroups = [
   {
-    name: 'Unidades de Medida',
-    href: '/units',
-    icon: Scale,
-    subtitle: 'Unidades estándar y personalizadas para producción e inventario',
+    title: 'Catálogos Base',
+    items: [
+      {
+        name: 'Unidades de Medida',
+        href: '/units',
+        icon: Scale,
+        subtitle: 'Unidades estándar y personalizadas para producción e inventario',
+      },
+      {
+        name: 'Categorías y Agrupaciones',
+        href: '/categories',
+        icon: FolderTree,
+        subtitle: 'Gestión dinámica de tipos y familias de insumos/unidades',
+      },
+      {
+        name: 'Equivalencias y Conversiones',
+        href: '/conversions',
+        icon: LayoutDashboard,
+        subtitle: 'Factores de conversión para costeo preciso',
+      },
+    ],
   },
   {
-    name: 'Insumos y Materia Prima',
-    href: '/materials',
-    icon: Layers,
-    subtitle: 'Seguimiento de insumos, precios y categorías activas',
+    title: 'Inventario y Materiales',
+    items: [
+      {
+        name: 'Insumos y Materia Prima',
+        href: '/materials',
+        icon: Layers,
+        subtitle: 'Seguimiento de insumos, precios y categorías activas',
+      },
+      {
+        name: 'Control de Lotes / Inventario',
+        href: '/inventory',
+        icon: Package,
+        subtitle: 'Visualización y gestión de existencias de lotes',
+      },
+      {
+        name: 'Carga Masiva',
+        href: '/upload',
+        icon: CloudUpload,
+        subtitle: 'Importación masiva de inventario industrial y lotes biológicos',
+      },
+    ],
   },
   {
-    name: 'Categorías y Agrupaciones',
-    href: '/categories',
-    icon: FolderTree,
-    subtitle: 'Gestión dinámica de tipos y familias de insumos/unidades',
-  },
-  {
-    name: 'Carga Masiva',
-    href: '/upload',
-    icon: CloudUpload,
-    subtitle: 'Importación masiva de inventario industrial y lotes biológicos',
-  },
-  {
-    name: 'Equivalencias y Conversiones',
-    href: '/conversions',
-    icon: LayoutDashboard,
-    subtitle: 'Factores de conversión para costeo preciso',
+    title: 'Ingeniería de Producto',
+    items: [
+      {
+        name: 'Fases de Transformación',
+        href: '/production-stages',
+        icon: Layers,
+        subtitle: 'Configuración y secuencia de etapas de producción',
+      },
+    ],
   },
 ];
 
+const allNavigation = navigationGroups.flatMap((g) => g.items);
+
 export const DashboardLayout = () => {
   const location = useLocation();
-  const currentPage = navigation.find((n) => location.pathname.startsWith(n.href));
+  const currentPage = allNavigation.find((n) => location.pathname.startsWith(n.href));
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50 font-sans antialiased">
@@ -54,32 +83,38 @@ export const DashboardLayout = () => {
           </div>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto hide-scrollbar">
-          <p className="px-3 mb-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Módulos</p>
-          {navigation.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-professionalBlue text-white shadow-sm'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icon
-                    className={`w-[18px] h-[18px] shrink-0 ${
-                      isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
-                    }`}
-                  />
-                  <span className="font-medium text-sm flex-1 leading-snug">{item.name}</span>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" />}
-                </>
-              )}
-            </NavLink>
+        <nav className="flex-1 py-6 px-3 space-y-6 overflow-y-auto hide-scrollbar">
+          {navigationGroups.map((group) => (
+            <div key={group.title}>
+              <p className="px-3 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">{group.title}</p>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
+                        isActive
+                          ? 'bg-professionalBlue text-white shadow-sm'
+                          : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon
+                          className={`w-[18px] h-[18px] shrink-0 ${
+                            isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                          }`}
+                        />
+                        <span className="font-medium text-sm flex-1 leading-snug">{item.name}</span>
+                        {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" />}
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

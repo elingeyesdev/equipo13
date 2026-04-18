@@ -76,8 +76,8 @@ export const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClos
   };
 
   // Group units by category for a cleaner dropdown
-  const industrialUnits = units.filter(u => u.category === 'Industrial');
-  const biologicalUnits = units.filter(u => u.category === 'Biológico');
+  const industrialUnits = units.filter(u => u.type === 'Industrial');
+  const biologicalUnits = units.filter(u => u.type === 'Biológico');
 
   const renderUnitOptions = () => (
     <>

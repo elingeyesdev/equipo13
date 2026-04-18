@@ -419,6 +419,13 @@ export const MaterialManagementPage = () => {
                   <h3 className="text-base font-bold text-charcoal mb-1 leading-tight group-hover:text-professionalBlue transition-colors line-clamp-2">
                     {m.name}
                   </h3>
+                  {m.sku && (
+                    <div className="mb-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                        SKU: {m.sku}
+                      </span>
+                    </div>
+                  )}
                   {m.description && (
                     <p className="text-xs text-gray-400 mb-2 line-clamp-2">{m.description}</p>
                   )}

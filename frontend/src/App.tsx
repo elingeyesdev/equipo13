@@ -5,8 +5,9 @@ import { UnitManagementPage } from './features/units/pages/UnitManagementPage';
 import { MaterialManagementPage } from './features/materials/pages/MaterialManagementPage';
 import { BulkUploadPage } from './features/bulkUpload/pages/BulkUploadPage';
 import CategoryManagementPage from './features/categories/pages/CategoryManagementPage';
-
 import { ConversionManagementPage } from './features/conversions/pages/ConversionManagementPage';
+import ProductionStageManagementPage from './features/productionStages/pages/ProductionStageManagementPage';
+import { InventoryManagementPage } from './features/inventory/pages/InventoryManagementPage';
 
 function App() {
   return (
@@ -19,6 +20,8 @@ function App() {
           <Route path="categories" element={<CategoryManagementPage />} />
           <Route path="upload" element={<BulkUploadPage />} />
           <Route path="conversions" element={<ConversionManagementPage />} />
+          <Route path="production-stages" element={<ProductionStageManagementPage />} />
+          <Route path="inventory" element={<InventoryManagementPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
