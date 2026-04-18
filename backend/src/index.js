@@ -23,6 +23,7 @@ const conversionRoutes = require('./routes/conversionRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const productionStageRoutes = require('./routes/productionStageRoutes');
+const bomRoutes = require('./routes/bomRoutes');
 
 app.use('/api/units', unitRoutes);
 app.use('/api/materials', materialRoutes);
@@ -30,6 +31,7 @@ app.use('/api/conversions', conversionRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/production-stages', productionStageRoutes);
+app.use('/api/boms', bomRoutes);
 
 // ── Ruta de health check ────────────────────────────
 app.get('/api/health', (req, res) => {

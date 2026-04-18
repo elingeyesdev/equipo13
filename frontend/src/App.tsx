@@ -8,6 +8,7 @@ import CategoryManagementPage from './features/categories/pages/CategoryManageme
 import { ConversionManagementPage } from './features/conversions/pages/ConversionManagementPage';
 import ProductionStageManagementPage from './features/productionStages/pages/ProductionStageManagementPage';
 import { InventoryManagementPage } from './features/inventory/pages/InventoryManagementPage';
+import { BomCalculatorPage } from './features/bom/pages/BomCalculatorPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="upload" element={<BulkUploadPage />} />
           <Route path="conversions" element={<ConversionManagementPage />} />
           <Route path="production-stages" element={<ProductionStageManagementPage />} />
+          <Route path="bom" element={<BomCalculatorPage />} />
           <Route path="inventory" element={<InventoryManagementPage />} />
         </Route>
       </Routes>

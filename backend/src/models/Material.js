@@ -73,6 +73,11 @@ class Material {
 
   // ── DELETE ───────────────────────────────────────
   static async delete(id) {
+    const { rows: bomUse } = await db.query('SELECT id FROM boms WHERE product_id = $1 LIMIT 1', [id]);
+    if (bomUse.length > 0) {
+      throw new Error('No se puede eliminar: Existe una lista BOM (receta) asociada a este producto.');
+    }
+
     // Verificar si hay lotes en inventario unidos a este material
     const { rows: inventory } = await db.query(
       'SELECT id FROM inventory_batches WHERE material_id = $1 LIMIT 1',

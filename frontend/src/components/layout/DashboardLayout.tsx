@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree, Package } from 'lucide-react';
+import { Box, Calculator, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree, Package } from 'lucide-react';
 
 const navigationGroups = [
   {
@@ -57,6 +57,12 @@ const navigationGroups = [
         href: '/production-stages',
         icon: Layers,
         subtitle: 'Configuración y secuencia de etapas de producción',
+      },
+      {
+        name: 'Calculadora BOM',
+        href: '/bom',
+        icon: Calculator,
+        subtitle: 'Insumos y cantidades por etapa para cada producto terminado',
       },
     ],
   },
