@@ -7,6 +7,7 @@ import { BulkUploadPage } from './features/bulkUpload/pages/BulkUploadPage';
 import CategoryManagementPage from './features/categories/pages/CategoryManagementPage';
 import { ConversionManagementPage } from './features/conversions/pages/ConversionManagementPage';
 import ProductionStageManagementPage from './features/productionStages/pages/ProductionStageManagementPage';
+import ProductionTemplateManagementPage from './features/productionTemplates/pages/ProductionTemplateManagementPage';
 import { InventoryManagementPage } from './features/inventory/pages/InventoryManagementPage';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="upload" element={<BulkUploadPage />} />
           <Route path="conversions" element={<ConversionManagementPage />} />
           <Route path="production-stages" element={<ProductionStageManagementPage />} />
+          <Route path="templates" element={<ProductionTemplateManagementPage />} />
           <Route path="inventory" element={<InventoryManagementPage />} />
         </Route>
       </Routes>

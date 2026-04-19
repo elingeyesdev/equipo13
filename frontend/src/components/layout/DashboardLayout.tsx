@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree, Package } from 'lucide-react';
+import { Box, ChevronRight, CloudUpload, Layers, LayoutDashboard, Scale, FolderTree, Package, LayoutTemplate } from 'lucide-react';
 
 const navigationGroups = [
   {
@@ -57,6 +57,12 @@ const navigationGroups = [
         href: '/production-stages',
         icon: Layers,
         subtitle: 'Configuración y secuencia de etapas de producción',
+      },
+      {
+        name: 'Plantillas de Rubro',
+        href: '/templates',
+        icon: LayoutTemplate,
+        subtitle: 'Modelos predefinidos de costeo (Agro, Talleres, Industria)',
       },
     ],
   },
