@@ -11,6 +11,7 @@ import {
 import { ProductionTemplate, CreateTemplatePayload, TemplateType } from '../types';
 import { productionTemplateService } from '../api/productionTemplateService';
 import { ProductionTemplateModal } from '../components/ProductionTemplateModal';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 // ── Predefined model cards shown at the top ─────────────────────────────────
 const PREDEFINED_MODELS: { name: string; type: TemplateType; description: string }[] = [
@@ -73,6 +74,9 @@ export default function ProductionTemplateManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ProductionTemplate | null>(null);
 
+  // Delete confirm modal state
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+
   // Toast
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const showNotification = useCallback((type: 'success' | 'error', msg: string) => {
@@ -109,8 +113,14 @@ export default function ProductionTemplateManagementPage() {
     loadTemplates();
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar la plantilla "${name}"?`)) return;
+  const handleDeleteRequest = (id: number, name: string) => {
+    setDeleteTarget({ id, name });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const { id, name } = deleteTarget;
+    setDeleteTarget(null);
     try {
       await productionTemplateService.delete(id);
       showNotification('success', `Plantilla "${name}" eliminada.`);
@@ -317,7 +327,7 @@ export default function ProductionTemplateManagementPage() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(tpl.id, tpl.name)}
+                    onClick={() => handleDeleteRequest(tpl.id, tpl.name)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Eliminar"
                   >
@@ -337,6 +347,13 @@ export default function ProductionTemplateManagementPage() {
         onSave={handleSave}
         editingTemplate={editingTemplate}
         defaultType={activeTab}
+      />
+
+      <DeleteConfirmModal
+        isOpen={!!deleteTarget}
+        templateName={deleteTarget?.name ?? ''}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );
