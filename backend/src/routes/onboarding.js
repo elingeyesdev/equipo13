@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.js';
+import { status, completar } from '../controllers/onboardingController.js';
 
 const router = Router();
 
-// GET  /api/onboarding/status     — implementado en S-1
-// POST /api/onboarding/completar  — implementado en S-1
+router.get('/status', authMiddleware, status);
+router.post('/completar', authMiddleware, completar);
 
 export default router;

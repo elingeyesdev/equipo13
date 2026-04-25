@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.js';
+import { getAll, create, getOne, update } from '../controllers/negocioController.js';
 
 const router = Router();
 
-// GET  /api/negocios        — implementado en S-1
-// POST /api/negocios        — implementado en S-1
-// GET  /api/negocios/:id    — implementado en S-1
-// PUT  /api/negocios/:id    — implementado en S-1
+router.get('/', authMiddleware, getAll);
+router.post('/', authMiddleware, create);
+router.get('/:id', authMiddleware, getOne);
+router.put('/:id', authMiddleware, update);
 
 export default router;
