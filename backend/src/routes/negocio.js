@@ -1,4 +1,13 @@
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.js';
+import { negocioOwner } from '../middleware/negocioOwner.js';
+import {
+  getInsumos,
+  getInsumoById,
+  createInsumo,
+  updateInsumo,
+  archivarInsumo
+} from '../controllers/insumoController.js';
 
 const router = Router();
 
@@ -13,5 +22,11 @@ const router = Router();
 // Fichas      — D-2
 // Lotes       — L-3
 // Bitácora    — L-3
+
+router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
+router.get('/:negocioId/insumos/:id', authMiddleware, negocioOwner, getInsumoById);
+router.post('/:negocioId/insumos', authMiddleware, negocioOwner, createInsumo);
+router.put('/:negocioId/insumos/:id', authMiddleware, negocioOwner, updateInsumo);
+router.patch('/:negocioId/insumos/:id/archivar', authMiddleware, negocioOwner, archivarInsumo);
 
 export default router;
