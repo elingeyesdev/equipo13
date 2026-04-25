@@ -1,0 +1,711 @@
+Guía de implementación — Sprint 2
+CosteoUniversal · Entrega 28/04
+Estado de partida y alcance
+Fechas: Viernes 24 (tarde) → Lunes 27 (noche) → Presentación martes 28  
+Equipo: Jairo, Sebastián, Gerardo (vos)  
+Método: Vibe-coding con Claude Code / Antigravity. Cada tarea es un prompt autocontenido.
+Lo que entra en este sprint:
+Setup completo desde cero (DB + backend + frontend)
+Autenticación (registro/login)
+Onboarding guiado con plantilla industrial láctea
+CRUD: negocios, unidades, categorías, proveedores, insumos, productos
+Receta/BOM por producto
+Etapas de producción por producto
+Motor de cálculo MPD + MOD (solo eso — sin CIF, sin PE, sin WIP, sin margen)
+Rubro ganadero: Lotes + Bitácora (UI conectada, sin motor de cálculo aún)
+Lo que NO entra (queda en mockup como "próximamente"):
+CIF, Punto de equilibrio, WIP, margen/utilidad → Sprint 3
+Motor de cálculo para ganadería → Sprint 3
+Roles de operario → Sprint 3
+---
+Stack y estructura de carpetas
+Backend (Node.js + Express, MVC estilo Laravel):
+```
+backend/
+├── src/
+│   ├── config/
+│   │   └── database.js          ← pool de conexión PostgreSQL
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── negocioController.js
+│   │   ├── onboardingController.js
+│   │   ├── unidadController.js
+│   │   ├── categoriaController.js
+│   │   ├── proveedorController.js
+│   │   ├── insumoController.js
+│   │   ├── productoController.js
+│   │   ├── bomController.js
+│   │   ├── etapaController.js
+│   │   ├── fichaController.js
+│   │   └── loteController.js
+│   ├── models/
+│   │   └── (queries SQL, una función por operación)
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── negocios.js
+│   │   ├── onboarding.js
+│   │   └── negocio.js           ← rutas bajo /api/negocios/:negocioId/...
+│   ├── middleware/
+│   │   ├── auth.js              ← verifica JWT
+│   │   └── negocioOwner.js      ← verifica que el negocio pertenece al usuario
+│   └── services/
+│       ├── calculoCosto.js      ← lógica pura de MPD+MOD
+│       └── seedPlantilla.js     ← aplica datos demo por plantilla
+├── migrations/
+│   └── 001_initial_schema.sql
+├── seeds/
+│   └── industria_lactea.js
+├── .env.example
+├── app.js
+└── package.json
+```
+Frontend (React 19 + Vite):
+Generado mayormente por el Handoff de Claude Design. La estructura que exporta Claude Design es compatible con Vite directamente. Solo hay que conectar los endpoints.
+---
+Diagrama de dependencias críticas
+```
+[DB-1 Schema] 
+    ↓
+[B-1 Setup + Auth] ──────────────────────────────────┐
+    ↓                                                  │
+[B-2 Negocios + Onboarding + Seeds]                   │
+    ↓                                                  │
+[B-3 Unidades + Categorías + Proveedores]             │
+    ↓                                                  │
+[B-4 Insumos]                                         │
+    ↓                                                  │
+[B-5 Productos + BOM + Etapas]                        │
+    ↓                                                  │
+[B-6 Motor MPD+MOD]                                   │
+    ↓                              ↓                   │
+[F-1 Handoff Claude Design] → [F-2 Integración] ←────┘
+    ↓
+[B-7 Lotes + Bitácora (agro)]
+    ↓
+[TESTING + BUGFIXES]
+```
+---
+VIERNES 24 — Tarde (4 horas disponibles)
+Meta del día: Proyecto corriendo, DB creada, auth funcionando
+---
+TAREA V-1 · Setup del proyecto desde cero
+Asignado a: Jairo  
+Tiempo: 1.5h  
+Depende de: nada  
+Bloquea: todo lo demás
+Qué hacer:
+Inicializar el monorepo desde cero. Borrar lo anterior.
+```
+proyecto/
+├── backend/   ← Node.js + Express
+└── frontend/  ← React 19 + Vite (se genera después con Claude Design Handoff)
+```
+Prompt para Claude Code:
+> "Inicializa un proyecto backend Node.js + Express con esta estructura de carpetas estilo MVC: [pegar estructura de arriba]. Instala: express, pg, bcryptjs, jsonwebtoken, dotenv, cors. Crea el archivo `.env.example` con estas variables: DATABASE_URL, JWT_SECRET, PORT=3000. Crea `app.js` con Express configurado, CORS habilitado, body-parser JSON, y un endpoint GET /health que devuelva `{ status: 'ok', timestamp: new Date() }`. Usa ESModules (type: module en package.json). No conectes la base de datos todavía."
+Definition of Done:
+`npm start` corre sin errores
+`GET /health` devuelve 200
+Estructura de carpetas creada correctamente
+`.env.example` existe con las variables
+---
+TAREA V-2 · Schema de base de datos
+Asignado a: Gerardo  
+Tiempo: 1.5h  
+Depende de: V-1 (solo necesita el archivo, no que corra)  
+Bloquea: V-3
+Qué hacer:
+Crear el archivo de migración SQL completo.
+Prompt para Claude Code:
+> "Crea el archivo `backend/migrations/001_initial_schema.sql` con este schema PostgreSQL. Todas las PKs son UUID con `DEFAULT gen_random_uuid()`. Todas las tablas tienen `created_at TIMESTAMP DEFAULT NOW()`.
+>
+> Tablas en este orden exacto (respetar dependencias FK):
+>
+> 1. `users`: id, email (unique not null), password_hash (not null), nombre, onboarding_completado (boolean default false)
+>
+> 2. `negocios`: id, user_id (FK users), nombre (not null), rubro (varchar CHECK IN 'industrial','agro_ganadero'), sub_rubro varchar, plantilla varchar, moneda varchar default 'BOB', activo boolean default true
+>
+> 3. `unidades_medida`: id, negocio_id (FK negocios CASCADE), nombre not null, simbolo not null, tipo varchar (peso/volumen/cantidad/longitud/tiempo)
+>
+> 4. `equivalencias_unidades`: id, negocio_id (FK negocios CASCADE), unidad_origen_id (FK unidades_medida), unidad_destino_id (FK unidades_medida), factor DECIMAL(18,8) not null
+>
+> 5. `categorias_insumos`: id, negocio_id (FK negocios CASCADE), nombre not null, color varchar, descripcion text
+>
+> 6. `proveedores`: id, negocio_id (FK negocios CASCADE), nombre not null, contacto varchar, telefono varchar, email varchar, notas text, activo boolean default true
+>
+> 7. `insumos`: id, negocio_id (FK negocios CASCADE), nombre not null, codigo_sku varchar, categoria_id (FK categorias_insumos nullable), unidad_id (FK unidades_medida nullable), precio_unitario DECIMAL(18,4) default 0, proveedor_id (FK proveedores nullable), es_variable boolean default true, activo boolean default true, notas text
+>
+> 8. `productos`: id, negocio_id (FK negocios CASCADE), nombre not null, codigo_sku varchar, descripcion text, unidad_id (FK unidades_medida nullable), activo boolean default true
+>
+> 9. `bom_items`: id, producto_id (FK productos CASCADE), insumo_id (FK insumos), cantidad DECIMAL(18,6) not null, unidad_id (FK unidades_medida nullable), orden int default 0
+>
+> 10. `etapas_produccion`: id, producto_id (FK productos CASCADE), nombre not null, descripcion text, tiempo_minutos DECIMAL(10,4) not null, costo_hora DECIMAL(18,4) not null, orden int default 0
+>
+> 11. `fichas_costo`: id, producto_id (FK productos), negocio_id (FK negocios), lote_cantidad int not null default 1, mpd_unitario DECIMAL(18,4), mod_unitario DECIMAL(18,4), costo_unitario_total DECIMAL(18,4), mpd_lote DECIMAL(18,4), mod_lote DECIMAL(18,4), costo_lote_total DECIMAL(18,4), detalle_mpd JSONB, detalle_mod JSONB, calculado_en TIMESTAMP DEFAULT NOW(), notas text
+>
+> 12. `lotes`: id, negocio_id (FK negocios CASCADE), identificador varchar not null, tipo_animal varchar not null, fecha_entrada DATE, cabezas_inicio int, cabezas_activas int, peso_inicial_prom DECIMAL(10,4), peso_actual_prom DECIMAL(10,4), costo_adquisicion DECIMAL(18,4), activo boolean default true
+>
+> 13. `bitacora_lote`: id, lote_id (FK lotes CASCADE), fecha DATE, tipo varchar not null, detalle text, monto DECIMAL(18,4), es_baja boolean default false, cabezas_baja int, peso_baja DECIMAL(10,4), causa text
+>
+> Al final del archivo agregar un script `npm run db:migrate` en package.json que ejecute este SQL contra DATABASE_URL."
+Definition of Done:
+Archivo SQL existe y es válido sintácticamente
+Todas las FK referencian tablas ya creadas (orden correcto)
+`npm run db:migrate` ejecuta sin errores en una DB limpia
+Puedo hacer `\dt` en psql y ver las 13 tablas
+---
+TAREA V-3 · Autenticación backend
+Asignado a: Jairo  
+Tiempo: 1.5h  
+Depende de: V-1 completado, V-2 migración ejecutada  
+Bloquea: V-4, V-5
+Qué hacer:
+Implementar registro, login y middleware JWT.
+Prompt para Claude Code:
+> "Implementa autenticación JWT en Express con estas rutas en `src/routes/auth.js`:
+>
+> POST /api/auth/register — recibe { email, password, nombre }, hashea password con bcryptjs (salt 10), crea usuario en tabla users, devuelve { token, user: { id, email, nombre, onboarding_completado } }. Validar que email no exista antes.
+>
+> POST /api/auth/login — recibe { email, password }, verifica hash, devuelve mismo objeto. Si credenciales incorrectas, 401 con { error: 'Credenciales inválidas' }.
+>
+> GET /api/auth/me — requiere header Authorization Bearer token, devuelve el usuario autenticado sin password_hash.
+>
+> Crear `src/middleware/auth.js` que extrae el Bearer token, lo verifica con JWT_SECRET del .env, y agrega req.user = { id, email } al request. Si no hay token o es inválido, devolver 401.
+>
+> El JWT expira en 7 días. Usar la tabla users del schema PostgreSQL ya creado."
+Definition of Done:
+POST /api/auth/register crea usuario y devuelve token
+POST /api/auth/login con credenciales correctas devuelve token
+POST /api/auth/login con credenciales incorrectas devuelve 401
+GET /api/auth/me con token válido devuelve datos del usuario
+GET /api/auth/me sin token devuelve 401
+---
+SÁBADO 25 — Día completo (8 horas)
+Meta del día: Backend de catálogos completo + Onboarding + Seeds industrial
+---
+TAREA S-1 · Negocios y Onboarding backend
+Asignado a: Jairo  
+Tiempo: 2h  
+Depende de: V-3  
+Bloquea: S-2, S-3, todo lo demás
+Prompt para Claude Code:
+> "Implementa en Express los siguientes endpoints. Todos requieren el middleware de auth (req.user disponible).
+>
+> **Negocios (`src/routes/negocios.js`):**
+> - GET /api/negocios — devuelve todos los negocios del usuario autenticado donde activo = true
+> - POST /api/negocios — crea negocio para req.user.id. Body: { nombre, rubro, sub_rubro, plantilla, moneda }. Devuelve el negocio creado.
+> - GET /api/negocios/:id — devuelve negocio si pertenece al usuario
+> - PUT /api/negocios/:id — actualiza nombre, moneda, sub_rubro. No permite cambiar rubro.
+>
+> **Onboarding (`src/routes/onboarding.js`):**
+> - GET /api/onboarding/status — devuelve { completado: user.onboarding_completado }
+> - POST /api/onboarding/completar — body: { negocios: [{nombre, rubro, sub_rubro, plantilla}] }. En una transacción: crea cada negocio, aplica el seed de plantilla a cada uno, marca users.onboarding_completado = true. Devuelve { ok: true, negocios: [...ids creados] }.
+>
+> Crear `src/middleware/negocioOwner.js`: middleware que recibe el param :negocioId, verifica que ese negocio existe en tabla negocios y que su user_id = req.user.id. Si no, 403. Si sí, agrega req.negocio al request.
+>
+> Usar transacciones de pg para el endpoint de completar onboarding."
+Definition of Done:
+GET /api/negocios devuelve array (vacío si no hay)
+POST /api/negocios crea y devuelve negocio
+POST /api/onboarding/completar crea negocios y marca onboarding_completado = true
+Si llamo GET /api/auth/me después, onboarding_completado es true
+---
+TAREA S-2 · Seed plantilla industria láctea
+Asignado a: Gerardo  
+Tiempo: 2h  
+Depende de: S-1 completado  
+Bloquea: S-1 (lo llama), F-1
+Prompt para Claude Code:
+> "Crea `backend/seeds/industria_lactea.js` que exporta una función `async seedIndustriaLactea(negocioId, db)`. Esta función recibe el ID de un negocio ya creado y un cliente pg en transacción. Debe insertar en orden:
+>
+> **Unidades de medida** (INSERT en unidades_medida):
+> Kilogramo/kg/Peso, Gramo/g/Peso, Litro/L/Volumen, Mililitro/ml/Volumen, Unidad/u/Cantidad, Hora/h/Tiempo
+>
+> **Equivalencias**: 1 kg = 1000 g (factor 1000), 1 L = 1000 ml (factor 1000)
+>
+> **Categorías** (con colores hex): Materia prima principal (#3B82F6), Insumos químicos y cultivos (#F59E0B), Empaque y presentación (#22C55E), Limpieza y saneamiento (#8B5CF6)
+>
+> **Proveedores**: Coboce Lácteos S.R.L. (contacto: Juan Pérez, tel: 71234567, email: ventas@coboce.bo), TecnoLácteos Bolivia (María Flores, 76543210, info@tecnolacteos.bo), Salinas de Uyuni Ltda. (Carlos Mamani, 67891234), Plastibol Envases (Ana Quispe, 72345678), Grafimundo Impresiones (Luis Torrez, 71987654)
+>
+> **Insumos** (guardar los IDs de unidades y proveedores recién creados para referenciarlos):
+> - Leche entera fresca: 4.80 Bs/L, cat: Materia prima, proveedor: Coboce
+> - Cuajo enzimático líquido: 420 Bs/kg, cat: Insumos químicos, proveedor: TecnoLácteos
+> - Cloruro de calcio: 95 Bs/kg, cat: Insumos químicos, proveedor: TecnoLácteos
+> - Fermento láctico mesófilo: 650 Bs/kg, cat: Insumos químicos, proveedor: TecnoLácteos
+> - Sal refinada: 8.50 Bs/kg, cat: Materia prima, proveedor: Salinas
+> - Envase plástico 500g: 1.20 Bs/u, cat: Empaque, proveedor: Plastibol
+> - Etiqueta autoadhesiva: 0.35 Bs/u, cat: Empaque, proveedor: Grafimundo
+>
+> **Producto 1: Queso fresco 500g** (SKU: QF-001, unidad: u)
+> BOM (bom_items) con orden:
+> - Leche entera: 5.000 L
+> - Cuajo enzimático: 0.003 kg
+> - Cloruro de calcio: 0.002 kg
+> - Fermento láctico: 0.001 kg
+> - Sal refinada: 0.015 kg
+> - Envase plástico 500g: 1 u
+> - Etiqueta: 1 u
+>
+> Etapas (etapas_produccion) con orden:
+> 1. Pasteurización: 4 min, Bs 18.50/h
+> 2. Adición de cultivos: 3 min, Bs 18.50/h
+> 3. Coagulación: 12 min, Bs 18.50/h
+> 4. Corte y agitación: 6 min, Bs 22.00/h
+> 5. Desuerado y prensado: 8 min, Bs 22.00/h
+> 6. Salado y moldeo: 4 min, Bs 18.50/h
+> 7. Empaque: 3 min, Bs 18.50/h
+>
+> **Producto 2: Yogur natural 250ml** (SKU: YN-002, unidad: u)
+> BOM: Leche entera 0.30 L, Fermento láctico 0.0005 kg, un envase 250ml (mismos datos que 500g pero precio 0.90 Bs/u — crearlo como insumo nuevo), Etiqueta 1 u
+> Etapas: Pasteurización 3min/18.50, Inoculación 5min/18.50, Incubación 2min/18.50, Empaque 3min/18.50
+>
+> La función NO hace commit — eso lo hace quien la llama (onboarding). Si algo falla, el error sube y el caller hace rollback.
+>
+> En `src/services/seedPlantilla.js` crear: `async function aplicarPlantilla(plantilla, negocioId, db)` que importa el seed correspondiente y lo ejecuta. Por ahora solo soportar 'industria_lactea'."
+Definition of Done:
+Después de completar onboarding con plantilla 'industria_lactea', el negocio tiene en DB:
+6 unidades de medida
+4 categorías
+5 proveedores
+7 insumos
+2 productos con BOM y etapas
+Verificable con queries SQL directas
+---
+TAREA S-3 · CRUD Unidades, Categorías, Proveedores
+Asignado a: Sebastián  
+Tiempo: 3h  
+Depende de: S-1 completado  
+Bloquea: S-4 (insumos usa proveedor_id y unidad_id)
+ADVERTENCIA para quien dé este prompt: Pedirle a Sebastián que valide manualmente con Postman o Thunder Client que cada endpoint funciona antes de dar la tarea por terminada. No solo "que no salga error en consola".
+Prompt para Claude Code:
+> "Implementa CRUDs REST para tres recursos. Todos van bajo el prefijo `/api/negocios/:negocioId/` y requieren los middlewares auth y negocioOwner (ya existen en middleware/).
+>
+> **Unidades de medida** (tabla: unidades_medida):
+> - GET /api/negocios/:negocioId/unidades → lista todas del negocio
+> - POST /api/negocios/:negocioId/unidades → crea. Body: { nombre, simbolo, tipo }
+> - PUT /api/negocios/:negocioId/unidades/:id → actualiza nombre, simbolo, tipo. Verificar que el id pertenece al negocio.
+> - DELETE /api/negocios/:negocioId/unidades/:id → eliminar solo si ningún insumo ni producto la usa (verificar FKs). Si está en uso, devolver 409 con mensaje.
+>
+> **Categorías de insumos** (tabla: categorias_insumos):
+> - GET /api/negocios/:negocioId/categorias → lista con campo extra: cantidad de insumos que usan esa categoría (subquery COUNT)
+> - POST /api/negocios/:negocioId/categorias → crea. Body: { nombre, color, descripcion }
+> - PUT /api/negocios/:negocioId/categorias/:id → actualiza los mismos campos
+> - DELETE /api/negocios/:negocioId/categorias/:id → si tiene insumos asignados, poner categoria_id = NULL en esos insumos antes de eliminar (no bloquear)
+>
+> **Proveedores** (tabla: proveedores):
+> - GET /api/negocios/:negocioId/proveedores → lista. Param query ?activo=true|false|all (default: solo activos)
+> - POST → Body: { nombre, contacto, telefono, email, notas }
+> - PUT /:id → actualiza todos los campos
+> - PATCH /:id/archivar → toggle activo true/false (borrado lógico)
+>
+> Estructura de cada archivo: route en src/routes/negocio.js (agregar al router existente), lógica SQL en src/controllers/[nombre]Controller.js. Usar async/await con try/catch. Errores 500 con { error: message }."
+Definition of Done:
+GET devuelve array con los datos del seed (después de onboarding)
+POST crea nuevo registro y lo devuelve
+PUT actualiza y devuelve el registro actualizado
+DELETE/PATCH funciona sin romper FKs
+Todos devuelven 403 si el negocio no pertenece al usuario autenticado
+---
+TAREA S-4 · CRUD Insumos
+Asignado a: Sebastián  
+Tiempo: 1.5h  
+Depende de: S-3 completado  
+Bloquea: S-5 (BOM usa insumo_id)
+Prompt para Claude Code:
+> "Implementa el CRUD de insumos en Express.
+>
+> Rutas bajo `/api/negocios/:negocioId/insumos` con auth + negocioOwner:
+>
+> GET / → lista insumos del negocio. Query params: ?activo=true|false|all (default true), ?categoria=uuid, ?search=texto (filtra por nombre ILIKE). Incluir en la respuesta: join con categorias_insumos (nombre, color), join con unidades_medida (nombre, simbolo), join con proveedores (nombre).
+>
+> GET /:id → detalle de un insumo con los mismos joins.
+>
+> POST / → Body: { nombre, codigo_sku, categoria_id, unidad_id, precio_unitario, proveedor_id, es_variable, notas }. Todos opcionales excepto nombre. Verificar que categoria_id, unidad_id, proveedor_id pertenecen al mismo negocio.
+>
+> PUT /:id → actualiza los mismos campos.
+>
+> PATCH /:id/archivar → toggle activo (borrado lógico). No eliminar físicamente.
+>
+> IMPORTANTE: nunca usar DELETE físico en insumos. Si un insumo está en bom_items, el archivado lógico es lo único permitido."
+Definition of Done:
+GET / con token y negocioId del seed devuelve los 7 insumos con joins
+GET / ?activo=false devuelve vacío (ninguno archivado en seed)
+POST crea insumo y lo devuelve con joins
+PATCH /archivar cambia activo a false
+---
+DOMINGO 26 — Día completo (8 horas)
+Meta del día: Productos + BOM + Etapas + Motor de cálculo + Frontend Handoff
+---
+TAREA D-1 · CRUD Productos + BOM + Etapas
+Asignado a: Jairo  
+Tiempo: 2.5h  
+Depende de: S-4 completado  
+Bloquea: D-2 (motor necesita BOM y etapas)
+Prompt para Claude Code:
+> "Implementa los endpoints de productos, BOM y etapas de producción.
+>
+> **Productos** bajo `/api/negocios/:negocioId/productos`:
+> - GET / → lista productos. Include: cantidad de items en su BOM, si tiene etapas. Query param ?activo=true|false|all
+> - GET /:id → detalle completo
+> - POST / → Body: { nombre, codigo_sku, descripcion, unidad_id }
+> - PUT /:id → actualiza
+> - PATCH /:id/archivar → toggle activo
+>
+> **BOM** bajo `/api/negocios/:negocioId/productos/:productoId/bom`:
+> - GET / → todos los items del BOM con join a insumos (nombre, precio_unitario, simbolo de unidad). Incluir campo calculado: `costo_parcial = cantidad * precio_unitario`.
+> - POST / → Body: { insumo_id, cantidad, unidad_id }. Verificar que insumo_id pertenece al negocio. Asignar orden = último + 1.
+> - PUT /:bomId → actualiza cantidad y unidad_id
+> - DELETE /:bomId → elimina físicamente (es solo una relación, no datos maestros)
+> - POST /reorder → Body: { items: [{id, orden}] } — actualiza el orden de todos los items de una vez
+>
+> **Etapas** bajo `/api/negocios/:negocioId/productos/:productoId/etapas`:
+> - GET / → lista etapas ordenadas por campo orden. Incluir campo calculado: `costo_etapa = (tiempo_minutos / 60) * costo_hora`.
+> - POST / → Body: { nombre, descripcion, tiempo_minutos, costo_hora }. Orden = último + 1.
+> - PUT /:etapaId → actualiza todos los campos
+> - DELETE /:etapaId → elimina físicamente
+> - POST /reorder → igual que BOM
+>
+> En todos los endpoints verificar que productoId pertenece al negocioId del request."
+Definition of Done:
+GET /productos devuelve los 2 productos del seed
+GET /productos/:id/bom devuelve los 7 items del queso fresco con costo_parcial calculado
+GET /productos/:id/etapas devuelve las 7 etapas con costo_etapa calculado
+POST en BOM agrega item y lo devuelve con join
+DELETE en BOM elimina el item
+---
+TAREA D-2 · Motor de cálculo MPD + MOD
+Asignado a: Jairo  
+Tiempo: 2h  
+Depende de: D-1 completado  
+Bloquea: F-2 (integración frontend)
+ESTA ES LA TAREA MÁS IMPORTANTE DEL SPRINT. Revisar el resultado manualmente con números conocidos.
+Prompt para Claude Code:
+> "Implementa el motor de cálculo de costeo en `src/services/calculoCosto.js`. Esta función es pura (recibe datos, devuelve resultado, no accede a DB directamente).
+>
+> ```javascript
+> export function calcularCosto({ bomItems, etapas, lotesCantidad }) {
+>   // bomItems: [{ nombre, cantidad, precio_unitario, simbolo_unidad }]
+>   // etapas: [{ nombre, tiempo_minutos, costo_hora }]
+>   // loteCantidad: número entero
+>
+>   // PASO 1 — MPD
+>   const detalleMPD = bomItems.map(item => ({
+>     insumo: item.nombre,
+>     cantidad: item.cantidad,
+>     unidad: item.simbolo_unidad,
+>     precio: item.precio_unitario,
+>     subtotal: item.cantidad * item.precio_unitario
+>   }));
+>   const mpd_unitario = detalleMPD.reduce((sum, x) => sum + x.subtotal, 0);
+>
+>   // PASO 2 — MOD
+>   const detalleMOD = etapas.map(etapa => ({
+>     etapa: etapa.nombre,
+>     minutos: etapa.tiempo_minutos,
+>     costo_hora: etapa.costo_hora,
+>     subtotal: (etapa.tiempo_minutos / 60) * etapa.costo_hora
+>   }));
+>   const mod_unitario = detalleMOD.reduce((sum, x) => sum + x.subtotal, 0);
+>
+>   // PASO 3 — Totales
+>   const costo_unitario_total = mpd_unitario + mod_unitario;
+>   const mpd_lote = mpd_unitario * loteCantidad;
+>   const mod_lote = mod_unitario * loteCantidad;
+>   const costo_lote_total = costo_unitario_total * loteCantidad;
+>
+>   return {
+>     lote_cantidad: loteCantidad,
+>     mpd: { unitario: mpd_unitario, lote: mpd_lote, detalle: detalleMPD },
+>     mod: { unitario: mod_unitario, lote: mod_lote, detalle: detalleMOD },
+>     costo_unitario_total,
+>     costo_lote_total
+>   };
+> }
+> ```
+>
+> Implementar el endpoint que la usa en `src/controllers/fichaController.js`:
+>
+> POST /api/negocios/:negocioId/fichas/calcular
+> Body: { producto_id, lote_cantidad }
+>
+> Lógica del controller:
+> 1. Cargar BOM del producto con precios actuales (JOIN insumos) — verificar que producto_id pertenece al negocio
+> 2. Cargar etapas del producto
+> 3. Si no hay BOM y no hay etapas, devolver 400 con mensaje 'Este producto no tiene receta ni etapas definidas'
+> 4. Llamar a calcularCosto({ bomItems, etapas, loteCantidad: lote_cantidad })
+> 5. Persistir en fichas_costo con los campos: producto_id, negocio_id, lote_cantidad, mpd_unitario, mod_unitario, costo_unitario_total, mpd_lote, mod_lote, costo_lote_total, detalle_mpd (JSONB), detalle_mod (JSONB)
+> 6. Devolver la respuesta completa del cálculo más el id de la ficha guardada
+>
+> GET /api/negocios/:negocioId/fichas → lista fichas del negocio, JOIN con productos (nombre). Ordenar por calculado_en DESC.
+> GET /api/negocios/:negocioId/fichas/:id → detalle de una ficha con los JSONB de detalle."
+Definition of Done crítico — verificar con estos números exactos:
+POST calcular con producto 'Queso fresco 500g', lote 100:
+`mpd.unitario` debe ser exactamente Bs 27.345 (5×4.80 + 0.003×420 + 0.002×95 + 0.001×650 + 0.015×8.50 + 1×1.20 + 1×0.35)
+`mod.unitario` debe ser Bs 8.6167 aprox (4/60×18.50 + 3/60×18.50 + 12/60×18.50 + 6/60×22 + 8/60×22 + 4/60×18.50 + 3/60×18.50)
+`costo_unitario_total` = mpd + mod
+`costo_lote_total` = costo_unitario_total × 100
+GET /fichas devuelve la ficha recién guardada
+---
+TAREA D-3 · Frontend Handoff de Claude Design a Claude Code
+Asignado a: Jairo  
+Tiempo: 1.5h  
+Depende de: nada (paralelo con D-1 y D-2)  
+Bloquea: D-4
+Qué hacer:
+Ir al proyecto en Claude Design
+Usar la función "Handoff to Claude Code" (o exportar el código)
+Colocar el output en la carpeta `frontend/`
+Verificar que `npm run dev` corre en Vite sin errores de compilación
+Prompt para Claude Code (después del handoff):
+> "El frontend fue generado por Claude Design. Necesito adaptarlo para conectarse a este backend. Hacer lo siguiente sin cambiar el diseño visual:
+>
+> 1. Crear `frontend/src/config/api.js`:
+> ```js
+> export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+> export const apiFetch = async (path, options = {}) => {
+>   const token = localStorage.getItem('cu_token');
+>   const res = await fetch(API_BASE + path, {
+>     ...options,
+>     headers: {
+>       'Content-Type': 'application/json',
+>       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+>       ...options.headers,
+>     },
+>   });
+>   if (!res.ok) throw await res.json();
+>   return res.json();
+> };
+> ```
+>
+> 2. Crear `frontend/.env.example` con `VITE_API_URL=http://localhost:3000`
+>
+> 3. Verificar que el proyecto compila sin errores con `npm run build`"
+Definition of Done:
+`npm run dev` en frontend corre sin errores
+El diseño se ve igual que el mockup de Claude Design
+El archivo `api.js` existe y está importable
+---
+TAREA D-4 · Integración Auth + Onboarding en frontend
+Asignado a: Jairo  
+Tiempo: 2h  
+Depende de: D-3 completado + V-3 completado  
+Bloquea: D-5
+Prompt para Claude Code:
+> "Conectar el frontend React con los endpoints de autenticación y onboarding del backend. El diseño visual ya existe en el componente Onboarding.jsx generado por Claude Design. Solo hay que conectar la lógica.
+>
+> **En App.jsx o un AuthContext:**
+> - Al cargar la app, leer `localStorage.getItem('cu_token')`. Si existe, llamar GET /api/auth/me. Si el token es válido, setear el usuario. Si no, limpiar token.
+> - `login(email, password)`: POST /api/auth/login, guardar token en localStorage como 'cu_token', setear usuario
+> - `register(email, password, nombre)`: POST /api/auth/register, igual
+> - `logout()`: limpiar localStorage, limpiar estado
+>
+> **En el Onboarding wizard:**
+> - Al completar el paso final, llamar POST /api/onboarding/completar con los datos recolectados en los pasos
+> - Mostrar los mensajes de loading mientras carga ('Creando tu negocio...', 'Cargando datos de ejemplo...', etc.)
+> - Si la respuesta es 200, marcar onboarding como completado y redirigir al dashboard
+>
+> **Redirección automática:**
+> - Si usuario no logueado → mostrar pantalla de login/registro
+> - Si usuario logueado pero onboarding_completado = false → mostrar Onboarding
+> - Si usuario logueado y onboarding completado → mostrar AppLayout con dashboard
+>
+> No cambiar nada del diseño visual. Solo agregar los llamados a la API y el manejo de estado."
+Definition of Done:
+Puedo registrarme desde el frontend
+Completo el onboarding eligiendo industria láctea
+El dashboard muestra datos del negocio recién creado
+Recargo la página y sigo logueado (token persiste)
+El negocio tiene los datos del seed cargados
+---
+LUNES 27 — Día completo (8 horas)
+Meta del día: Integración completa industrial + Lotes agro + Testing
+---
+TAREA L-1 · Integración frontend: Insumos, Proveedores, Unidades, Categorías
+Asignado a: Sebastián  
+Tiempo: 3h  
+Depende de: D-4 completado + S-3 + S-4 completados  
+Bloquea: L-3 (demo)
+INSTRUCCIÓN CLAVE para Sebastián: Antes de dar este prompt a Claude Code, abrí el archivo del componente correspondiente del frontend (generado por Claude Design) y pegalo completo en el contexto. Decirle: "Este es el componente actual. Conéctalo a estos endpoints sin cambiar el diseño."
+Prompt para Claude Code:
+> "Conectar los siguientes componentes React con la API del backend. El diseño visual ya existe y NO debe modificarse. Solo agregar llamados a la API.
+>
+> **Patrón común para todos:**
+> - Al montar el componente, llamar GET /api/negocios/:negocioId/[recurso] con apiFetch y setear el estado
+> - Mostrar un skeleton/spinner mientras carga (si ya existe en el diseño, usarlo)
+> - Si hay error de red, mostrar mensaje en rojo
+> - Las operaciones de crear/editar/archivar deben actualizar el estado local optimísticamente O refetchear después del POST/PUT
+>
+> **Insumos.jsx:**
+> - Cargar: GET /api/negocios/:negocioId/insumos
+> - En el dropdown de Proveedor del formulario: cargar GET /api/negocios/:negocioId/proveedores y usar los nombres
+> - En el dropdown de Categoría: cargar GET /api/negocios/:negocioId/categorias
+> - En el dropdown de Unidad: cargar GET /api/negocios/:negocioId/unidades
+> - Crear: POST /api/negocios/:negocioId/insumos
+> - Editar: PUT /api/negocios/:negocioId/insumos/:id
+> - Archivar: PATCH /api/negocios/:negocioId/insumos/:id/archivar
+>
+> **Proveedores.jsx:**
+> - Cargar: GET /api/negocios/:negocioId/proveedores?activo=all
+> - Crear/Editar/Archivar sus endpoints correspondientes
+>
+> **Unidades.jsx y Categorias.jsx:**
+> - Igual, conectar sus endpoints CRUD
+>
+> En todos los casos el negocioId viene del contexto global de la app (negocio activo). No hardcodearlo."
+Definition of Done:
+Los datos del seed aparecen en todas las pantallas al cargar
+Puedo agregar un insumo nuevo desde el formulario y aparece en la lista
+El dropdown de proveedor en el formulario de insumo muestra los proveedores reales de la DB
+Archivar funciona y el insumo desaparece de la lista (o aparece en archivados)
+---
+TAREA L-2 · Integración frontend: Productos + BOM + Ficha de costo
+Asignado a: Jairo  
+Tiempo: 3h  
+Depende de: D-4 + D-2 completados  
+Bloquea: L-3
+Prompt para Claude Code:
+> "Conectar la pantalla de Productos y la Ficha de Costo con el backend. El diseño visual ya existe y NO debe modificarse.
+>
+> **Productos.jsx:**
+> - Cargar: GET /api/negocios/:negocioId/productos
+> - Crear producto: POST /api/negocios/:negocioId/productos
+> - Archivar: PATCH
+>
+> **Pantalla de Receta/BOM** (la que se abre desde cada producto):
+> - Cargar BOM: GET /api/negocios/:negocioId/productos/:id/bom
+> - Cargar etapas: GET /api/negocios/:negocioId/productos/:id/etapas
+> - En el selector de insumos del formulario del BOM: cargar GET insumos del negocio y mostrarlos en dropdown
+> - Agregar item BOM: POST bom
+> - Eliminar item BOM: DELETE bom/:bomId
+> - Agregar etapa: POST etapas
+> - Editar etapa: PUT etapas/:etapaId
+> - Eliminar etapa: DELETE etapas/:etapaId
+>
+> **Ficha de costo** (FichaCosto.jsx):
+> El componente actualmente muestra datos hardcodeados. Conectarlo así:
+> - Al cargar, recibir un productoId como prop o parámetro
+> - Llamar GET /api/negocios/:negocioId/productos/:id/bom y /etapas para mostrar los datos del producto
+> - Cuando el usuario cambia el tamaño del lote (slider/input), NO llamar a la API automáticamente
+> - Botón 'Calcular': POST /api/negocios/:negocioId/fichas/calcular con { producto_id, lote_cantidad }
+> - Mostrar el resultado devuelto: MPD (tabla con detalle), MOD (tabla con detalle), costo unitario, costo lote
+> - IMPORTANTE: Por ahora NO mostrar CIF, punto de equilibrio, WIP ni margen — esas secciones quedan visualmente con el placeholder 'Disponible en Sprint 3'
+> - Botón 'Guardar ficha' ya guarda porque el backend persiste al calcular. Solo mostrar confirmación visual."
+Definition of Done:
+Los 2 productos del seed aparecen en la pantalla de productos
+Puedo abrir la receta del Queso fresco y ver los 7 items del BOM con precios
+Puedo agregar una etapa nueva y aparece en la lista
+Al hacer clic en 'Calcular' con lote 100, el resultado muestra MPD ≈ Bs 27.35 y MOD ≈ Bs 8.62
+El historial de fichas muestra la ficha recién calculada
+---
+TAREA L-3 · Lotes y Bitácora agro (backend + integración)
+Asignado a: Gerardo  
+Tiempo: 2h  
+Depende de: S-1 completado (auth + negocioOwner ya existen)  
+Bloquea: nada crítico (es módulo independiente)
+Prompt para Claude Code:
+> "Implementa los endpoints de lotes y bitácora para el rubro agro-ganadero.
+>
+> **Lotes** bajo `/api/negocios/:negocioId/lotes` con auth + negocioOwner:
+> - GET / → lista lotes del negocio. Incluir campo calculado: `costo_total = costo_adquisicion + suma de montos en bitacora_lote donde es_baja = false`
+> - GET /:id → detalle con el mismo cálculo
+> - POST / → Body: { identificador, tipo_animal, fecha_entrada, cabezas_inicio, peso_inicial_prom, costo_adquisicion }. Al crear: cabezas_activas = cabezas_inicio, peso_actual_prom = peso_inicial_prom
+> - PUT /:id → actualiza peso_actual_prom, cabezas_activas (para ajustes manuales)
+> - PATCH /:id/cerrar → activo = false (al liquidar)
+>
+> **Bitácora** bajo `/api/negocios/:negocioId/lotes/:loteId/bitacora`:
+> - GET / → lista registros del lote ordenados por fecha DESC
+> - POST / → Body: { fecha, tipo, detalle, monto, es_baja, cabezas_baja, peso_baja, causa }
+>   - Si es_baja = true: restar cabezas_baja de lotes.cabezas_activas (UPDATE en lotes)
+>   - El monto de una baja es null (el costo ya está en adquisición)
+>
+> Luego conectar Lotes.jsx y Bitacora.jsx del frontend (ya tienen diseño de Claude Design) a estos endpoints. El mismo patrón: cargar al montar, crear, el formulario de la bitácora debe llamar al POST."
+Definition of Done:
+Puedo registrar un lote nuevo desde el frontend
+El lote aparece en la lista con su costo acumulado
+Puedo registrar una entrada de alimentación en la bitácora
+Puedo registrar una baja y el contador de animales activos disminuye
+---
+TAREA L-4 · Historial de fichas conectado
+Asignado a: Sebastián  
+Tiempo: 1h  
+Depende de: D-2 + D-4  
+Bloquea: nada
+Prompt para Claude Code:
+> "El componente Historial.jsx actualmente usa datos hardcodeados. Conectarlo al endpoint GET /api/negocios/:negocioId/fichas que ya existe en el backend.
+>
+> - Al montar el componente, llamar la API y reemplazar los datos fake
+> - Los filtros de producto y lote deben filtrar el array cargado localmente (no llamar a la API por cada filtro)
+> - Al hacer clic en 'Ver' de una fila, llamar GET /api/negocios/:negocioId/fichas/:id y mostrar el drawer con los datos reales (detalle_mpd y detalle_mod son JSONB con el detalle completo)
+> - El botón 'Recalcular desde esta ficha' debe navegar a la pantalla de ficha de costo del mismo producto (no implementar el recálculo, solo la navegación)"
+Definition of Done:
+El historial muestra las fichas calculadas durante el testing de hoy
+El drawer de detalle muestra MPD y MOD del cálculo real
+---
+MARTES 28 — Mañana (preparación presentación)
+No agregar features nuevas. Solo:
+Smoke test completo del flujo (registro → onboarding → dashboard → productos → calcular → historial)
+Tener el backend corriendo en una URL accesible (ngrok o similar si no hay servidor)
+Tener los datos del seed cargados en la DB de demo
+Preparar 2-3 ejemplos de cálculo con números que se vean bien en la presentación
+---
+Restricciones críticas para prompts de vibe-coding
+Estas son las cosas que más rompen al usar Claude Code/Antigravity sin supervisión:
+1. Siempre verificar que los UUIDs se generan en la DB, no en JS.
+Nunca `uuid()` en JavaScript. La DB usa `DEFAULT gen_random_uuid()`.
+2. Los decimales de dinero son DECIMAL(18,4) en PostgreSQL, no float.
+Si Claude Code usa `parseFloat()` para guardar precios, puede perder precisión. Guardar como string en el query parametrizado.
+3. Las FK siempre van con el negocio.
+Antes de cada INSERT que tenga un FK a otra tabla del mismo negocio (ej: categoria_id en insumos), hacer un SELECT para verificar que ese ID pertenece al mismo negocio_id. Si no, devolver 403.
+4. El motor de cálculo es una función pura en services/, no en el controller.
+Si Claude Code pone toda la lógica en el controller, es más difícil de testear y debuggear. Insistir en la separación.
+5. Siempre usar try/catch en todos los controllers.
+Un error sin catch derrumba Express. El patrón mínimo:
+```js
+try {
+  // lógica
+} catch (err) {
+  console.error(err);
+  res.status(500).json({ error: err.message });
+}
+```
+6. Las transacciones en PostgreSQL con pg:
+```js
+const client = await pool.connect();
+try {
+  await client.query('BEGIN');
+  // operaciones
+  await client.query('COMMIT');
+} catch (e) {
+  await client.query('ROLLBACK');
+  throw e;
+} finally {
+  client.release();
+}
+```
+El onboarding y el seed DEBEN usar transacción.
+7. Para el frontend: el negocioId activo va en un Context.
+No pasarlo como prop por 5 niveles. Si Claude Code lo empieza a propdrilling, pedirle que cree un `NegocioContext`.
+8. CORS en desarrollo:
+El backend necesita `cors({ origin: 'http://localhost:5173' })` para que Vite pueda llamarlo.
+---
+Resumen visual por día
+Día	Jairo	Sebastián	Gerardo	Meta
+Viernes tarde	V-1 Setup + V-3 Auth	—	V-2 Schema DB	Backend corriendo, auth OK
+Sábado	S-1 Negocios+Onboarding	S-3 Unidades+Cats+Proveedores	S-2 Seeds lácteos	Catálogos completos con datos
+Domingo	D-1 Productos+BOM+Etapas → D-2 Motor cálculo → D-4 Auth frontend	S-4 Insumos	D-3 Handoff frontend	Motor calculando + frontend corriendo
+Lunes	L-2 Productos+BOM+Ficha frontend	L-1 Insumos+Proveedores frontend + L-4 Historial	L-3 Lotes+Bitácora	Todo integrado, flujo completo
+Martes mañana	Testing + fix bugs + demo data	Testing su parte	Testing su parte	Listo para presentar
+---
+Flujo completo que debe funcionar el 28/04
+Abrir la app → pantalla de registro
+Registrar usuario nuevo
+Completar onboarding: Industrial → Lácteos → Plantilla industria láctea → loading → dashboard
+Dashboard muestra: 2 productos, 7 insumos, sin fichas aún
+Navegar a Productos → ver Queso fresco 500g y Yogur natural 250ml
+Abrir Queso fresco → ver Receta con 7 ingredientes y precios reales
+Ir a Ficha de costo → seleccionar Queso fresco → ingresar lote 100 → clic Calcular
+Ver resultado: MPD ≈ Bs 27.35, MOD ≈ Bs 8.62, Costo total ≈ Bs 35.97
+Ir a Historial → ver la ficha recién calculada → hacer clic Ver → ver detalle
+Cambiar negocio a Granja Los Pinos → dashboard agro
+Ver lotes → Lote L-2025-003 con sus costos acumulados
+Abrir bitácora → ver historial → registrar nueva entrada de alimento
+Navegar a Insumos → agregar un insumo nuevo con proveedor del dropdown
