@@ -1,1 +1,118 @@
-// Implementado en S-3
+import { pool } from '../config/database.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVEEDORES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/negocios/:negocioId/proveedores
+ * Lista proveedores. Param query ?activo=true|false|all (default: solo activos).
+ */
+export async function getProveedores(req, res) {
+  const { negocioId } = req.params;
+  const { activo } = req.query;
+
+  try {
+    let query = 'SELECT * FROM proveedores WHERE negocio_id = $1';
+    const params = [negocioId];
+
+    if (activo === 'false') {
+      query += ' AND activo = false';
+    } else if (activo === 'all') {
+      // No filtrar por activo
+    } else {
+      // Default: solo activos
+      query += ' AND activo = true';
+    }
+
+    query += ' ORDER BY nombre';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * POST /api/negocios/:negocioId/proveedores
+ * Crea un proveedor.
+ * Body: { nombre, contacto, telefono, email, notas }
+ */
+export async function createProveedor(req, res) {
+  const { negocioId } = req.params;
+  const { nombre, contacto, telefono, email, notas } = req.body;
+
+  if (!nombre) {
+    return res.status(400).json({ error: 'nombre es requerido' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO proveedores (negocio_id, nombre, contacto, telefono, email, notas)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [negocioId, nombre, contacto || null, telefono || null, email || null, notas || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * PUT /api/negocios/:negocioId/proveedores/:id
+ * Actualiza todos los campos editables.
+ */
+export async function updateProveedor(req, res) {
+  const { negocioId, id } = req.params;
+  const { nombre, contacto, telefono, email, notas } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE proveedores
+       SET nombre   = COALESCE($1, nombre),
+           contacto = COALESCE($2, contacto),
+           telefono = COALESCE($3, telefono),
+           email    = COALESCE($4, email),
+           notas    = COALESCE($5, notas)
+       WHERE id = $6 AND negocio_id = $7
+       RETURNING *`,
+      [nombre || null, contacto || null, telefono || null, email || null, notas || null, id, negocioId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * PATCH /api/negocios/:negocioId/proveedores/:id/archivar
+ * Toggle activo true/false (borrado lógico).
+ */
+export async function archivarProveedor(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `UPDATE proveedores
+       SET activo = NOT activo
+       WHERE id = $1 AND negocio_id = $2
+       RETURNING *`,
+      [id, negocioId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
