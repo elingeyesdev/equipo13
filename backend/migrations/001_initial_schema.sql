@@ -1,0 +1,2 @@
+-- Archivo a completar por Gerardo (TAREA V-2)
+-- Ejecutar con: npm run db:migrate
