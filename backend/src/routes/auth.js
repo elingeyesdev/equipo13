@@ -1,9 +1,11 @@
 import { Router } from 'express';
+import { register, login, me } from '../controllers/authController.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
-// POST /api/auth/register  — implementado en V-3
-// POST /api/auth/login     — implementado en V-3
-// GET  /api/auth/me        — implementado en V-3
+router.post('/register', register);
+router.post('/login', login);
+router.get('/me', authMiddleware, me);
 
 export default router;
