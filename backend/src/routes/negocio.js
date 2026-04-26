@@ -47,6 +47,11 @@ import {
   deleteEtapa,
   reorderEtapas,
 } from '../controllers/etapaController.js';
+import {
+  calcularFicha,
+  getFichas,
+  getFichaById,
+} from '../controllers/fichaController.js';
 
 const router = Router();
 
@@ -96,7 +101,11 @@ router.post('/:negocioId/productos/:productoId/etapas/reorder', authMiddleware, 
 router.put('/:negocioId/productos/:productoId/etapas/:etapaId', authMiddleware, negocioOwner, updateEtapa);
 router.delete('/:negocioId/productos/:productoId/etapas/:etapaId', authMiddleware, negocioOwner, deleteEtapa);
 
-// Fichas                 — D-2
+// Fichas — D-2
+router.post('/:negocioId/fichas/calcular', authMiddleware, negocioOwner, calcularFicha);
+router.get('/:negocioId/fichas', authMiddleware, negocioOwner, getFichas);
+router.get('/:negocioId/fichas/:id', authMiddleware, negocioOwner, getFichaById);
+
 // Lotes, Bitácora        — L-3
 
 export default router;
