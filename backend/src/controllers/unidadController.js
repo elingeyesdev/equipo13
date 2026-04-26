@@ -112,7 +112,7 @@ export async function deleteUnidad(req, res) {
 
     // Verificar si está en uso por bom_items
     const bomCheck = await pool.query(
-      'SELECT COUNT(*)::int AS total FROM bom_items WHERE unit_id = $1',
+      'SELECT COUNT(*)::int AS total FROM bom_items WHERE unidad_id = $1',
       [id]
     );
 

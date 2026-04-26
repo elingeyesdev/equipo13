@@ -2,31 +2,101 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { negocioOwner } from '../middleware/negocioOwner.js';
 import {
+  getUnidades,
+  createUnidad,
+  updateUnidad,
+  deleteUnidad,
+} from '../controllers/unidadController.js';
+import {
+  getCategorias,
+  createCategoria,
+  updateCategoria,
+  deleteCategoria,
+} from '../controllers/categoriaController.js';
+import {
+  getProveedores,
+  createProveedor,
+  updateProveedor,
+  archivarProveedor,
+} from '../controllers/proveedorController.js';
+import {
   getInsumos,
   getInsumoById,
   createInsumo,
   updateInsumo,
-  archivarInsumo
+  archivarInsumo,
 } from '../controllers/insumoController.js';
+import {
+  getProductos,
+  getProductoById,
+  createProducto,
+  updateProducto,
+  archivarProducto,
+} from '../controllers/productoController.js';
+import {
+  getBomItems,
+  createBomItem,
+  updateBomItem,
+  deleteBomItem,
+  reorderBom,
+} from '../controllers/bomController.js';
+import {
+  getEtapas,
+  createEtapa,
+  updateEtapa,
+  deleteEtapa,
+  reorderEtapas,
+} from '../controllers/etapaController.js';
 
 const router = Router();
 
-// Todas las rutas bajo /api/negocios/:negocioId/...
-// Unidades    — S-3
-// Categorías  — S-3
-// Proveedores — S-3
-// Insumos     — S-4
-// Productos   — D-1
-// BOM         — D-1
-// Etapas      — D-1
-// Fichas      — D-2
-// Lotes       — L-3
-// Bitácora    — L-3
+// Unidades — S-3
+router.get('/:negocioId/unidades', authMiddleware, negocioOwner, getUnidades);
+router.post('/:negocioId/unidades', authMiddleware, negocioOwner, createUnidad);
+router.put('/:negocioId/unidades/:id', authMiddleware, negocioOwner, updateUnidad);
+router.delete('/:negocioId/unidades/:id', authMiddleware, negocioOwner, deleteUnidad);
 
+// Categorías — S-3
+router.get('/:negocioId/categorias', authMiddleware, negocioOwner, getCategorias);
+router.post('/:negocioId/categorias', authMiddleware, negocioOwner, createCategoria);
+router.put('/:negocioId/categorias/:id', authMiddleware, negocioOwner, updateCategoria);
+router.delete('/:negocioId/categorias/:id', authMiddleware, negocioOwner, deleteCategoria);
+
+// Proveedores — S-3
+router.get('/:negocioId/proveedores', authMiddleware, negocioOwner, getProveedores);
+router.post('/:negocioId/proveedores', authMiddleware, negocioOwner, createProveedor);
+router.put('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, updateProveedor);
+router.patch('/:negocioId/proveedores/:id/archivar', authMiddleware, negocioOwner, archivarProveedor);
+
+// Insumos — S-4
 router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
 router.get('/:negocioId/insumos/:id', authMiddleware, negocioOwner, getInsumoById);
 router.post('/:negocioId/insumos', authMiddleware, negocioOwner, createInsumo);
 router.put('/:negocioId/insumos/:id', authMiddleware, negocioOwner, updateInsumo);
 router.patch('/:negocioId/insumos/:id/archivar', authMiddleware, negocioOwner, archivarInsumo);
+
+// Productos — D-1
+router.get('/:negocioId/productos', authMiddleware, negocioOwner, getProductos);
+router.get('/:negocioId/productos/:id', authMiddleware, negocioOwner, getProductoById);
+router.post('/:negocioId/productos', authMiddleware, negocioOwner, createProducto);
+router.put('/:negocioId/productos/:id', authMiddleware, negocioOwner, updateProducto);
+router.patch('/:negocioId/productos/:id/archivar', authMiddleware, negocioOwner, archivarProducto);
+
+// BOM — D-1
+router.get('/:negocioId/productos/:productoId/bom', authMiddleware, negocioOwner, getBomItems);
+router.post('/:negocioId/productos/:productoId/bom', authMiddleware, negocioOwner, createBomItem);
+router.post('/:negocioId/productos/:productoId/bom/reorder', authMiddleware, negocioOwner, reorderBom);
+router.put('/:negocioId/productos/:productoId/bom/:bomId', authMiddleware, negocioOwner, updateBomItem);
+router.delete('/:negocioId/productos/:productoId/bom/:bomId', authMiddleware, negocioOwner, deleteBomItem);
+
+// Etapas — D-1
+router.get('/:negocioId/productos/:productoId/etapas', authMiddleware, negocioOwner, getEtapas);
+router.post('/:negocioId/productos/:productoId/etapas', authMiddleware, negocioOwner, createEtapa);
+router.post('/:negocioId/productos/:productoId/etapas/reorder', authMiddleware, negocioOwner, reorderEtapas);
+router.put('/:negocioId/productos/:productoId/etapas/:etapaId', authMiddleware, negocioOwner, updateEtapa);
+router.delete('/:negocioId/productos/:productoId/etapas/:etapaId', authMiddleware, negocioOwner, deleteEtapa);
+
+// Fichas                 — D-2
+// Lotes, Bitácora        — L-3
 
 export default router;
