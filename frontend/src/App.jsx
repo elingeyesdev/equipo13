@@ -54,6 +54,7 @@ const App = () => {
   const [page, setPage] = useState('dashboard');
   const [negocioId, setNegocioId] = useState(null);
   const [activeLote, setActiveLote] = useState(null);
+  const [activeProductoId, setActiveProductoId] = useState(null);
 
   const loadNegocios = async () => {
     try {
@@ -112,13 +113,16 @@ const App = () => {
     await loadNegocios();
   };
 
-  const navigate = p => setPage(p);
+  const navigate = (p, opts) => {
+    if (opts?.productoId) setActiveProductoId(opts.productoId);
+    setPage(p);
+  };
 
   const renderPage = () => {
     const negocio = negocios.find(n => n.id === negocioId);
     switch (page) {
       case 'dashboard':   return <Dashboard negocioId={negocioId} onNavigate={navigate} />;
-      case 'fichas':      return <FichaCosto negocioId={negocioId} />;
+      case 'fichas':      return <FichaCosto negocioId={negocioId} productoId={activeProductoId} onNavigate={navigate} />;
       case 'productos':   return <Productos negocioId={negocioId} onNavigate={navigate} />;
       case 'insumos':     return <Insumos negocioId={negocioId} />;
       case 'proveedores': return <Proveedores negocioId={negocioId} />;

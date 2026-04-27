@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { MOCK_BY_NEGOCIO, StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
+import { StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
+import { apiFetch } from '../config/api.js';
 
-const UNIDADES_OPT = ['u', 'kg', 'L', 'g', 'ml', 'docena', 'caja'];
 
-const ProductoDrawer = ({ producto, onClose, onSave, accentColor, onNavigate }) => {
-  const [form, setForm] = useState(producto || { nombre: '', sku: '', desc: '', unidad: 'u', activo: true });
+
+const ProductoDrawer = ({ producto, onClose, onSave, accentColor, onNavigate, unidades }) => {
+  const [form, setForm] = useState(producto ? { nombre: producto.nombre, codigo_sku: producto.codigo_sku || '', descripcion: producto.descripcion || '', unidad_id: producto.unidad_id || '' } : { nombre: '', codigo_sku: '', descripcion: '', unidad_id: '' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const ref = useRef(null);
 
@@ -37,17 +38,18 @@ const ProductoDrawer = ({ producto, onClose, onSave, accentColor, onNavigate }) 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {iField('Nombre del producto', 'nombre', { placeholder: 'Ej. Queso fresco 500g' })}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {iField('Código SKU (opcional)', 'sku', { placeholder: 'QF-001' })}
+            {iField('Código SKU (opcional)', 'codigo_sku', { placeholder: 'QF-001' })}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Unidad de medida</label>
-              <select value={form.unidad} onChange={e => set('unidad', e.target.value)} style={{ height: '37px' }}>
-                {UNIDADES_OPT.map(u => <option key={u} value={u}>{u}</option>)}
+              <select value={form.unidad_id || ''} onChange={e => set('unidad_id', e.target.value)} style={{ height: '37px' }}>
+                <option value=''>— Seleccionar —</option>
+                {(unidades||[]).map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.simbolo})</option>)}
               </select>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Descripción</label>
-            <textarea value={form.desc} onChange={e => set('desc', e.target.value)} rows={3} placeholder="Descripción breve del producto terminado…" />
+            <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} rows={3} placeholder="Descripción breve del producto terminado…" />
           </div>
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
@@ -62,21 +64,35 @@ const ProductoDrawer = ({ producto, onClose, onSave, accentColor, onNavigate }) 
   );
 };
 
-const RecetaDrawer = ({ producto, onClose, accentColor }) => {
+const RecetaDrawer = ({ producto, onClose, accentColor, negocioId, onNavigate }) => {
   const ref = useRef(null);
-  const [bom, setBom] = useState([
-    { id: 1, nombre: 'Leche entera',     cantidad: 5.000, unidad: 'L',  precio: 4.80   },
-    { id: 2, nombre: 'Cuajo enzimático', cantidad: 0.003, unidad: 'kg', precio: 420.00 },
-    { id: 3, nombre: 'Sal refinada',     cantidad: 0.015, unidad: 'kg', precio: 8.50   },
-    { id: 4, nombre: 'Empaque film',     cantidad: 1,     unidad: 'u',  precio: 0.80   },
-  ]);
-  const [etapas, setEtapas] = useState([
-    { id: 1, nombre: 'Pasteurización', tiempo: 4,  costoH: 18.50 },
-    { id: 2, nombre: 'Coagulación',    tiempo: 12, costoH: 18.50 },
-    { id: 3, nombre: 'Desuerado',      tiempo: 20, costoH: 18.50 },
-    { id: 4, nombre: 'Salazón',        tiempo: 8,  costoH: 18.50 },
-    { id: 5, nombre: 'Empaque',        tiempo: 6,  costoH: 18.50 },
-  ]);
+  const [bom, setBom] = useState([]);
+  const [etapas, setEtapas] = useState([]);
+  const [insumos, setInsumos] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addingBom, setAddingBom] = useState(false);
+  const [addingEtapa, setAddingEtapa] = useState(false);
+  const [bomForm, setBomForm] = useState({ insumo_id: '', cantidad: '', unidad_id: '' });
+  const [etapaForm, setEtapaForm] = useState({ nombre: '', tiempo_minutos: '', costo_hora: '' });
+  const [editingEtapa, setEditingEtapa] = useState(null);
+
+  useEffect(() => {
+    if (!negocioId || !producto) return;
+    const load = async () => {
+      try {
+        const [b, e, ins, u] = await Promise.all([
+          apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/bom`),
+          apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/etapas`),
+          apiFetch(`/api/negocios/${negocioId}/insumos`),
+          apiFetch(`/api/negocios/${negocioId}/unidades`),
+        ]);
+        setBom(b); setEtapas(e); setInsumos(ins); setUnidades(u);
+      } catch(err) { console.error(err); }
+      setLoading(false);
+    };
+    load();
+  }, [negocioId, producto]);
 
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -84,31 +100,67 @@ const RecetaDrawer = ({ producto, onClose, accentColor }) => {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const totalMPD = bom.reduce((s, r) => s + r.cantidad * r.precio, 0);
-  const totalMOD = etapas.reduce((s, e) => s + (e.tiempo / 60) * e.costoH, 0);
+  const totalMPD = bom.reduce((s, r) => s + parseFloat(r.costo_parcial || 0), 0);
+  const totalMOD = etapas.reduce((s, e) => s + parseFloat(e.costo_etapa || 0), 0);
+
+  const handleAddBom = async () => {
+    if (!bomForm.insumo_id || !bomForm.cantidad) return;
+    try {
+      const created = await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/bom`, {
+        method: 'POST', body: JSON.stringify({ insumo_id: bomForm.insumo_id, cantidad: parseFloat(bomForm.cantidad), unidad_id: bomForm.unidad_id || null }),
+      });
+      setBom(b => [...b, created]);
+      setBomForm({ insumo_id: '', cantidad: '', unidad_id: '' });
+      setAddingBom(false);
+    } catch(e) { console.error(e); }
+  };
+  const handleDeleteBom = async (bomId) => {
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/bom/${bomId}`, { method: 'DELETE' });
+      setBom(b => b.filter(x => x.id !== bomId));
+    } catch(e) { console.error(e); }
+  };
+  const handleAddEtapa = async () => {
+    if (!etapaForm.nombre || !etapaForm.tiempo_minutos || !etapaForm.costo_hora) return;
+    try {
+      const created = await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/etapas`, {
+        method: 'POST', body: JSON.stringify({ nombre: etapaForm.nombre, tiempo_minutos: parseFloat(etapaForm.tiempo_minutos), costo_hora: parseFloat(etapaForm.costo_hora) }),
+      });
+      setEtapas(e => [...e, created]);
+      setEtapaForm({ nombre: '', tiempo_minutos: '', costo_hora: '' });
+      setAddingEtapa(false);
+    } catch(e) { console.error(e); }
+  };
+  const handleDeleteEtapa = async (etapaId) => {
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/etapas/${etapaId}`, { method: 'DELETE' });
+      setEtapas(e => e.filter(x => x.id !== etapaId));
+    } catch(e) { console.error(e); }
+  };
+
+  const iStyle = { background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '5px', color: 'var(--text-primary)', padding: '6px 8px', fontSize: '12px', outline: 'none', fontFamily: 'var(--font-sans)', width: '100%' };
 
   const Row = ({ row, onDel }) => (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 48px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
-      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{row.nombre}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{row.cantidad.toFixed(3)}</span>
-      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{row.unidad}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {row.precio.toFixed(2)}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {(row.cantidad * row.precio).toFixed(2)}</span>
+      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{row.insumo_nombre}</span>
+      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{parseFloat(row.cantidad).toFixed(3)}</span>
+      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{row.unidad_simbolo || ''}</span>
+      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(row.precio_unitario).toFixed(2)}</span>
+      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {parseFloat(row.costo_parcial).toFixed(2)}</span>
       <div style={{ display: 'flex', gap: '2px', justifyContent: 'flex-end' }}>
         <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
       </div>
     </div>
   );
-
   const EtapaRow = ({ et, idx, onDel }) => {
-    const costoU = (et.tiempo / 60) * et.costoH;
+    const costoU = parseFloat(et.costo_etapa || 0);
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '20px 20px 1fr 60px 80px 80px 40px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
-        <span style={{ color: 'var(--text-tertiary)', cursor: 'grab' }}><Icon name="grip" size={12} /></span>
+        <span style={{ color: 'var(--text-tertiary)' }}><Icon name="grip" size={12} /></span>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)' }}>{idx + 1}</span>
         <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{et.nombre}</span>
-        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{et.tiempo} min</span>
-        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {et.costoH.toFixed(2)}</span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{parseFloat(et.tiempo_minutos)} min</span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(et.costo_hora).toFixed(2)}</span>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {costoU.toFixed(2)}</span>
         <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
       </div>
@@ -126,67 +178,105 @@ const RecetaDrawer = ({ producto, onClose, accentColor }) => {
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}><Icon name="x" size={16} /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          {loading ? <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px' }}>Cargando receta...</div> : <>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Materias primas (BOM)</span>
-              <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor}>Agregar insumo</Btn>
+              <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => setAddingBom(!addingBom)}>Agregar insumo</Btn>
             </div>
+            {addingBom && (
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
+                <select value={bomForm.insumo_id} onChange={e => setBomForm(f=>({...f, insumo_id: e.target.value}))} style={{...iStyle, flex:2}}><option value="">Seleccionar insumo</option>{insumos.map(i=><option key={i.id} value={i.id}>{i.nombre}</option>)}</select>
+                <input type="number" placeholder="Cant." value={bomForm.cantidad} onChange={e => setBomForm(f=>({...f, cantidad: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <select value={bomForm.unidad_id} onChange={e => setBomForm(f=>({...f, unidad_id: e.target.value}))} style={{...iStyle, flex:1}}><option value="">Unidad</option>{unidades.map(u=><option key={u.id} value={u.id}>{u.simbolo}</option>)}</select>
+                <Btn size="sm" accentColor={accentColor} onClick={handleAddBom}>+</Btn>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 48px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
               {['Insumo', 'Cantidad', 'Unidad', 'Precio/u', 'Costo', ''].map((h, i) => (
                 <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
               ))}
             </div>
-            {bom.map(r => <Row key={r.id} row={r} onDel={() => setBom(b => b.filter(x => x.id !== r.id))} />)}
+            {bom.map(r => <Row key={r.id} row={r} onDel={() => handleDeleteBom(r.id)} />)}
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 48px 0 0' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginRight: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total MPD</span>
               <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: accentColor, fontWeight: 500 }}>Bs {totalMPD.toFixed(2)}</span>
             </div>
           </div>
-
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Etapas de producción</span>
-              <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor}>Agregar etapa</Btn>
+              <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => setAddingEtapa(!addingEtapa)}>Agregar etapa</Btn>
             </div>
+            {addingEtapa && (
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
+                <input placeholder="Nombre etapa" value={etapaForm.nombre} onChange={e => setEtapaForm(f=>({...f, nombre: e.target.value}))} style={{...iStyle, flex:2}} />
+                <input type="number" placeholder="Min." value={etapaForm.tiempo_minutos} onChange={e => setEtapaForm(f=>({...f, tiempo_minutos: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <input type="number" placeholder="Bs/h" value={etapaForm.costo_hora} onChange={e => setEtapaForm(f=>({...f, costo_hora: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <Btn size="sm" accentColor={accentColor} onClick={handleAddEtapa}>+</Btn>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '20px 20px 1fr 60px 80px 80px 40px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
               {['', '#', 'Etapa', 'Tiempo', 'Costo/h', 'Costo/u', ''].map((h, i) => (
                 <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textAlign: i >= 3 && i <= 5 ? 'right' : 'left' }}>{h}</div>
               ))}
             </div>
-            {etapas.map((et, idx) => <EtapaRow key={et.id} et={et} idx={idx} onDel={() => setEtapas(e => e.filter(x => x.id !== et.id))} />)}
+            {etapas.map((et, idx) => <EtapaRow key={et.id} et={et} idx={idx} onDel={() => handleDeleteEtapa(et.id)} />)}
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 40px 0 0' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginRight: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total MOD</span>
               <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: accentColor, fontWeight: 500 }}>Bs {totalMOD.toFixed(2)}</span>
             </div>
           </div>
+          </>}
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-          <Btn accentColor={accentColor} icon="calculator">Calcular costo con esta receta</Btn>
+          <Btn accentColor={accentColor} icon="calculator" onClick={() => { onClose(); if(onNavigate) onNavigate('fichas', { productoId: producto.id }); }}>Calcular costo con esta receta</Btn>
         </div>
       </div>
     </div>
   );
 };
 
+
 const Productos = ({ negocioId, onNavigate }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
-  const isAgro = negocio.rubro === 'agro_ganadero';
-  const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
-  const [productos, setProductos] = useState(() => MOCK_BY_NEGOCIO[negocioId]?.productos || []);
+  const accentColor = 'var(--accent-industrial)';
+  const [productos, setProductos] = useState([]);
+  const [unidades, setUnidades] = useState([]);
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [drawer, setDrawer] = useState(null);
   const [receta, setReceta] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const cargarProductos = async () => {
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/productos?activo=all`);
+      setProductos(data);
+    } catch(e) { setError(e?.error || 'Error cargando productos'); }
+  };
 
   useEffect(() => {
-    setProductos(MOCK_BY_NEGOCIO[negocioId]?.productos || []);
+    if (!negocioId) return;
+    setLoading(true);
+    Promise.all([
+      apiFetch(`/api/negocios/${negocioId}/productos?activo=all`),
+      apiFetch(`/api/negocios/${negocioId}/unidades`),
+    ]).then(([p, u]) => { setProductos(p); setUnidades(u); }).catch(e => setError(e?.error || 'Error')).finally(() => setLoading(false));
     setMostrarArchivados(false);
   }, [negocioId]);
 
-  const handleSave = form => {
-    if (form.id) setProductos(p => p.map(x => x.id === form.id ? { ...x, ...form } : x));
-    else setProductos(p => [...p, { ...form, id: `p${Date.now()}`, costoUnit: 0, pvp: 0, margen: 0, fichaReciente: false, activo: true }]);
-    setDrawer(null);
+  const handleSave = async form => {
+    try {
+      const payload = { nombre: form.nombre, codigo_sku: form.codigo_sku || null, descripcion: form.descripcion || null, unidad_id: form.unidad_id || null };
+      if (form.id) {
+        await apiFetch(`/api/negocios/${negocioId}/productos/${form.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await apiFetch(`/api/negocios/${negocioId}/productos`, { method: 'POST', body: JSON.stringify(payload) });
+      }
+      await cargarProductos();
+      setDrawer(null);
+    } catch(e) { setError(e?.error || 'Error guardando producto'); }
   };
 
   const activos    = productos.filter(p => p.activo !== false);
@@ -213,11 +303,11 @@ const Productos = ({ negocioId, onNavigate }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '3px' }}>{p.nombre}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>{p.sku || 'Sin SKU'}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>{p.codigo_sku || 'Sin SKU'}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
             <StatusBadge label={isArchived ? 'Archivado' : 'Activo'} color={isArchived ? 'var(--text-tertiary)' : 'var(--accent-success)'} />
-            {!isArchived && <StatusBadge label={p.fichaReciente ? 'Ficha reciente' : 'Sin ficha'} color={p.fichaReciente ? 'var(--accent-success)' : 'var(--text-tertiary)'} />}
+            <StatusBadge label={`${p.bom_count || 0} items BOM`} color={p.bom_count > 0 ? accentColor : 'var(--text-tertiary)'} />
           </div>
         </div>
 
@@ -225,18 +315,18 @@ const Productos = ({ negocioId, onNavigate }) => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Margen</div>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--accent-success)' }}>{p.costoUnit > 0 ? `${p.margen}%` : '—'}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>BOM Items</div>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{p.bom_count || 0}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Etapas</div>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{p.tiene_etapas ? 'Sí' : 'No'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Unidad</div>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{p.unidad_simbolo || '—'}</div>
           </div>
           <div></div>
-          <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Costo unit.</div>
-            <MoneyDisplay value={p.costoUnit || 0} size="sm" />
-          </div>
-          <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Precio suger.</div>
-            <MoneyDisplay value={p.pvp || 0} size="sm" color="green" />
-          </div>
         </div>
 
         <div style={{ height: '1px', background: 'var(--border-subtle)' }} />
@@ -245,14 +335,14 @@ const Productos = ({ negocioId, onNavigate }) => {
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', flex: 1 }}>Producto archivado</span>
             <Btn variant="secondary" size="sm" icon="refresh" accentColor="var(--accent-success)"
-              onClick={() => setProductos(prev => prev.map(x => x.id === p.id ? { ...x, activo: true } : x))}>
+              onClick={async () => { await apiFetch(`/api/negocios/${negocioId}/productos/${p.id}/archivar`, {method:'PATCH'}); await cargarProductos(); }}>
               Restaurar producto
             </Btn>
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '8px' }}>
             <Btn variant="secondary" size="sm" icon="fileText" onClick={() => setReceta(p)}>Ver receta</Btn>
-            <Btn size="sm" icon="calculator" accentColor={accentColor} onClick={() => onNavigate('fichas')}>Calcular costo</Btn>
+            <Btn size="sm" icon="calculator" accentColor={accentColor} onClick={() => onNavigate('fichas', { productoId: p.id })}>Calcular costo</Btn>
             <button onClick={() => setDrawer(p)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
@@ -271,14 +361,16 @@ const Productos = ({ negocioId, onNavigate }) => {
             <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Productos</h1>
             <span style={{ background: accentColor + '1A', color: accentColor, border: `1px solid ${accentColor}33`, borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 500 }}>{activos.length}</span>
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{activos.length} productos · {negocio.nombre}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{activos.length} productos activos</div>
         </div>
         <Btn icon="plus" accentColor={accentColor} onClick={() => setDrawer('new')}>Nuevo producto</Btn>
       </div>
 
+      {error && <div style={{ color: 'var(--accent-danger)', fontSize: '13px' }}>{error}</div>}
+      {loading ? <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px' }}>Cargando productos...</div> : (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
         {visibles.map(p => <ProductCard key={p.id} p={p} />)}
-      </div>
+      </div>)}
 
       {archivados.length > 0 && (
         <button onClick={() => setMostrarArchivados(v => !v)}
@@ -291,8 +383,8 @@ const Productos = ({ negocioId, onNavigate }) => {
         </button>
       )}
 
-      {drawer && <ProductoDrawer producto={drawer === 'new' ? null : drawer} onClose={() => setDrawer(null)} onSave={handleSave} accentColor={accentColor} onNavigate={onNavigate} />}
-      {receta && <RecetaDrawer producto={receta} onClose={() => setReceta(null)} accentColor={accentColor} />}
+      {drawer && <ProductoDrawer producto={drawer === 'new' ? null : drawer} onClose={() => setDrawer(null)} onSave={handleSave} accentColor={accentColor} onNavigate={onNavigate} unidades={unidades} />}
+      {receta && <RecetaDrawer producto={receta} onClose={() => setReceta(null)} accentColor={accentColor} negocioId={negocioId} onNavigate={onNavigate} />}
     </div>
   );
 };
