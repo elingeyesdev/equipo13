@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
 import { Icon } from '../icons.jsx';
 import { Btn } from '../components/ui.jsx';
+import { apiFetch } from '../config/api.js';
 
 const PALETA = ['#3B82F6','#22C55E','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'];
-
-const CATS_INIT = [
-  { id: 'c1', nombre: 'Materia prima principal',      color: '#3B82F6', insumos: 34 },
-  { id: 'c2', nombre: 'Insumos químicos y cultivos',   color: '#F59E0B', insumos: 8  },
-  { id: 'c3', nombre: 'Empaque y presentación',        color: '#22C55E', insumos: 6  },
-  { id: 'c4', nombre: 'Limpieza y saneamiento',        color: '#8B5CF6', insumos: 4  },
-  { id: 'c5', nombre: 'Energía y combustibles',        color: '#EC4899', insumos: 2  },
-  { id: 'c6', nombre: 'Mantenimiento y lubricantes',   color: '#94A3B8', insumos: 2  },
-];
 
 const CatForm = ({ init, onSave, onCancel, accentColor }) => {
   const [form, setForm] = useState(init || { nombre: '', color: PALETA[0] });
@@ -48,18 +40,59 @@ const CatForm = ({ init, onSave, onCancel, accentColor }) => {
 const Categorias = ({ negocioId }) => {
   const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
   const accentColor = negocio.rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
-  const [cats, setCats] = useState(CATS_INIT);
+  const [cats, setCats] = useState([]);
   const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleSave = data => {
-    if (data.id) setCats(p => p.map(x => x.id === data.id ? { ...x, ...data } : x));
-    else setCats(p => [...p, { ...data, id: `c${Date.now()}`, insumos: 0 }]);
-    setForm(null);
+  const cargarCategorias = async () => {
+    if (!negocioId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/categorias`);
+      setCats(data);
+    } catch (e) {
+      setError(e?.error || 'No se pudo cargar categorías');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    cargarCategorias();
+  }, [negocioId]);
+
+  const handleSave = async data => {
+    try {
+      setError('');
+      const payload = {
+        nombre: data.nombre,
+        color: data.color,
+        descripcion: data.descripcion || null
+      };
+      if (data.id) {
+        await apiFetch(`/api/negocios/${negocioId}/categorias/${data.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await apiFetch(`/api/negocios/${negocioId}/categorias`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+      }
+      setForm(null);
+      await cargarCategorias();
+    } catch (e) {
+      setError(e?.error || 'No se pudo guardar la categoría');
+    }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Categorías de Insumos</h1>
+      {error && <div style={{ color: 'var(--accent-danger)', fontSize: '13px' }}>{error}</div>}
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -70,7 +103,13 @@ const Categorias = ({ negocioId }) => {
           <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => setForm('new')}>Nueva categoría</Btn>
         </div>
 
-        {cats.map((cat, i) => (
+        {loading && (
+          <div style={{ padding: '28px 20px', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+            Cargando categorías...
+          </div>
+        )}
+
+        {!loading && cats.map((cat, i) => (
           <div key={cat.id} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 100px 80px', padding: '13px 20px', borderBottom: i < cats.length - 1 || form ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -84,7 +123,15 @@ const Categorias = ({ negocioId }) => {
               <button onClick={() => setForm(cat)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
               ><Icon name="edit" size={14} /></button>
-              <button onClick={() => setCats(p => p.filter(x => x.id !== cat.id))} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
+              <button onClick={async () => {
+                try {
+                  setError('');
+                  await apiFetch(`/api/negocios/${negocioId}/categorias/${cat.id}`, { method: 'DELETE' });
+                  await cargarCategorias();
+                } catch (e) {
+                  setError(e?.error || 'No se pudo eliminar la categoría');
+                }
+              }} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-danger)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
               ><Icon name="trash" size={14} /></button>
             </div>

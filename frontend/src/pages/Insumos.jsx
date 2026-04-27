@@ -1,21 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { MOCK_BY_NEGOCIO, StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
+import { StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
+import { apiFetch } from '../config/api.js';
 
-const CATEGORIAS = ['Todas', 'Lácteos', 'Aditivos', 'Empaques', 'Limpieza', 'Energía', 'Mantenimiento'];
-const CAT_COLORS = {
-  'Lácteos': 'var(--accent-industrial)', 'Aditivos': 'var(--accent-warning)',
-  'Empaques': 'var(--accent-success)', 'Limpieza': '#8B5CF6', 'Energía': '#EC4899',
-  'Mantenimiento': 'var(--text-tertiary)',
-};
-
-const InsumoDrawer = ({ insumo, onClose, onSave, accentColor, negocioId }) => {
+const InsumoDrawer = ({
+  insumo,
+  onClose,
+  onSave,
+  accentColor,
+  categorias,
+  unidades,
+  proveedores
+}) => {
   const [form, setForm] = useState(insumo || {
-    nombre: '', sku: '', categoria: 'Materia prima', unidad: '', precio: '', proveedor: '', variable: true,
+    nombre: '',
+    codigo_sku: '',
+    categoria_id: '',
+    unidad_id: '',
+    precio_unitario: '',
+    proveedor_id: '',
+    es_variable: true,
+    notas: ''
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const drawerRef = useRef(null);
-  const proveedoresList = MOCK_BY_NEGOCIO[negocioId]?.proveedores || [];
 
   useEffect(() => {
     const handler = e => { if (drawerRef.current && !drawerRef.current.contains(e.target)) onClose(); };
@@ -60,16 +68,16 @@ const InsumoDrawer = ({ insumo, onClose, onSave, accentColor, negocioId }) => {
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <Field label="Nombre del insumo"><TInput value={form.nombre} onChange={v => set('nombre', v)} placeholder="Ej. Leche entera" /></Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <Field label="Código SKU"><TInput value={form.sku} onChange={v => set('sku', v)} placeholder="INS-XXX" mono /></Field>
+            <Field label="Código SKU"><TInput value={form.codigo_sku || ''} onChange={v => set('codigo_sku', v)} placeholder="INS-XXX" mono /></Field>
             <Field label="Unidad de medida">
-              <select value={form.unidad || ''} onChange={e => set('unidad', e.target.value)}
-                style={selectStyle(!!form.unidad)}
+              <select value={form.unidad_id || ''} onChange={e => set('unidad_id', e.target.value)}
+                style={selectStyle(!!form.unidad_id)}
                 onFocus={e => e.target.style.borderColor = accentColor}
                 onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
               >
                 <option value="">— Seleccionar —</option>
-                {['kg','g','L','ml','u','doc','caja','m','cab','jornal'].map(u => (
-                  <option key={u} value={u}>{u}</option>
+                {unidades.map(u => (
+                  <option key={u.id} value={u.id}>{u.nombre} ({u.simbolo})</option>
                 ))}
               </select>
             </Field>
@@ -77,7 +85,7 @@ const InsumoDrawer = ({ insumo, onClose, onSave, accentColor, negocioId }) => {
           <Field label="Precio por unidad">
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>Bs</span>
-              <input value={form.precio} onChange={e => set('precio', e.target.value)} type="number" placeholder="0.00"
+              <input value={form.precio_unitario} onChange={e => set('precio_unitario', e.target.value)} type="number" placeholder="0.00"
                 style={{ width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px 8px 30px', fontSize: '14px', fontFamily: 'var(--font-mono)', outline: 'none' }}
                 onFocus={e => e.target.style.borderColor = accentColor}
                 onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
@@ -85,36 +93,36 @@ const InsumoDrawer = ({ insumo, onClose, onSave, accentColor, negocioId }) => {
             </div>
           </Field>
           <Field label="Proveedor">
-            <select value={form.proveedor || ''} onChange={e => set('proveedor', e.target.value)}
-              style={selectStyle(!!form.proveedor)}
+            <select value={form.proveedor_id || ''} onChange={e => set('proveedor_id', e.target.value)}
+              style={selectStyle(!!form.proveedor_id)}
               onFocus={e => e.target.style.borderColor = accentColor}
               onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
             >
               <option value="">— Seleccionar proveedor —</option>
-              {proveedoresList.map(p => <option key={p} value={p}>{p}</option>)}
+              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </Field>
           <Field label="Categoría">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {CATEGORIAS.filter(c => c !== 'Todas').map(cat => (
-                <button key={cat} onClick={() => set('categoria', cat)} style={{
+              {categorias.map(cat => (
+                <button key={cat.id} onClick={() => set('categoria_id', cat.id)} style={{
                   padding: '5px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)',
-                  border: `1px solid ${form.categoria === cat ? (CAT_COLORS[cat] || accentColor) : 'var(--border-subtle)'}`,
-                  background: form.categoria === cat ? (CAT_COLORS[cat] || accentColor) + '18' : 'var(--bg-tertiary)',
-                  color: form.categoria === cat ? (CAT_COLORS[cat] || accentColor) : 'var(--text-secondary)',
+                  border: `1px solid ${form.categoria_id === cat.id ? (cat.color || accentColor) : 'var(--border-subtle)'}`,
+                  background: form.categoria_id === cat.id ? (cat.color || accentColor) + '18' : 'var(--bg-tertiary)',
+                  color: form.categoria_id === cat.id ? (cat.color || accentColor) : 'var(--text-secondary)',
                   transition: 'all 0.15s',
-                }}>{cat}</button>
+                }}>{cat.nombre}</button>
               ))}
             </div>
           </Field>
           <Field label="Tipo de costo">
             <div style={{ display: 'flex', gap: '8px' }}>
-              {[{v:true,l:'Variable'},{v:false,l:'Fijo'}].map(t => (
-                <button key={t.l} onClick={() => set('variable', t.v)} style={{
+              {[{ v: true, l: 'Variable' }, { v: false, l: 'Fijo' }].map(t => (
+                <button key={t.l} onClick={() => set('es_variable', t.v)} style={{
                   flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)',
-                  border: `1px solid ${form.variable === t.v ? accentColor : 'var(--border-subtle)'}`,
-                  background: form.variable === t.v ? accentColor + '18' : 'var(--bg-tertiary)',
-                  color: form.variable === t.v ? accentColor : 'var(--text-secondary)',
+                  border: `1px solid ${form.es_variable === t.v ? accentColor : 'var(--border-subtle)'}`,
+                  background: form.es_variable === t.v ? accentColor + '18' : 'var(--bg-tertiary)',
+                  color: form.es_variable === t.v ? accentColor : 'var(--text-secondary)',
                   transition: 'all 0.15s',
                 }}>{t.l}</button>
               ))}
@@ -137,15 +145,41 @@ const Insumos = ({ negocioId }) => {
   const isAgro = negocio.rubro === 'agro_ganadero';
   const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
 
-  const [insumos, setInsumos] = useState(() => MOCK_BY_NEGOCIO[negocioId]?.insumos || []);
+  const [insumos, setInsumos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('Todas');
   const [tipoFilter, setTipoFilter] = useState('todos');
   const [drawer, setDrawer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setInsumos(MOCK_BY_NEGOCIO[negocioId]?.insumos || []);
+    const cargarTodo = async () => {
+      if (!negocioId) return;
+      setLoading(true);
+      setError('');
+      try {
+        const [insumosData, proveedoresData, categoriasData, unidadesData] = await Promise.all([
+          apiFetch(`/api/negocios/${negocioId}/insumos?activo=all`),
+          apiFetch(`/api/negocios/${negocioId}/proveedores?activo=all`),
+          apiFetch(`/api/negocios/${negocioId}/categorias`),
+          apiFetch(`/api/negocios/${negocioId}/unidades`)
+        ]);
+        setInsumos(insumosData);
+        setProveedores(proveedoresData);
+        setCategorias(categoriasData);
+        setUnidades(unidadesData);
+      } catch (e) {
+        setError(e?.error || 'No se pudieron cargar los datos de insumos');
+      } finally {
+        setLoading(false);
+      }
+    };
+    cargarTodo();
     setMostrarArchivados(false);
   }, [negocioId]);
 
@@ -154,19 +188,47 @@ const Insumos = ({ negocioId }) => {
   const base       = mostrarArchivados ? insumos : activosAll;
 
   const filtered = base.filter(ins => {
-    const matchSearch = ins.nombre.toLowerCase().includes(search.toLowerCase()) || ins.sku.toLowerCase().includes(search.toLowerCase());
-    const matchCat  = catFilter === 'Todas' || ins.categoria === catFilter;
-    const matchTipo = tipoFilter === 'todos' || (tipoFilter === 'variable' ? ins.variable !== false : ins.variable === false);
+    const sku = ins.codigo_sku || '';
+    const matchSearch = ins.nombre.toLowerCase().includes(search.toLowerCase()) || sku.toLowerCase().includes(search.toLowerCase());
+    const matchCat = catFilter === 'Todas' || ins.categoria_id === catFilter;
+    const matchTipo = tipoFilter === 'todos' || (tipoFilter === 'variable' ? ins.es_variable !== false : ins.es_variable === false);
     return matchSearch && matchCat && matchTipo;
   });
 
-  const handleSave = form => {
-    if (form.id) {
-      setInsumos(prev => prev.map(i => i.id === form.id ? { ...i, ...form } : i));
-    } else {
-      setInsumos(prev => [...prev, { ...form, id: `i${Date.now()}`, activo: true }]);
+  const recargarInsumos = async () => {
+    const data = await apiFetch(`/api/negocios/${negocioId}/insumos?activo=all`);
+    setInsumos(data);
+  };
+
+  const handleSave = async form => {
+    try {
+      setError('');
+      const payload = {
+        nombre: form.nombre,
+        codigo_sku: form.codigo_sku || null,
+        categoria_id: form.categoria_id || null,
+        unidad_id: form.unidad_id || null,
+        precio_unitario: form.precio_unitario === '' ? 0 : Number(form.precio_unitario),
+        proveedor_id: form.proveedor_id || null,
+        es_variable: form.es_variable,
+        notas: form.notas || null
+      };
+      if (form.id) {
+        await apiFetch(`/api/negocios/${negocioId}/insumos/${form.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await apiFetch(`/api/negocios/${negocioId}/insumos`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+      }
+      await recargarInsumos();
+      setDrawer(null);
+    } catch (e) {
+      setError(e?.error || 'No se pudo guardar el insumo');
     }
-    setDrawer(null);
   };
 
   return (
@@ -182,6 +244,10 @@ const Insumos = ({ negocioId }) => {
         </div>
       </div>
 
+      {error && (
+        <div style={{ color: 'var(--accent-danger)', fontSize: '13px' }}>{error}</div>
+      )}
+
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -194,14 +260,14 @@ const Insumos = ({ negocioId }) => {
           />
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {CATEGORIAS.map(cat => (
+          {['Todas', ...categorias.map(c => c.id)].map(cat => (
             <button key={cat} onClick={() => setCatFilter(cat)} style={{
               padding: '5px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)',
-              border: `1px solid ${catFilter === cat ? (CAT_COLORS[cat] || accentColor) : 'var(--border-subtle)'}`,
-              background: catFilter === cat ? (CAT_COLORS[cat] || accentColor) + '18' : 'var(--bg-secondary)',
-              color: catFilter === cat ? (CAT_COLORS[cat] || accentColor) : 'var(--text-secondary)',
+              border: `1px solid ${catFilter === cat ? (categorias.find(c => c.id === cat)?.color || accentColor) : 'var(--border-subtle)'}`,
+              background: catFilter === cat ? (categorias.find(c => c.id === cat)?.color || accentColor) + '18' : 'var(--bg-secondary)',
+              color: catFilter === cat ? (categorias.find(c => c.id === cat)?.color || accentColor) : 'var(--text-secondary)',
               transition: 'all 0.15s',
-            }}>{cat}</button>
+            }}>{cat === 'Todas' ? 'Todas' : (categorias.find(c => c.id === cat)?.nombre || 'Sin categoría')}</button>
           ))}
         </div>
         <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
@@ -223,16 +289,22 @@ const Insumos = ({ negocioId }) => {
           ))}
         </div>
 
-        {filtered.length === 0 && (
+        {loading && (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
+            Cargando insumos...
+          </div>
+        )}
+
+        {!loading && filtered.length === 0 && (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
             No se encontraron insumos con esos filtros.
           </div>
         )}
 
-        {filtered.map((ins, i) => {
+        {!loading && filtered.map((ins, i) => {
           const isArchived = ins.activo === false;
-          const catColor = ins.catColor || CAT_COLORS[ins.categoria] || 'var(--text-tertiary)';
-          const tipoLabel = ins.variable !== false ? 'variable' : 'fijo';
+          const catColor = ins.categoria_color || 'var(--text-tertiary)';
+          const tipoLabel = ins.es_variable !== false ? 'variable' : 'fijo';
           return (
             <div key={ins.id}
               style={{ display: 'grid', gridTemplateColumns: '2fr 120px 64px 120px 160px 80px 80px', padding: '11px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', transition: 'background 0.1s', opacity: isArchived ? 0.5 : 1 }}
@@ -241,24 +313,40 @@ const Insumos = ({ negocioId }) => {
             >
               <div>
                 <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px' }}>{ins.nombre}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.sku}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.codigo_sku}</div>
               </div>
-              <div><StatusBadge label={ins.categoria} color={catColor} /></div>
-              <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.unidad}</div>
-              <div style={{ textAlign: 'right' }}><MoneyDisplay value={ins.precio} size="sm" /></div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.proveedor}</div>
-              <div><StatusBadge label={tipoLabel} color={ins.variable !== false ? accentColor : 'var(--text-tertiary)'} /></div>
+              <div><StatusBadge label={ins.categoria_nombre || 'Sin categoría'} color={catColor} /></div>
+              <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.unidad_simbolo || '-'}</div>
+              <div style={{ textAlign: 'right' }}><MoneyDisplay value={ins.precio_unitario} size="sm" /></div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.proveedor_nombre || '—'}</div>
+              <div><StatusBadge label={tipoLabel} color={ins.es_variable !== false ? accentColor : 'var(--text-tertiary)'} /></div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button onClick={() => setDrawer(ins)} title="Editar" style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px', transition: 'color 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                   onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
                 ><Icon name="edit" size={14} /></button>
                 {isArchived ? (
-                  <button onClick={() => setInsumos(p => p.map(x => x.id === ins.id ? { ...x, activo: true } : x))} title="Restaurar"
+                  <button onClick={async () => {
+                    try {
+                      setError('');
+                      await apiFetch(`/api/negocios/${negocioId}/insumos/${ins.id}/archivar`, { method: 'PATCH' });
+                      await recargarInsumos();
+                    } catch (e) {
+                      setError(e?.error || 'No se pudo restaurar insumo');
+                    }
+                  }} title="Restaurar"
                     style={{ background: 'transparent', border: 'none', color: 'var(--accent-success)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                   ><Icon name="refresh" size={14} /></button>
                 ) : (
-                  <button onClick={() => setInsumos(p => p.map(x => x.id === ins.id ? { ...x, activo: false } : x))} title="Archivar"
+                  <button onClick={async () => {
+                    try {
+                      setError('');
+                      await apiFetch(`/api/negocios/${negocioId}/insumos/${ins.id}/archivar`, { method: 'PATCH' });
+                      await recargarInsumos();
+                    } catch (e) {
+                      setError(e?.error || 'No se pudo archivar insumo');
+                    }
+                  }} title="Archivar"
                     style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px', transition: 'color 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-warning)'}
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
@@ -287,7 +375,9 @@ const Insumos = ({ negocioId }) => {
           onClose={() => setDrawer(null)}
           onSave={handleSave}
           accentColor={accentColor}
-          negocioId={negocioId}
+          categorias={categorias}
+          unidades={unidades}
+          proveedores={proveedores.filter(p => p.activo)}
         />
       )}
     </div>

@@ -1,20 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, Btn } from '../components/ui.jsx';
-
-const PROVEEDORES_DATA = [
-  { id: 'pv1', nombre: 'Coboce Lácteos S.R.L.',      contacto: 'Juan Pérez',      tel: '71234567', email: 'ventas@coboce.bo',        notas: 'Proveedor principal de leche. Entrega lunes y jueves.', insumos: ['Leche entera'], activo: true },
-  { id: 'pv2', nombre: 'TecnoLácteos Bolivia',        contacto: 'María Flores',    tel: '76543210', email: 'info@tecnolacteos.bo',     notas: 'Insumos de laboratorio. Pedido mínimo Bs 500.', insumos: ['Cuajo enzimático', 'Cloruro de calcio', 'Fermento láctico'], activo: true },
-  { id: 'pv3', nombre: 'Salinas de Uyuni Ltda.',      contacto: 'Carlos Mamani',   tel: '67891234', email: 'comercial@salinas.bo',     notas: '', insumos: ['Sal refinada'], activo: true },
-  { id: 'pv4', nombre: 'Plastibol Envases',           contacto: 'Ana Quispe',      tel: '72345678', email: 'ana@plastibol.com.bo',     notas: 'Pedidos con 3 días de anticipación.', insumos: ['Empaque film', 'Caja cartón 500g'], activo: true },
-  { id: 'pv5', nombre: 'Grafimundo Impresiones',      contacto: 'Luis Torrez',     tel: '71987654', email: 'cotizaciones@grafimundo.bo',notas: '', insumos: ['Etiquetas adhesivas'], activo: true },
-  { id: 'pv6', nombre: 'Química Beni S.A.',           contacto: 'Roberto Vargas',  tel: '69123456', email: 'rvargas@quimicabeni.bo',   notas: 'Proveedor de químicos de limpieza y ácidos.', insumos: ['Detergente industrial', 'Ácido láctico'], activo: true },
-  { id: 'pv7', nombre: 'YPFB Gas Domiciliario',       contacto: null,              tel: '800100200', email: null,                      notas: '', insumos: ['Gas GLP'], activo: true },
-  { id: 'pv8', nombre: 'Distribuidora Castrol Bol.',  contacto: 'Pedro Gutiérrez', tel: '70456789', email: null,                      notas: 'Archivado — ya no usamos este proveedor.', insumos: ['Aceite lubricante'], activo: false },
-];
+import { apiFetch } from '../config/api.js';
 
 const ProveedorDrawer = ({ proveedor, onClose, onSave, accentColor }) => {
-  const [form, setForm] = useState(proveedor || { nombre: '', contacto: '', tel: '', email: '', notas: '', activo: true });
+  const [form, setForm] = useState(proveedor || { nombre: '', contacto: '', telefono: '', email: '', notas: '', activo: true });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const ref = useRef(null);
   useEffect(() => {
@@ -45,7 +35,7 @@ const ProveedorDrawer = ({ proveedor, onClose, onSave, accentColor }) => {
           {iField('Nombre de la empresa', 'nombre', 'Ej. Distribuidora Química S.R.L.')}
           {iField('Persona de contacto', 'contacto', 'Nombre del encargado de ventas')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {iField('Teléfono', 'tel', '7XXXXXXX')}
+            {iField('Teléfono', 'telefono', '7XXXXXXX')}
             {iField('Email', 'email', 'ventas@empresa.bo')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -76,13 +66,57 @@ const ProveedorDrawer = ({ proveedor, onClose, onSave, accentColor }) => {
 const Proveedores = ({ negocioId }) => {
   const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
   const accentColor = negocio.rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
-  const [proveedores, setProveedores] = useState(PROVEEDORES_DATA);
+  const [proveedores, setProveedores] = useState([]);
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [drawer, setDrawer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleSave = form => {
-    if (form.id) setProveedores(p => p.map(x => x.id === form.id ? { ...x, ...form } : x));
-    else setProveedores(p => [...p, { ...form, id: `pv${Date.now()}`, insumos: [] }]);
+  const cargarProveedores = async () => {
+    if (!negocioId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/proveedores?activo=all`);
+      setProveedores(data);
+    } catch (e) {
+      setError(e?.error || 'No se pudo cargar proveedores');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarProveedores();
+    setMostrarArchivados(false);
+  }, [negocioId]);
+
+  const handleSave = async form => {
+    try {
+      setError('');
+      const payload = {
+        nombre: form.nombre,
+        contacto: form.contacto || null,
+        telefono: form.telefono || null,
+        email: form.email || null,
+        notas: form.notas || null
+      };
+
+      if (form.id) {
+        await apiFetch(`/api/negocios/${negocioId}/proveedores/${form.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await apiFetch(`/api/negocios/${negocioId}/proveedores`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+      }
+      await cargarProveedores();
+    } catch (e) {
+      setError(e?.error || 'No se pudo guardar el proveedor');
+    }
   };
 
   const activos    = proveedores.filter(p => p.activo);
@@ -99,13 +133,23 @@ const Proveedores = ({ negocioId }) => {
         <Btn icon="plus" accentColor={accentColor} onClick={() => setDrawer('new')}>Nuevo proveedor</Btn>
       </div>
 
+      {error && (
+        <div style={{ color: 'var(--accent-danger)', fontSize: '13px' }}>{error}</div>
+      )}
+
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
           {['Proveedor', 'Contacto', 'Insumos', 'Estado', ''].map((h, i) => (
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em' }}>{h}</div>
           ))}
         </div>
-        {visibles.map((pv, i) => (
+        {loading && (
+          <div style={{ padding: '28px 20px', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+            Cargando proveedores...
+          </div>
+        )}
+
+        {!loading && visibles.map((pv, i) => (
           <div key={pv.id}
             style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 80px', padding: '13px 20px', borderBottom: i < visibles.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: pv.activo ? 1 : 0.5 }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
@@ -117,13 +161,13 @@ const Proveedores = ({ negocioId }) => {
             </div>
             <div>
               {pv.contacto && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{pv.contacto}</div>}
-              {pv.tel && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                <Icon name="phone" size={11} /> {pv.tel}
+              {pv.telefono && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                <Icon name="phone" size={11} /> {pv.telefono}
               </div>}
             </div>
             <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: pv.insumos.length > 0 ? accentColor : 'var(--text-tertiary)' }} title={pv.insumos.join(', ')}>
-                {pv.insumos.length} insumo{pv.insumos.length !== 1 ? 's' : ''}
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                —
               </span>
             </div>
             <div><StatusBadge label={pv.activo ? 'Activo' : 'Archivado'} color={pv.activo ? 'var(--accent-success)' : 'var(--text-tertiary)'} /></div>
@@ -133,13 +177,29 @@ const Proveedores = ({ negocioId }) => {
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
               ><Icon name="edit" size={14} /></button>
               {pv.activo ? (
-                <button onClick={() => setProveedores(p => p.map(x => x.id === pv.id ? { ...x, activo: false } : x))}
+                <button onClick={async () => {
+                  try {
+                    setError('');
+                    await apiFetch(`/api/negocios/${negocioId}/proveedores/${pv.id}/archivar`, { method: 'PATCH' });
+                    await cargarProveedores();
+                  } catch (e) {
+                    setError(e?.error || 'No se pudo archivar proveedor');
+                  }
+                }}
                   style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
                   onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-warning)'}
                   onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
                 ><Icon name="archive" size={14} /></button>
               ) : (
-                <button onClick={() => setProveedores(p => p.map(x => x.id === pv.id ? { ...x, activo: true } : x))}
+                <button onClick={async () => {
+                  try {
+                    setError('');
+                    await apiFetch(`/api/negocios/${negocioId}/proveedores/${pv.id}/archivar`, { method: 'PATCH' });
+                    await cargarProveedores();
+                  } catch (e) {
+                    setError(e?.error || 'No se pudo restaurar proveedor');
+                  }
+                }}
                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-success)', cursor: 'pointer', padding: '4px' }}
                 ><Icon name="refresh" size={14} /></button>
               )}
