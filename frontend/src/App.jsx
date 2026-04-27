@@ -126,7 +126,7 @@ const App = () => {
       case 'productos':   return <Productos negocioId={negocioId} onNavigate={navigate} />;
       case 'insumos':     return <Insumos negocioId={negocioId} />;
       case 'proveedores': return <Proveedores negocioId={negocioId} />;
-      case 'historial':   return <Historial negocioId={negocioId} />;
+      case 'historial':   return <Historial negocioId={negocioId} onNavigate={navigate} />;
       case 'gastos':      return <GastosCIFPlaceholder rubro={negocio?.rubro || 'industrial'} />;
       case 'unidades':    return <Unidades negocioId={negocioId} />;
       case 'categorias':  return <Categorias negocioId={negocioId} />;

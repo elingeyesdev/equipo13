@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { MOCK_BY_NEGOCIO, Btn, MoneyDisplay } from '../components/ui.jsx';
+import { Btn, MoneyDisplay } from '../components/ui.jsx';
+import { apiFetch } from '../config/api.js';
 
-const FichaReadonlyDrawer = ({ ficha, onClose, accentColor }) => {
+const FichaReadonlyDrawer = ({ ficha, onClose, accentColor, onNavigate }) => {
   const ref = useRef(null);
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -30,27 +31,34 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor }) => {
     </div>
   );
 
-  const totalCosto = ficha.costoUnit * ficha.lote;
-  const mpd_pct = (ficha.mpd / totalCosto) * 100;
-  const mod_pct = (ficha.mod / totalCosto) * 100;
-  const cif_pct = (ficha.cif / totalCosto) * 100;
+  const lote = Number(ficha.lote_cantidad || 0);
+  const costoUnit = Number(ficha.costo_unitario_total || 0);
+  const pvp = Number(ficha.pvp_sugerido || costoUnit * 1.3);
+  const margen = Number(ficha.margen || 30);
+  const mpd = Number(ficha.mpd_unitario || 0) * lote;
+  const mod = Number(ficha.mod_unitario || 0) * lote;
+  const cif = Math.max(Number(ficha.costo_lote_total || 0) - mpd - mod, 0);
+  const totalCosto = Number(ficha.costo_lote_total || costoUnit * lote);
+  const mpd_pct = totalCosto > 0 ? (mpd / totalCosto) * 100 : 0;
+  const mod_pct = totalCosto > 0 ? (mod / totalCosto) * 100 : 0;
+  const cif_pct = totalCosto > 0 ? (cif / totalCosto) * 100 : 0;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', justifyContent: 'flex-end' }}>
       <div ref={ref} style={{ width: '480px', background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border-mid)', height: '100%', display: 'flex', flexDirection: 'column', animation: 'slideIn 0.2s ease' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div>
-            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '3px' }}>{ficha.producto}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{ficha.fecha} · Lote de {ficha.lote} unidades</div>
+            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '3px' }}>{ficha.producto_nombre}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{new Date(ficha.calculado_en).toLocaleString('es-BO')} · Lote de {lote} unidades</div>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}><Icon name="x" size={16} /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <Section label="Costo unitario" value={ficha.costoUnit} sub="MPD + MOD + CIF" />
-            <Section label="Precio sugerido" value={ficha.pvp} sub={`con ${ficha.margen}% de margen`} big />
-            <Section label="Utilidad / unidad" value={ficha.pvp - ficha.costoUnit} sub="utilidad bruta" />
-            <Section label="Utilidad del lote" value={(ficha.pvp - ficha.costoUnit) * ficha.lote} sub={`${ficha.lote} unidades`} />
+            <Section label="Costo unitario" value={costoUnit} sub="MPD + MOD + CIF" />
+            <Section label="Precio sugerido" value={pvp} sub={`con ${margen}% de margen`} big />
+            <Section label="Utilidad / unidad" value={pvp - costoUnit} sub="utilidad bruta" />
+            <Section label="Utilidad del lote" value={(pvp - costoUnit) * lote} sub={`${lote} unidades`} />
           </div>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '14px' }}>Distribución del costo</div>
@@ -61,8 +69,21 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor }) => {
             </div>
           </div>
           <div style={{ background: 'var(--bg-tertiary)', borderRadius: '8px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Costo total del lote ({ficha.lote} u)</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Costo total del lote ({lote} u)</span>
             <MoneyDisplay value={totalCosto} size="lg" />
+          </div>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Detalle real del cálculo</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>MPD items</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)' }}>{Array.isArray(ficha.detalle_mpd) ? ficha.detalle_mpd.length : 0}</div>
+              </div>
+              <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>MOD etapas</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)' }}>{Array.isArray(ficha.detalle_mod) ? ficha.detalle_mod.length : 0}</div>
+              </div>
+            </div>
           </div>
           <div style={{ padding: '12px', background: 'var(--bg-tertiary)', borderRadius: '6px', borderLeft: `2px solid ${accentColor}`, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             Esta ficha es de solo lectura. Para recalcular, abrí la pantalla de Fichas de costo y creá una nueva versión.
@@ -70,7 +91,10 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor }) => {
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-          <Btn accentColor={accentColor} icon="copy">Recalcular desde esta ficha</Btn>
+          <Btn accentColor={accentColor} icon="copy" onClick={() => {
+            onClose();
+            onNavigate('fichas', { productoId: ficha.producto_id });
+          }}>Recalcular desde esta ficha</Btn>
         </div>
       </div>
       <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
@@ -78,15 +102,44 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor }) => {
   );
 };
 
-const Historial = ({ negocioId }) => {
+const Historial = ({ negocioId, onNavigate }) => {
   const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
   const isAgro = negocio.rubro === 'agro_ganadero';
   const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
-  const fichas = MOCK_BY_NEGOCIO[negocioId]?.fichas || [];
+  const [fichas, setFichas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const PRODUCTOS_OPTS = ['Todos', ...new Set(fichas.map(f => f.producto))];
   const [filtroProducto, setFiltroProducto] = useState('Todos');
   const [filtroLote, setFiltroLote] = useState('');
   const [selected, setSelected] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!negocioId) return;
+      setLoading(true);
+      setError('');
+      try {
+        const data = await apiFetch(`/api/negocios/${negocioId}/fichas`);
+        const mapped = data.map(f => ({
+          ...f,
+          producto: f.producto_nombre,
+          lote: Number(f.lote_cantidad || 0),
+          costoUnit: Number(f.costo_unitario_total || 0),
+          pvp: Number(f.costo_unitario_total || 0) * 1.3,
+          margen: 30,
+          fecha: new Date(f.calculado_en).toLocaleString('es-BO')
+        }));
+        setFichas(mapped);
+      } catch (e) {
+        setError(e?.error || 'No se pudo cargar el historial');
+      } finally {
+        setLoading(false);
+      }
+    };
+    cargar();
+  }, [negocioId]);
 
   const filtered = fichas.filter(f => {
     const matchProd = filtroProducto === 'Todos' || f.producto === filtroProducto;
@@ -113,6 +166,8 @@ const Historial = ({ negocioId }) => {
         </div>
       </div>
 
+      {error && <div style={{ color: 'var(--accent-danger)', fontSize: '13px' }}>{error}</div>}
+
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Producto</label>
@@ -135,12 +190,27 @@ const Historial = ({ negocioId }) => {
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em', textAlign: i >= 2 && i <= 5 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
-        {filtered.map((f, i) => (
+        {loading && (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
+            Cargando historial...
+          </div>
+        )}
+        {!loading && filtered.map((f, i) => (
           <div key={f.id}
             style={{ display: 'grid', gridTemplateColumns: '160px 1fr 70px 120px 120px 80px 80px', padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            onClick={() => setSelected(f)}
+            onClick={async () => {
+              try {
+                setLoadingDetalle(true);
+                const detail = await apiFetch(`/api/negocios/${negocioId}/fichas/${f.id}`);
+                setSelected({ ...detail, pvp_sugerido: f.pvp, margen: f.margen });
+              } catch (e) {
+                setError(e?.error || 'No se pudo cargar el detalle de la ficha');
+              } finally {
+                setLoadingDetalle(false);
+              }
+            }}
           >
             <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>{f.fecha}</div>
             <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{f.producto}</div>
@@ -148,15 +218,27 @@ const Historial = ({ negocioId }) => {
             <div style={{ textAlign: 'right' }}><MoneyDisplay value={f.costoUnit} size="sm" /></div>
             <div style={{ textAlign: 'right' }}><MoneyDisplay value={f.pvp} size="sm" color="green" /></div>
             <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--accent-success)' }}>{f.margen}%</div>
-            <div style={{ textAlign: 'right' }}><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={e => { e.stopPropagation(); setSelected(f); }}>Ver →</Btn></div>
+            <div style={{ textAlign: 'right' }}><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={async e => {
+              e.stopPropagation();
+              try {
+                setLoadingDetalle(true);
+                const detail = await apiFetch(`/api/negocios/${negocioId}/fichas/${f.id}`);
+                setSelected({ ...detail, pvp_sugerido: f.pvp, margen: f.margen });
+              } catch (err) {
+                setError(err?.error || 'No se pudo cargar el detalle de la ficha');
+              } finally {
+                setLoadingDetalle(false);
+              }
+            }}>Ver →</Btn></div>
           </div>
         ))}
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>Sin fichas para los filtros seleccionados.</div>
         )}
       </div>
+      {loadingDetalle && <div style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>Cargando detalle de ficha...</div>}
 
-      {selected && <FichaReadonlyDrawer ficha={selected} onClose={() => setSelected(null)} accentColor={accentColor} />}
+      {selected && <FichaReadonlyDrawer ficha={selected} onClose={() => setSelected(null)} accentColor={accentColor} onNavigate={onNavigate} />}
     </div>
   );
 };
