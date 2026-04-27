@@ -1,23 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Icon } from './icons.jsx';
-import { AppLayout } from './layouts/AppLayout.jsx';
-import { Btn } from './components/ui.jsx';
-import { apiFetch } from './config/api.js';
-import Login from './pages/Login.jsx';
-import Onboarding from './pages/Onboarding.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import FichaCosto from './pages/FichaCosto.jsx';
-import Productos from './pages/Productos.jsx';
-import Insumos from './pages/Insumos.jsx';
-import Proveedores from './pages/Proveedores.jsx';
-import Historial from './pages/Historial.jsx';
-import Unidades from './pages/Unidades.jsx';
-import Categorias from './pages/Categorias.jsx';
-import Configuracion from './pages/Configuracion.jsx';
-import Lotes from './pages/agro/Lotes.jsx';
-import Bitacora from './pages/agro/Bitacora.jsx';
-import Liquidacion from './pages/agro/Liquidacion.jsx';
+// CosteoUniversal — Root App v2
+const { useState, useEffect } = React;
 
+const STORAGE_KEY = 'cu_state_v2';
+
+const loadState = () => {
+  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+  return null;
+};
+
+// Apply saved theme immediately before render
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
@@ -48,74 +39,22 @@ const GastosCIFPlaceholder = ({ rubro }) => {
 };
 
 const App = () => {
-  const [user, setUser] = useState(null);
-  const [negocios, setNegocios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState('dashboard');
-  const [negocioId, setNegocioId] = useState(null);
+  const saved = loadState();
+  const [onboarded, setOnboarded] = useState(saved?.onboarded ?? false);
+  const [page, setPage] = useState(saved?.page ?? 'dashboard');
+  const [negocioId, setNegocioId] = useState(saved?.negocioId ?? 'n1');
   const [activeLote, setActiveLote] = useState(null);
 
-  const loadNegocios = async () => {
-    try {
-      const data = await apiFetch('/api/negocios');
-      setNegocios(data);
-      setNegocioId(prev => prev ?? (data[0]?.id || null));
-    } catch (e) {}
-  };
-
   useEffect(() => {
-    const init = async () => {
-      const token = localStorage.getItem('cu_token');
-      if (token) {
-        try {
-          const userData = await apiFetch('/api/auth/me');
-          setUser(userData);
-          if (userData.onboarding_completado) await loadNegocios();
-        } catch (e) {
-          localStorage.removeItem('cu_token');
-        }
-      }
-      setLoading(false);
-    };
-    init();
-  }, []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ onboarded, page, negocioId }));
+  }, [onboarded, page, negocioId]);
 
-  const login = async (email, password) => {
-    const data = await apiFetch('/api/auth/login', {
-      method: 'POST', body: JSON.stringify({ email, password }),
-    });
-    localStorage.setItem('cu_token', data.token);
-    setUser(data.user);
-    if (data.user.onboarding_completado) await loadNegocios();
-  };
-
-  const register = async (email, password, nombre) => {
-    const data = await apiFetch('/api/auth/register', {
-      method: 'POST', body: JSON.stringify({ email, password, nombre }),
-    });
-    localStorage.setItem('cu_token', data.token);
-    setUser(data.user);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('cu_token');
-    localStorage.removeItem('cu_state_v2');
-    setUser(null);
-    setNegocios([]);
-    setNegocioId(null);
-    setPage('dashboard');
-  };
-
-  const handleOnboardingComplete = async (newNegocioId) => {
-    setUser(u => ({ ...u, onboarding_completado: true }));
-    setNegocioId(newNegocioId);
-    await loadNegocios();
-  };
+  const negocio = NEGOCIOS.find(n => n.id === negocioId) || NEGOCIOS[0];
+  const isAgro = negocio.rubro === 'agro_ganadero';
 
   const navigate = p => setPage(p);
 
   const renderPage = () => {
-    const negocio = negocios.find(n => n.id === negocioId);
     switch (page) {
       case 'dashboard':   return <Dashboard negocioId={negocioId} onNavigate={navigate} />;
       case 'fichas':      return <FichaCosto negocioId={negocioId} />;
@@ -123,10 +62,11 @@ const App = () => {
       case 'insumos':     return <Insumos negocioId={negocioId} />;
       case 'proveedores': return <Proveedores negocioId={negocioId} />;
       case 'historial':   return <Historial negocioId={negocioId} />;
-      case 'gastos':      return <GastosCIFPlaceholder rubro={negocio?.rubro || 'industrial'} />;
+      case 'gastos':      return <GastosCIFPlaceholder rubro={negocio.rubro} />;
       case 'unidades':    return <Unidades negocioId={negocioId} />;
       case 'categorias':  return <Categorias negocioId={negocioId} />;
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} />;
+      // Agro pages
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} />;
@@ -141,32 +81,19 @@ const App = () => {
     }
   };
 
-  if (loading) return (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-      <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Cargando…</div>
-    </div>
-  );
-
-  if (!user) return <Login onLogin={login} onRegister={register} />;
-
-  if (!user.onboarding_completado) return <Onboarding onComplete={handleOnboardingComplete} />;
+  if (!onboarded) return <Onboarding onComplete={() => setOnboarded(true)} />;
 
   return (
-    <AppLayout
-      page={page}
-      onNavigate={navigate}
-      negocioId={negocioId}
-      onNegocioChange={id => { setNegocioId(id); navigate('dashboard'); }}
-      negocios={negocios}
-      onLogout={logout}
-    >
+    <AppLayout page={page} onNavigate={navigate} negocioId={negocioId} onNegocioChange={id => { setNegocioId(id); navigate('dashboard'); }}>
       {renderPage()}
     </AppLayout>
   );
 };
 
+// Dev shortcut: Shift+O = restart onboarding
 window.addEventListener('keydown', e => {
-  if (e.shiftKey && e.key === 'O') { localStorage.removeItem('cu_token'); location.reload(); }
+  if (e.shiftKey && e.key === 'O') { localStorage.removeItem(STORAGE_KEY); location.reload(); }
 });
 
-export default App;
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
