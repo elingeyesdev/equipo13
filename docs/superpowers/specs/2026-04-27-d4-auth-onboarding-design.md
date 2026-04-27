@@ -177,6 +177,12 @@ const TEMPLATE_PLANTILLA = {
 };
 ```
 
+### Rubro — solo industrial o agro_ganadero
+
+El botón "Ambos rubros" se elimina del paso 0 del wizard. El onboarding crea un único negocio con rubro `industrial` o `agro_ganadero`. Si el usuario quiere agregar más negocios, lo hace desde la interfaz ya logueado (fuera del alcance de D-4).
+
+La lista `SUBRUBROS['ambos']` y el estado `rubro === 'ambos'` también se eliminan de Onboarding.jsx.
+
 ### Paso 3 — reemplaza el timer puro
 
 Al entrar en el paso 3:
@@ -186,7 +192,7 @@ Al entrar en el paso 3:
 {
   negocios: [{
     nombre,
-    rubro: rubro === 'ambos' ? 'industrial' : rubro,
+    rubro,   // 'industrial' | 'agro_ganadero' — nunca 'ambos'
     sub_rubro: subrubros[0] || null,
     plantilla: TEMPLATE_PLANTILLA[template] || null,
   }]
