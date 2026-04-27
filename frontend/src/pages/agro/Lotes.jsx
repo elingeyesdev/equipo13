@@ -1,32 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { MoneyDisplay, StatusBadge, Btn } from '../../components/ui.jsx';
+import { apiFetch } from '../../config/api.js';
 
 const TIPOS_ANIMAL = ['Cerdo', 'Bovino', 'Ovino', 'Caprino', 'Otro'];
-
-export const LOTES_DATA = [
-  {
-    id: 'L-2025-003', tipo: 'Cerdo', entrada: '15 Mar 2025', dias: 45,
-    cabezasInicio: 50, bajas: 2, cabezasActivas: 48,
-    pesoInicialProm: 8.5, pesoActualProm: 75,
-    costos: { adquisicion: 4800, alimento: 5940, sanidad: 480, moObra: 240 },
-    convAliment: 2.8,
-  },
-  {
-    id: 'L-2025-004', tipo: 'Bovino', entrada: '01 Abr 2025', dias: 27,
-    cabezasInicio: 12, bajas: 0, cabezasActivas: 12,
-    pesoInicialProm: 180, pesoActualProm: 230,
-    costos: { adquisicion: 14400, alimento: 8640, sanidad: 960, moObra: 480 },
-    convAliment: 6.4,
-  },
-  {
-    id: 'L-2025-005', tipo: 'Cerdo', entrada: '10 Abr 2025', dias: 18,
-    cabezasInicio: 30, bajas: 1, cabezasActivas: 29,
-    pesoInicialProm: 7.2, pesoActualProm: 28,
-    costos: { adquisicion: 2880, alimento: 1620, sanidad: 180, moObra: 120 },
-    convAliment: 3.1,
-  },
-];
 
 const CAT_COLORS_AGRO = {
   adquisicion: 'var(--accent-agro)',
@@ -42,10 +19,19 @@ const CAT_LABELS = {
 };
 
 const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
-  const [form, setForm] = useState({ tipo: 'Cerdo', id: `L-2025-00${Date.now() % 10}`, fecha: '', cabezas: 50, pesoPromedio: 8.5, costoCabeza: 96 });
+  const [form, setForm] = useState({
+    tipo: 'Cerdo',
+    identificador: '',
+    fecha_entrada: '',
+    cabezas_inicio: 50,
+    peso_inicial_prom: 8.5,
+    costo_adquisicion: 0,
+  });
+  const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const totalPeso = form.cabezas * form.pesoPromedio;
-  const totalCosto = form.cabezas * form.costoCabeza;
+  const totalCosto = (form.cabezas_inicio || 0) * ((form.costo_adquisicion || 0) / Math.max(form.cabezas_inicio || 1, 1));
+  const totalPeso = (form.cabezas_inicio || 0) * (form.peso_inicial_prom || 0);
+  const costoTotal = form.costo_adquisicion || 0;
 
   const iField = (label, key, type = 'text', placeholder = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -57,6 +43,17 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
       />
     </div>
   );
+
+  const handleSave = async () => {
+    if (!form.identificador) return;
+    setSaving(true);
+    try {
+      await onSave(form);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -73,20 +70,20 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
                 {TIPOS_ANIMAL.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-            {iField('Identificador', 'id', 'text', 'L-2025-XXX')}
+            {iField('Identificador', 'identificador', 'text', 'L-2025-XXX')}
           </div>
-          {iField('Fecha de entrada', 'fecha', 'date')}
+          {iField('Fecha de entrada', 'fecha_entrada', 'date')}
 
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Animales de entrada</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {iField('Cantidad (cabezas)', 'cabezas', 'number')}
-              {iField('Peso promedio (kg/cab)', 'pesoPromedio', 'number')}
-              {iField('Costo adquisición (Bs/cab)', 'costoCabeza', 'number')}
+              {iField('Cantidad (cabezas)', 'cabezas_inicio', 'number')}
+              {iField('Peso promedio (kg/cab)', 'peso_inicial_prom', 'number')}
+              {iField('Costo adquisición total (Bs)', 'costo_adquisicion', 'number')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'flex-end' }}>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '8px 11px' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '3px' }}>Total adquisición</div>
-                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', color: accentColor }}>Bs {totalCosto.toLocaleString('es-BO')}</div>
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', color: accentColor }}>Bs {costoTotal.toLocaleString('es-BO')}</div>
                 </div>
               </div>
             </div>
@@ -98,7 +95,9 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-          <Btn accentColor={accentColor} icon="plus" onClick={() => { onSave(form); onClose(); }}>Registrar lote →</Btn>
+          <Btn accentColor={accentColor} icon="plus" onClick={handleSave} disabled={saving}>
+            {saving ? 'Registrando…' : 'Registrar lote →'}
+          </Btn>
         </div>
       </div>
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
@@ -106,9 +105,31 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
   );
 };
 
+// Mapea el lote de la API al formato que usa LoteCard
+const mapLoteFromApi = (l) => ({
+  ...l,
+  // compatibilidad con campos esperados por la card
+  id: l.identificador || l.id,
+  _id: l.id,
+  tipo: l.tipo_animal,
+  entrada: l.fecha_entrada ? new Date(l.fecha_entrada).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+  dias: l.fecha_entrada ? Math.floor((Date.now() - new Date(l.fecha_entrada)) / 86400000) : 0,
+  bajas: (l.cabezas_inicio || 0) - (l.cabezas_activas || 0),
+  cabezasActivas: l.cabezas_activas || 0,
+  pesoInicialProm: parseFloat(l.peso_inicial_prom) || 0,
+  pesoActualProm: parseFloat(l.peso_actual_prom) || 0,
+  costos: {
+    adquisicion: parseFloat(l.costo_adquisicion) || 0,
+    alimento:    parseFloat(l.costo_total || 0) - parseFloat(l.costo_adquisicion || 0),
+    sanidad: 0,
+    moObra: 0,
+  },
+  convAliment: 0,
+});
+
 const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   const totalCosto = Object.values(lote.costos).reduce((s, v) => s + v, 0);
-  const costoCabeza = totalCosto / lote.cabezasActivas;
+  const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
   const refConv = lote.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
   const convColor = lote.tipo === 'Cerdo'
@@ -116,7 +137,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
     : (lote.convAliment <= 8.0 ? 'var(--accent-success)' : 'var(--accent-warning)');
 
   const CostBar = ({ key_, label, val }) => {
-    const pct = (val / totalCosto) * 100;
+    const pct = totalCosto > 0 ? (val / totalCosto) * 100 : 0;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
@@ -144,9 +165,9 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{lote.dias} días en engorde · Entrada: {lote.entrada}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Conversión alimenticia</div>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '20px', color: convColor, fontWeight: 500 }}>
-            {lote.convAliment} <span style={{ fontSize: '12px', fontWeight: 400 }}>kg/kg</span>
+          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Ganancia de peso</div>
+          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '20px', color: accentColor, fontWeight: 500 }}>
+            +{pesoGanado.toFixed(1)} <span style={{ fontSize: '12px', fontWeight: 400 }}>kg/cab</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>ref. {lote.tipo}: {refConv}</div>
         </div>
@@ -154,10 +175,10 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
         {[
-          { label: 'Activos',          val: `${lote.cabezasActivas} cabezas` },
-          { label: 'Bajas',            val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0 },
-          { label: 'Peso inicial prom.',val: `${lote.pesoInicialProm} kg/cab` },
-          { label: 'Peso actual est.',  val: `${lote.pesoActualProm} kg/cab` },
+          { label: 'Activos',           val: `${lote.cabezasActivas} cabezas` },
+          { label: 'Bajas',             val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0 },
+          { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab` },
+          { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab` },
         ].map((s, i) => (
           <div key={i} style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{s.label}</div>
@@ -195,14 +216,50 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
 };
 
 const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'agro_ganadero' };
   const accentColor = 'var(--accent-agro)';
-  const [lotes, setLotes] = useState(LOTES_DATA);
+  const [lotes, setLotes] = useState([]);
   const [modal, setModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchLotes = async () => {
+    if (!negocioId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes`);
+      setLotes(data.map(mapLoteFromApi));
+    } catch (e) {
+      setError(e?.error || 'Error al cargar lotes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLotes(); }, [negocioId]);
+
+  const handleSaveLote = async (form) => {
+    const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        identificador:    form.identificador,
+        tipo_animal:      form.tipo,
+        fecha_entrada:    form.fecha_entrada || null,
+        cabezas_inicio:   form.cabezas_inicio,
+        peso_inicial_prom: form.peso_inicial_prom,
+        costo_adquisicion: form.costo_adquisicion,
+      }),
+    });
+    setLotes(prev => [mapLoteFromApi(nuevo), ...prev]);
+  };
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
 
-  const handleBitacora = lote => { setActiveLote(lote); onNavigate('bitacora'); };
+  const handleBitacora = lote => {
+    // Pasamos el lote con su _id real de la DB para que Bitácora pueda hacer fetch
+    setActiveLote(lote);
+    onNavigate('bitacora');
+  };
   const handleLiquidar = lote => { setActiveLote(lote); onNavigate('liquidacion'); };
 
   return (
@@ -213,18 +270,32 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
             <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Lotes de engorde</h1>
             <span style={{ background: 'var(--accent-agro)1A', color: 'var(--accent-agro)', border: '1px solid var(--accent-agro)33', borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}>{lotes.length} activos</span>
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{totalAnimales} animales en total · {negocio.nombre}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{totalAnimales} animales en total</div>
         </div>
         <Btn icon="plus" accentColor={accentColor} onClick={() => setModal(true)}>Registrar lote</Btn>
       </div>
 
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)', fontSize: '14px' }}>Cargando lotes…</div>
+      )}
+      {error && (
+        <div style={{ background: 'var(--accent-warning)18', border: '1px solid var(--accent-warning)44', borderRadius: '8px', padding: '14px 18px', color: 'var(--accent-warning)', fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
+      {!loading && !error && lotes.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)', fontSize: '14px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+          No hay lotes registrados. ¡Registrá el primero!
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {lotes.map(l => (
-          <LoteCard key={l.id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} accentColor={accentColor} />
+          <LoteCard key={l._id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} accentColor={accentColor} />
         ))}
       </div>
 
-      {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={form => setLotes(p => [...p, { ...form, dias: 0, bajas: 0, cabezasActivas: form.cabezas, pesoInicialProm: form.pesoPromedio, pesoActualProm: form.pesoPromedio, costos: { adquisicion: form.cabezas * form.costoCabeza, alimento: 0, sanidad: 0, moObra: 0 }, convAliment: 0 }])} accentColor={accentColor} />}
+      {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={handleSaveLote} accentColor={accentColor} />}
     </div>
   );
 };

@@ -52,6 +52,15 @@ import {
   getFichas,
   getFichaById,
 } from '../controllers/fichaController.js';
+import {
+  getLotes,
+  getLoteById,
+  createLote,
+  updateLote,
+  cerrarLote,
+  getBitacora,
+  createBitacoraEntry,
+} from '../controllers/loteController.js';
 
 const router = Router();
 
@@ -106,6 +115,15 @@ router.post('/:negocioId/fichas/calcular', authMiddleware, negocioOwner, calcula
 router.get('/:negocioId/fichas', authMiddleware, negocioOwner, getFichas);
 router.get('/:negocioId/fichas/:id', authMiddleware, negocioOwner, getFichaById);
 
-// Lotes, Bitácora        — L-3
+// Lotes — L-3
+router.get('/:negocioId/lotes', authMiddleware, negocioOwner, getLotes);
+router.get('/:negocioId/lotes/:id', authMiddleware, negocioOwner, getLoteById);
+router.post('/:negocioId/lotes', authMiddleware, negocioOwner, createLote);
+router.put('/:negocioId/lotes/:id', authMiddleware, negocioOwner, updateLote);
+router.patch('/:negocioId/lotes/:id/cerrar', authMiddleware, negocioOwner, cerrarLote);
+
+// Bitácora — L-3
+router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);
+router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
 
 export default router;

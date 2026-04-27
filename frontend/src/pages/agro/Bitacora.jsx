@@ -1,21 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { LOTES_DATA } from './Lotes.jsx';
 import { StatusBadge, RubroBadge, MoneyDisplay, Btn } from '../../components/ui.jsx';
+import { apiFetch } from '../../config/api.js';
 
 const TIPOS_GASTO = ['Alimentación', 'Sanidad / Medicamento', 'Mano de obra', 'Baja (muerte/pérdida)', 'Otro gasto'];
 const ALIMENTOS = ['Balanceado iniciador (40kg)', 'Balanceado crecimiento (40kg)', 'Suplemento mineral (25kg)'];
-const PRECIOS_ALIMENTO = { 'Balanceado iniciador (40kg)': 85, 'Balanceado crecimiento (40kg)': 78, 'Suplemento mineral (25kg)': 145 };
-
-const BITACORA_INIT = [
-  { id: 'b1', fecha: '28 Abr 2025', tipo: 'Alimentación', detalle: '10 sacos Balanceado crecimiento', monto: 780, baja: false },
-  { id: 'b2', fecha: '25 Abr 2025', tipo: 'Sanidad',      detalle: 'Vacuna Newcastle ×50 cabezas',    monto: 240, baja: false },
-  { id: 'b3', fecha: '22 Abr 2025', tipo: 'Baja',         detalle: '1 cabeza · Enfermedad respiratoria', monto: null, baja: true },
-  { id: 'b4', fecha: '20 Abr 2025', tipo: 'Alimentación', detalle: '12 sacos Balanceado crecimiento', monto: 936, baja: false },
-  { id: 'b5', fecha: '15 Abr 2025', tipo: 'Alimentación', detalle: '8 sacos Balanceado iniciador',    monto: 680, baja: false },
-  { id: 'b6', fecha: '12 Abr 2025', tipo: 'Baja',         detalle: '1 cabeza · Aplastamiento',        monto: null, baja: true },
-  { id: 'b7', fecha: '15 Mar 2025', tipo: 'ENTRADA',      detalle: '50 cabezas · 8.5 kg/cab',         monto: 4800, baja: false },
-];
+const PRECIOS_ALIMENTO = {
+  'Balanceado iniciador (40kg)': 85,
+  'Balanceado crecimiento (40kg)': 78,
+  'Suplemento mineral (25kg)': 145,
+};
 
 const TIPO_ICON = {
   'Alimentación': { icon: 'layers',        color: 'var(--accent-agro)' },
@@ -28,8 +22,15 @@ const TIPO_ICON = {
 
 const Bitacora = ({ negocioId, activeLote }) => {
   const accentColor = 'var(--accent-agro)';
-  const lote = activeLote || LOTES_DATA?.[0];
-  const [registros, setRegistros] = useState(BITACORA_INIT);
+
+  // El lote activo puede venir con _id (UUID real) o id (identificador visible)
+  const loteRealId = activeLote?._id || activeLote?.id;
+
+  const [registros, setRegistros] = useState([]);
+  const [loadingRegistros, setLoadingRegistros] = useState(false);
+  const [errorRegistros, setErrorRegistros] = useState(null);
+  const [loteData, setLoteData] = useState(activeLote || null);
+
   const [tipo, setTipo] = useState('Alimentación');
   const [alimento, setAlimento] = useState(ALIMENTOS[0]);
   const [sacos, setSacos] = useState(10);
@@ -39,22 +40,97 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const [causaBaja, setCausaBaja] = useState('');
   const [monto, setMonto] = useState('');
   const [notas, setNotas] = useState('');
-  const [fecha, setFecha] = useState('hoy');
+  const [saving, setSaving] = useState(false);
 
   const totalAlim = sacos * costoSaco;
+
+  // Cargar registros de la bitácora desde el API
+  const fetchBitacora = async () => {
+    if (!negocioId || !loteRealId) return;
+    setLoadingRegistros(true);
+    setErrorRegistros(null);
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`);
+      setRegistros(data);
+    } catch (e) {
+      setErrorRegistros(e?.error || 'Error al cargar la bitácora');
+    } finally {
+      setLoadingRegistros(false);
+    }
+  };
+
+  // Cargar detalle actualizado del lote (para cabezas_activas post-baja)
+  const fetchLote = async () => {
+    if (!negocioId || !loteRealId) return;
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}`);
+      setLoteData(data);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchBitacora();
+    if (loteRealId) fetchLote();
+  }, [negocioId, loteRealId]);
 
   const handleAlimentoChange = al => {
     setAlimento(al);
     setCostoSaco(PRECIOS_ALIMENTO[al] || 85);
   };
 
-  const handleRegistrar = () => {
-    let detalle = '', montoFinal = null;
-    if (tipo === 'Alimentación') { detalle = `${sacos} sacos ${alimento}`; montoFinal = totalAlim; }
-    else if (tipo === 'Baja (muerte/pérdida)') { detalle = `${bajas} cabeza${bajas > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`; montoFinal = null; }
-    else { detalle = notas || tipo; montoFinal = parseFloat(monto) || null; }
-    setRegistros(r => [{ id: `b${Date.now()}`, fecha: 'Hoy', tipo: tipo === 'Baja (muerte/pérdida)' ? 'Baja' : tipo, detalle, monto: montoFinal, baja: tipo === 'Baja (muerte/pérdida)' }, ...r]);
-    setMonto(''); setNotas(''); setSacos(10); setCausaBaja('');
+  const handleRegistrar = async () => {
+    if (!negocioId || !loteRealId) return;
+    setSaving(true);
+    try {
+      let detalle = '';
+      let montoFinal = null;
+      let esBaja = false;
+      let cabezasBaja = null;
+      let pesoBajaVal = null;
+      let causaVal = null;
+      let tipoApi = tipo;
+
+      if (tipo === 'Alimentación') {
+        detalle = `${sacos} sacos ${alimento}`;
+        montoFinal = totalAlim;
+      } else if (tipo === 'Baja (muerte/pérdida)') {
+        detalle = `${bajas} cabeza${bajas > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
+        esBaja = true;
+        cabezasBaja = bajas;
+        pesoBajaVal = pesoBaja;
+        causaVal = causaBaja;
+        tipoApi = 'Baja';
+        montoFinal = null;
+      } else {
+        detalle = notas || tipo;
+        montoFinal = parseFloat(monto) || null;
+      }
+
+      const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fecha:        new Date().toISOString().split('T')[0],
+          tipo:         tipoApi,
+          detalle,
+          monto:        montoFinal,
+          es_baja:      esBaja,
+          cabezas_baja: cabezasBaja,
+          peso_baja:    pesoBajaVal,
+          causa:        causaVal,
+        }),
+      });
+
+      setRegistros(prev => [nuevo, ...prev]);
+      // Refrescar lote para actualizar cabezas_activas si hubo baja
+      if (esBaja) await fetchLote();
+
+      // Limpiar form
+      setMonto(''); setNotas(''); setSacos(10); setCausaBaja(''); setBajas(1);
+    } catch (e) {
+      alert(e?.error || 'Error al registrar');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const iNum = (label, value, onChange, placeholder = '') => (
@@ -67,19 +143,28 @@ const Bitacora = ({ negocioId, activeLote }) => {
     </div>
   );
 
+  // Calcular costo acumulado desde registros reales
+  const costoAcumulado = (parseFloat(loteData?.costo_adquisicion) || 0) +
+    registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0);
+
+  const cabezasActivas = loteData?.cabezas_activas ?? activeLote?.cabezasActivas ?? '—';
+  const tipoAnimal     = loteData?.tipo_animal     ?? activeLote?.tipo           ?? '—';
+  const identificador  = loteData?.identificador   ?? activeLote?.id             ?? '—';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
             <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>
-              Lote #{lote?.id || 'L-2025-003'} · {lote?.tipo || 'Cerdo'}
+              Lote #{identificador} · {tipoAnimal}
             </span>
-            <StatusBadge label={`${lote?.cabezasActivas || 48} animales activos`} color={accentColor} />
+            <StatusBadge label={`${cabezasActivas} animales activos`} color={accentColor} />
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-            {lote?.dias || 45} días en engorde · Costo acumulado: <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)' }}>
-              Bs {Object.values(lote?.costos || { adquisicion: 4800, alimento: 5940, sanidad: 480, moObra: 240 }).reduce((s, v) => s + v, 0).toLocaleString('es-BO')}
+            Costo acumulado:{' '}
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)' }}>
+              Bs {costoAcumulado.toLocaleString('es-BO')}
             </span>
           </div>
         </div>
@@ -87,6 +172,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px', alignItems: 'flex-start' }}>
+        {/* Panel de registro */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Registrar gasto / evento</span>
@@ -151,40 +237,60 @@ const Bitacora = ({ negocioId, activeLote }) => {
               </>
             )}
 
-            <button onClick={handleRegistrar} style={{ marginTop: '4px', padding: '10px', borderRadius: '6px', border: 'none', background: accentColor, color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <Icon name="plus" size={14} /> Registrar →
+            <button onClick={handleRegistrar} disabled={saving}
+              style={{ marginTop: '4px', padding: '10px', borderRadius: '6px', border: 'none', background: accentColor, color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontSize: '13px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Icon name="plus" size={14} /> {saving ? 'Registrando…' : 'Registrar →'}
             </button>
           </div>
         </div>
 
+        {/* Panel de bitácora */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Bitácora del lote</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-            {['Fecha', 'Tipo', 'Detalle', 'Monto'].map((h, i) => (
-              <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
-            ))}
-          </div>
-          {registros.map((r, i) => {
-            const cfg = TIPO_ICON[r.tipo] || { icon: 'dollarSign', color: 'var(--text-tertiary)' };
-            return (
-              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{r.fecha}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Icon name={cfg.icon} size={12} style={{ color: cfg.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: '12px', color: cfg.color, fontWeight: r.tipo === 'ENTRADA' ? 600 : 400 }}>{r.tipo}</span>
-                </div>
-                <div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{r.detalle}</span>
-                  {r.baja && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--accent-warning)', fontStyle: 'italic' }}>[costo redistribuido]</span>}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  {r.monto !== null ? <MoneyDisplay value={r.monto} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
-                </div>
+
+          {loadingRegistros && (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Cargando registros…</div>
+          )}
+          {errorRegistros && (
+            <div style={{ padding: '16px', color: 'var(--accent-warning)', fontSize: '13px' }}>{errorRegistros}</div>
+          )}
+          {!loadingRegistros && !errorRegistros && registros.length === 0 && (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Sin registros aún. Agregá el primero desde el panel de la izquierda.</div>
+          )}
+
+          {registros.length > 0 && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+                {['Fecha', 'Tipo', 'Detalle', 'Monto'].map((h, i) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
+                ))}
               </div>
-            );
-          })}
+              {registros.map((r, i) => {
+                const cfg = TIPO_ICON[r.tipo] || { icon: 'dollarSign', color: 'var(--text-tertiary)' };
+                const fechaStr = r.fecha
+                  ? new Date(r.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : '—';
+                return (
+                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{fechaStr}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Icon name={cfg.icon} size={12} style={{ color: cfg.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: '12px', color: cfg.color, fontWeight: r.tipo === 'ENTRADA' ? 600 : 400 }}>{r.tipo}</span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{r.detalle}</span>
+                      {r.es_baja && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--accent-warning)', fontStyle: 'italic' }}>[costo redistribuido]</span>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {r.monto != null ? <MoneyDisplay value={parseFloat(r.monto)} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
     </div>
