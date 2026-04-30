@@ -31,7 +31,7 @@ const GastosCIFPlaceholder = ({ rubro }) => {
       </h1>
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '48px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
         <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={40} strokeWidth={1} /></div>
-        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el Sprint 3</div>
+        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el Sprint 2</div>
         <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: '380px' }}>
           {isAgro
             ? 'Aquí podrás registrar gastos fijos del campo (alquiler de pasturas, agua, amortización de instalaciones) que se prorratearán entre los lotes activos.'
@@ -60,7 +60,10 @@ const App = () => {
     try {
       const data = await apiFetch('/api/negocios');
       setNegocios(data);
-      setNegocioId(prev => prev ?? (data[0]?.id || null));
+      setNegocioId(prev => {
+        if (data.find(n => n.id === prev)) return prev;
+        return data[0]?.id ?? null;
+      });
     } catch (e) {}
   };
 
@@ -121,16 +124,16 @@ const App = () => {
   const renderPage = () => {
     const negocio = negocios.find(n => n.id === negocioId);
     switch (page) {
-      case 'dashboard':   return <Dashboard negocioId={negocioId} onNavigate={navigate} />;
-      case 'fichas':      return <FichaCosto negocioId={negocioId} productoId={activeProductoId} onNavigate={navigate} />;
-      case 'productos':   return <Productos negocioId={negocioId} onNavigate={navigate} />;
+      case 'dashboard':   return <Dashboard negocio={negocio} onNavigate={navigate} />;
+      case 'fichas':      return <FichaCosto negocio={negocio} productoId={activeProductoId} onNavigate={navigate} />;
+      case 'productos':   return <Productos negocio={negocio} onNavigate={navigate} />;
       case 'insumos':     return <Insumos negocioId={negocioId} />;
       case 'proveedores': return <Proveedores negocioId={negocioId} />;
       case 'historial':   return <Historial negocioId={negocioId} onNavigate={navigate} />;
       case 'gastos':      return <GastosCIFPlaceholder rubro={negocio?.rubro || 'industrial'} />;
       case 'unidades':    return <Unidades negocioId={negocioId} />;
       case 'categorias':  return <Categorias negocioId={negocioId} />;
-      case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} />;
+      case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} />;
@@ -162,6 +165,7 @@ const App = () => {
       negocioId={negocioId}
       onNegocioChange={id => { setNegocioId(id); navigate('dashboard'); }}
       negocios={negocios}
+      user={user}
       onLogout={logout}
     >
       {renderPage()}
@@ -169,8 +173,5 @@ const App = () => {
   );
 };
 
-window.addEventListener('keydown', e => {
-  if (e.shiftKey && e.key === 'O') { localStorage.removeItem('cu_token'); location.reload(); }
-});
 
 export default App;
