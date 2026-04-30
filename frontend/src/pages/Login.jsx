@@ -11,7 +11,7 @@ const Login = ({ onLogin, onRegister }) => {
   const [error, setError] = useState(null);
 
   const handleSubmit = async () => {
-    if (!email || !password) return;
+    if (!email || !password || loading) return;
     setLoading(true);
     setError(null);
     try {

@@ -285,7 +285,7 @@ const StatusBadge = ({ label, color }) => (
 );
 
 /* ── Btn ──────────────────────────────────────────────────── */
-const Btn = ({ children, onClick, variant = 'primary', size = 'md', icon, accentColor = 'var(--accent-industrial)', disabled = false }) => {
+const Btn = ({ children, onClick, variant = 'primary', size = 'md', icon, accentColor = 'var(--accent-industrial)', disabled = false, type = 'button' }) => {
   const [hov, setHov] = useState(false);
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -303,6 +303,7 @@ const Btn = ({ children, onClick, variant = 'primary', size = 'md', icon, accent
   };
   return (
     <button
+      type={type}
       onClick={disabled ? undefined : onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ ...base, ...variants[variant] }}

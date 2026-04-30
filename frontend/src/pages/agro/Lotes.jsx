@@ -3,6 +3,7 @@ import { Icon } from '../../icons.jsx';
 import { MoneyDisplay, StatusBadge, Btn } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
+export const LOTES_DATA = [];
 const TIPOS_ANIMAL = ['Cerdo', 'Bovino', 'Ovino', 'Caprino', 'Otro'];
 
 const CAT_COLORS_AGRO = {
@@ -25,19 +26,23 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     fecha_entrada: '',
     cabezas_inicio: 50,
     peso_inicial_prom: 8.5,
-    costo_adquisicion: 0,
+    costo_unitario: '',
   });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const totalCosto = (form.cabezas_inicio || 0) * ((form.costo_adquisicion || 0) / Math.max(form.cabezas_inicio || 1, 1));
-  const totalPeso = (form.cabezas_inicio || 0) * (form.peso_inicial_prom || 0);
-  const costoTotal = form.costo_adquisicion || 0;
+  
+  const cabezas = parseFloat(form.cabezas_inicio) || 0;
+  const pesoUnit = parseFloat(form.peso_inicial_prom) || 0;
+  const costoUnit = parseFloat(form.costo_unitario) || 0;
+  
+  const totalPeso = cabezas * pesoUnit;
+  const costoTotal = cabezas * costoUnit;
 
   const iField = (label, key, type = 'text', placeholder = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
       <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
-      <input value={form[key]} onChange={e => set(key, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
-        type={type} placeholder={placeholder}
+      <input value={form[key]} onChange={e => set(key, e.target.value)}
+        type={type} placeholder={placeholder} step={type === 'number' ? 'any' : undefined}
         style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 11px', fontSize: '14px', outline: 'none', fontFamily: type === 'number' ? 'IBM Plex Mono, monospace' : 'IBM Plex Sans, sans-serif' }}
         onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
       />
@@ -48,7 +53,12 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     if (!form.identificador) return;
     setSaving(true);
     try {
-      await onSave(form);
+      await onSave({
+        ...form,
+        cabezas_inicio: cabezas,
+        peso_inicial_prom: pesoUnit,
+        costo_adquisicion: costoTotal,
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -79,11 +89,11 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {iField('Cantidad (cabezas)', 'cabezas_inicio', 'number')}
               {iField('Peso promedio (kg/cab)', 'peso_inicial_prom', 'number')}
-              {iField('Costo adquisición total (Bs)', 'costo_adquisicion', 'number')}
+              {iField('Costo unitario (Bs/cab)', 'costo_unitario', 'number')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'flex-end' }}>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '8px 11px' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '3px' }}>Total adquisición</div>
-                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', color: accentColor }}>Bs {costoTotal.toLocaleString('es-BO')}</div>
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', color: accentColor }}>Bs {costoTotal.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               </div>
             </div>

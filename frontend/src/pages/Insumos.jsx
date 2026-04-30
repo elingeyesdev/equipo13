@@ -3,6 +3,21 @@ import { Icon } from '../icons.jsx';
 import { StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
+const Field = ({ label, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+    {children}
+  </div>
+);
+
+const TInput = ({ value, onChange, type = 'text', placeholder = '', mono = false, accentColor }) => (
+  <input value={value} onChange={e => onChange(e.target.value)} type={type} placeholder={placeholder}
+    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '14px', fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', outline: 'none', width: '100%' }}
+    onFocus={e => e.target.style.borderColor = accentColor}
+    onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
+  />
+);
+
 const InsumoDrawer = ({
   insumo,
   onClose,
@@ -36,19 +51,6 @@ const InsumoDrawer = ({
     color: hasVal ? 'var(--text-primary)' : 'var(--text-tertiary)',
     borderRadius: '6px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer',
   });
-  const Field = ({ label, children }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
-      {children}
-    </div>
-  );
-  const TInput = ({ value, onChange, type = 'text', placeholder = '', mono = false }) => (
-    <input value={value} onChange={e => onChange(e.target.value)} type={type} placeholder={placeholder}
-      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '14px', fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', outline: 'none', width: '100%' }}
-      onFocus={e => e.target.style.borderColor = accentColor}
-      onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-    />
-  );
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', justifyContent: 'flex-end' }}>
@@ -66,9 +68,9 @@ const InsumoDrawer = ({
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <Field label="Nombre del insumo"><TInput value={form.nombre} onChange={v => set('nombre', v)} placeholder="Ej. Leche entera" /></Field>
+          <Field label="Nombre del insumo"><TInput value={form.nombre} onChange={v => set('nombre', v)} placeholder="Ej. Leche entera" accentColor={accentColor} /></Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <Field label="Código SKU"><TInput value={form.codigo_sku || ''} onChange={v => set('codigo_sku', v)} placeholder="INS-XXX" mono /></Field>
+            <Field label="Código SKU"><TInput value={form.codigo_sku || ''} onChange={v => set('codigo_sku', v)} placeholder="INS-XXX" mono accentColor={accentColor} /></Field>
             <Field label="Unidad de medida">
               <select value={form.unidad_id || ''} onChange={e => set('unidad_id', e.target.value)}
                 style={selectStyle(!!form.unidad_id)}
@@ -283,7 +285,7 @@ const Insumos = ({ negocioId }) => {
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 120px 64px 120px 160px 80px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 180px 70px 120px 160px 80px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
           {['Insumo', 'Categoría', 'Unidad', 'Precio/u', 'Proveedor', 'Tipo', ''].map((h, i) => (
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
           ))}
@@ -307,13 +309,13 @@ const Insumos = ({ negocioId }) => {
           const tipoLabel = ins.es_variable !== false ? 'variable' : 'fijo';
           return (
             <div key={ins.id}
-              style={{ display: 'grid', gridTemplateColumns: '2fr 120px 64px 120px 160px 80px 80px', padding: '11px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', transition: 'background 0.1s', opacity: isArchived ? 0.5 : 1 }}
+              style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 180px 70px 120px 160px 80px 80px', padding: '11px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: isArchived ? 0.5 : 1 }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div>
                 <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px' }}>{ins.nombre}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.codigo_sku}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.codigo_sku || 'Sin SKU'}</div>
               </div>
               <div><StatusBadge label={ins.categoria_nombre || 'Sin categoría'} color={catColor} /></div>
               <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.unidad_simbolo || '-'}</div>

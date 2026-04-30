@@ -1,14 +1,88 @@
 import React, { useState } from 'react';
 import { Icon } from '../icons.jsx';
 import { MOCK_BY_NEGOCIO, RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard } from '../components/ui.jsx';
+import { apiFetch } from '../config/api.js';
 import { LOTES_DATA } from './agro/Lotes.jsx';
 
 /* ── INDUSTRIAL dashboard ─────────────────────────────────── */
-const DashboardIndustrial = ({ negocioId, onNavigate }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
+const DashboardIndustrial = ({ negocio, onNavigate }) => {
+  const negocioId = negocio.id;
   const accentColor = 'var(--accent-industrial)';
   const mock = MOCK_BY_NEGOCIO[negocioId] || MOCK_BY_NEGOCIO['n1'];
-  const dm = mock.dashMetrics;
+  
+  const [metricas, setMetricas] = useState({
+    productos: 0,
+    insumos: 0,
+    ultimaFicha: 'Ninguna',
+    ultimaFichaProd: '—',
+    actividad: []
+  });
+
+  React.useEffect(() => {
+    Promise.all([
+      apiFetch(`/api/negocios/${negocioId}/productos`),
+      apiFetch(`/api/negocios/${negocioId}/insumos?activo=all`),
+      apiFetch(`/api/negocios/${negocioId}/fichas`)
+    ]).then(([prod, ins, fichas]) => {
+      const timeAgo = (dateStr) => {
+        if (!dateStr) return '—';
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const m = Math.floor(diff / 60000);
+        if (m < 60) return `hace ${m || 1}m`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `hace ${h}h`;
+        return `hace ${Math.floor(h/24)}d`;
+      };
+
+      const sortedFichas = (fichas || []).sort((a,b) => new Date(b.calculado_en) - new Date(a.calculado_en));
+      const uFicha = sortedFichas[0];
+
+      let allActivities = [];
+      (fichas || []).forEach(f => {
+        allActivities.push({
+          icon: 'calculator',
+          text: `Ficha calculada: ${f.producto_nombre}`,
+          date: new Date(f.calculado_en),
+          time: timeAgo(f.calculado_en),
+          color: 'var(--accent-industrial)'
+        });
+      });
+      (prod || []).forEach(p => {
+        if (p.created_at) {
+          allActivities.push({
+            icon: 'package',
+            text: `Producto registrado: ${p.nombre}`,
+            date: new Date(p.created_at),
+            time: timeAgo(p.created_at),
+            color: 'var(--accent-success)'
+          });
+        }
+      });
+      (ins || []).forEach(i => {
+        if (i.created_at) {
+          allActivities.push({
+            icon: 'plus',
+            text: `Insumo agregado: ${i.nombre}`,
+            date: new Date(i.created_at),
+            time: timeAgo(i.created_at),
+            color: 'var(--text-secondary)'
+          });
+        }
+      });
+
+      allActivities.sort((a, b) => b.date - a.date);
+      const topActivities = allActivities.slice(0, 4);
+
+      setMetricas({
+        productos: prod.length,
+        insumos: ins.length,
+        ultimaFicha: uFicha ? timeAgo(uFicha.calculado_en) : 'Ninguna',
+        ultimaFichaProd: uFicha ? uFicha.producto_nombre : '—',
+        actividad: topActivities.length > 0 ? topActivities : [{ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' }]
+      });
+    }).catch(e => console.error(e));
+  }, [negocioId]);
+
   const productos = (mock.productos || []).filter(p => p.activo !== false);
 
   const MargenBar = ({ value }) => (
@@ -34,10 +108,10 @@ const DashboardIndustrial = ({ negocioId, onNavigate }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        <MetricCard label="Productos" value={dm.productos} sub="con receta activa" icon={<Icon name="package" size={16} />} accentColor={accentColor} mono={false} />
-        <MetricCard label="Insumos registrados" value={dm.insumos} sub="en el catálogo" icon={<Icon name="layers" size={16} />} mono={false} />
-        <MetricCard label="Última ficha calculada" value={dm.ultimaFicha} sub={(mock.fichas[0] || {}).producto || '—'} icon={<Icon name="history" size={16} />} mono={false} />
-        <MetricCard label="Punto de equilibrio" value={`${dm.pe} uds`} sub="unidades / mes mínimo" icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-warning)" mono={false} />
+        <MetricCard label="Productos" value={metricas.productos} sub="con receta activa" icon={<Icon name="package" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Insumos registrados" value={metricas.insumos} sub="en el catálogo" icon={<Icon name="layers" size={16} />} mono={false} />
+        <MetricCard label="Última ficha calculada" value={metricas.ultimaFicha} sub={metricas.ultimaFichaProd} icon={<Icon name="history" size={16} />} mono={false} />
+        <MetricCard label="Punto de equilibrio" value="Próximamente" sub="Disponible en Sprint 2" icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-warning)" mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -74,12 +148,7 @@ const DashboardIndustrial = ({ negocioId, onNavigate }) => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <SectionCard title="Actividad reciente">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[
-              { icon: 'calculator', text: 'Ficha calculada: Queso fresco 500g', time: 'hace 2h',  color: accentColor },
-              { icon: 'edit',       text: 'Precio de leche entera actualizado', time: 'hace 6h',  color: 'var(--accent-warning)' },
-              { icon: 'plus',       text: 'Insumo agregado: Cuajo enzimático',  time: 'hace 1d',  color: 'var(--accent-success)' },
-              { icon: 'calculator', text: 'Ficha calculada: Yogur natural 1L',  time: 'hace 2d',  color: accentColor },
-            ].map((item, i) => (
+            {metricas.actividad.map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: 28, height: 28, borderRadius: '6px', background: item.color + '1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name={item.icon} size={13} style={{ color: item.color }} />
@@ -91,22 +160,9 @@ const DashboardIndustrial = ({ negocioId, onNavigate }) => {
           </div>
         </SectionCard>
         <SectionCard title="Distribución de costos">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {[
-              { label: 'Materia Prima Directa (MPD)', pct: 61, color: accentColor },
-              { label: 'Mano de Obra Directa (MOD)',  pct: 20, color: 'var(--accent-warning)' },
-              { label: 'Costos Indirectos (CIF)',      pct: 19, color: 'var(--text-tertiary)' },
-            ].map((item, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)' }}>{item.pct}%</span>
-                </div>
-                <div style={{ height: '5px', background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }} />
-                </div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0', gap: '8px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--accent-warning)' }}>Próximamente</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Disponible en Sprint 2</div>
           </div>
         </SectionCard>
       </div>
@@ -115,8 +171,8 @@ const DashboardIndustrial = ({ negocioId, onNavigate }) => {
 };
 
 /* ── AGRO dashboard ───────────────────────────────────────── */
-const DashboardAgro = ({ negocioId, onNavigate }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'agro_ganadero' };
+const DashboardAgro = ({ negocio, onNavigate }) => {
+  const negocioId = negocio.id;
   const accentColor = 'var(--accent-agro)';
   const lotes = LOTES_DATA;
   const dm = (MOCK_BY_NEGOCIO[negocioId] || {}).dashMetrics || {};
@@ -193,11 +249,20 @@ const DashboardAgro = ({ negocioId, onNavigate }) => {
   );
 };
 
-const Dashboard = ({ negocioId, onNavigate }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
-  return negocio.rubro === 'agro_ganadero'
-    ? <DashboardAgro negocioId={negocioId} onNavigate={onNavigate} />
-    : <DashboardIndustrial negocioId={negocioId} onNavigate={onNavigate} />;
+const Dashboard = ({ negocio, onNavigate }) => {
+  if (!negocio) {
+    return (
+      <div style={{ display: 'flex', height: '60vh', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Cargando información del negocio...</div>
+      </div>
+    );
+  }
+
+  const rubro = negocio.rubro || 'industrial';
+  
+  return rubro === 'agro_ganadero'
+    ? <DashboardAgro negocio={negocio} onNavigate={onNavigate} />
+    : <DashboardIndustrial negocio={negocio} onNavigate={onNavigate} />;
 };
 
 export default Dashboard;

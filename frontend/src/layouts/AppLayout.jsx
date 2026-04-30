@@ -36,7 +36,7 @@ const useTheme = () => {
   return [theme, toggle];
 };
 
-const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = [], onLogout, children }) => {
+const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = [], user, onLogout, children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [theme, toggleTheme] = useTheme();
   const [adminOpen, setAdminOpen] = useState(false);
@@ -51,6 +51,10 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
   const rubroColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   const NAV_ITEMS = isAgro ? NAV_AGRO : NAV_INDUSTRIAL;
   const sw = collapsed ? 60 : 240;
+
+  const userNombre = user?.nombre || 'Usuario';
+  const userInicial = userNombre.charAt(0).toUpperCase();
+  const userEmail = user?.email || '';
 
   const NavItem = ({ item }) => {
     const active = page === item.id;
@@ -152,17 +156,17 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
             {/* Admin dropdown */}
             <div ref={adminRef} style={{ position: 'relative' }}>
               <div onClick={() => setAdminOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: rubroColor + '33', border: `1px solid ${rubroColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, color: rubroColor }}>A</div>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Admin</span>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: rubroColor + '33', border: `1px solid ${rubroColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, color: rubroColor }}>{userInicial}</div>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{userNombre}</span>
                 <Icon name="chevronDown" size={13} style={{ color: 'var(--text-tertiary)' }} />
               </div>
               {adminOpen && (
                 <div style={{ position: 'absolute', top: '44px', right: 0, width: '220px', background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 200, overflow: 'hidden' }}>
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: rubroColor + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 600, color: rubroColor, flexShrink: 0 }}>A</div>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: rubroColor + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 600, color: rubroColor, flexShrink: 0 }}>{userInicial}</div>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Admin</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>admin@costeo.bo</div>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{userNombre}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{userEmail}</div>
                     </div>
                   </div>
                   <button onClick={() => { onNavigate('config'); setAdminOpen(false); }}

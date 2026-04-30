@@ -138,31 +138,151 @@ const RecetaDrawer = ({ producto, onClose, accentColor, negocioId, onNavigate })
     } catch(e) { console.error(e); }
   };
 
+  const handleReorder = async (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const newEtapas = [...etapas];
+    const [moved] = newEtapas.splice(fromIdx, 1);
+    newEtapas.splice(toIdx, 0, moved);
+    setEtapas(newEtapas);
+    try {
+      const items = newEtapas.map((e, i) => ({ id: e.id, orden: i + 1 }));
+      await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/etapas/reorder`, {
+        method: 'POST', body: JSON.stringify({ items })
+      });
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
   const iStyle = { background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '5px', color: 'var(--text-primary)', padding: '6px 8px', fontSize: '12px', outline: 'none', fontFamily: 'var(--font-sans)', width: '100%' };
 
-  const Row = ({ row, onDel }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 48px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
-      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{row.insumo_nombre}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{parseFloat(row.cantidad).toFixed(3)}</span>
-      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{row.unidad_simbolo || ''}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(row.precio_unitario).toFixed(2)}</span>
-      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {parseFloat(row.costo_parcial).toFixed(2)}</span>
-      <div style={{ display: 'flex', gap: '2px', justifyContent: 'flex-end' }}>
-        <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
-      </div>
-    </div>
-  );
-  const EtapaRow = ({ et, idx, onDel }) => {
-    const costoU = parseFloat(et.costo_etapa || 0);
+  const Row = ({ row, onDel }) => {
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState({ cantidad: parseFloat(row.cantidad) });
+    
+    useEffect(() => { setForm({ cantidad: parseFloat(row.cantidad) }); }, [row]);
+
+    const handleSave = async () => {
+      if (!form.cantidad) return;
+      try {
+        const updated = await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/bom/${row.id}`, {
+          method: 'PUT', body: JSON.stringify({ cantidad: parseFloat(form.cantidad) })
+        });
+        setBom(b => b.map(x => x.id === row.id ? updated : x));
+        setEditing(false);
+      } catch(e) { console.error(e); }
+    };
+
+    if (editing) {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 50px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{row.insumo_nombre}</span>
+          <input type="number" step="0.001" value={form.cantidad} onChange={e=>setForm({...form, cantidad:e.target.value})} style={{...iStyle, fontFamily: 'var(--font-mono)', padding: '4px 6px'}} />
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center' }}>{row.unidad_simbolo || ''}</span>
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(row.precio_unitario).toFixed(2)}</span>
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {parseFloat(row.costo_parcial).toFixed(2)}</span>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+            <button onClick={handleSave} style={{ background: 'transparent', border: 'none', color: 'var(--accent-success)', cursor: 'pointer', padding: '2px' }}><Icon name="check" size={14} /></button>
+            <button onClick={()=>setEditing(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="x" size={14} /></button>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '20px 20px 1fr 60px 80px 80px 40px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
-        <span style={{ color: 'var(--text-tertiary)' }}><Icon name="grip" size={12} /></span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 50px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+        <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{row.insumo_nombre}</span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{parseFloat(row.cantidad).toFixed(3)}</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center' }}>{row.unidad_simbolo || ''}</span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(row.precio_unitario).toFixed(2)}</span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {parseFloat(row.costo_parcial).toFixed(2)}</span>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button onClick={()=>setEditing(true)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="edit" size={13} /></button>
+          <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
+        </div>
+      </div>
+    );
+  };
+  const EtapaRow = ({ et, idx, onDel, onReorder }) => {
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState({ 
+      nombre: et.nombre, 
+      tiempo_minutos: Math.round(Number(et.tiempo_minutos) * 100) / 100, 
+      costo_hora: Math.round(Number(et.costo_hora) * 100) / 100 
+    });
+    
+    useEffect(() => {
+      setForm({
+        nombre: et.nombre, 
+        tiempo_minutos: Math.round(Number(et.tiempo_minutos) * 100) / 100, 
+        costo_hora: Math.round(Number(et.costo_hora) * 100) / 100 
+      });
+    }, [et]);
+
+    const costoU = parseFloat(et.costo_etapa || 0);
+
+    const handleSave = async () => {
+      if (!form.nombre || !form.tiempo_minutos || !form.costo_hora) return;
+      try {
+        const updated = await apiFetch(`/api/negocios/${negocioId}/productos/${producto.id}/etapas/${et.id}`, {
+          method: 'PUT', body: JSON.stringify({ nombre: form.nombre, tiempo_minutos: parseFloat(form.tiempo_minutos), costo_hora: parseFloat(form.costo_hora) })
+        });
+        setEtapas(es => es.map(x => x.id === et.id ? updated : x));
+        setEditing(false);
+      } catch(e) { console.error(e); }
+    };
+
+    if (editing) {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '30px 20px 1fr 60px 80px 80px 50px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+          <div />
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>{idx + 1}</span>
+          <input value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})} style={iStyle} />
+          <input type="number" step="0.001" value={form.tiempo_minutos} onChange={e=>setForm({...form, tiempo_minutos:e.target.value})} style={{...iStyle, fontFamily: 'var(--font-mono)'}} />
+          <input type="number" step="0.001" value={form.costo_hora} onChange={e=>setForm({...form, costo_hora:e.target.value})} style={{...iStyle, fontFamily: 'var(--font-mono)'}} />
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {costoU.toFixed(2)}</span>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+            <button onClick={handleSave} style={{ background: 'transparent', border: 'none', color: 'var(--accent-success)', cursor: 'pointer', padding: '2px' }}><Icon name="check" size={14} /></button>
+            <button onClick={()=>setEditing(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="x" size={14} /></button>
+          </div>
+        </div>
+      );
+    }
+
+    const handleDragStart = (e) => {
+      e.dataTransfer.setData('text/plain', idx);
+      e.dataTransfer.effectAllowed = 'move';
+    };
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+    const handleDrop = (e) => {
+      e.preventDefault();
+      const fromIdx = Number(e.dataTransfer.getData('text/plain'));
+      onReorder(fromIdx, idx);
+    };
+
+    return (
+      <div 
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        style={{ display: 'grid', gridTemplateColumns: '30px 20px 1fr 60px 80px 80px 50px', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center', cursor: 'grab' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+          <Icon name="grip" size={14} />
+        </div>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)' }}>{idx + 1}</span>
         <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{et.nombre}</span>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{parseFloat(et.tiempo_minutos)} min</span>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {parseFloat(et.costo_hora).toFixed(2)}</span>
         <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: accentColor, textAlign: 'right' }}>Bs {costoU.toFixed(2)}</span>
-        <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button onClick={()=>setEditing(true)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="edit" size={13} /></button>
+          <button onClick={onDel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}><Icon name="trash" size={13} /></button>
+        </div>
       </div>
     );
   };
@@ -187,14 +307,14 @@ const RecetaDrawer = ({ producto, onClose, accentColor, negocioId, onNavigate })
             {addingBom && (
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
                 <select value={bomForm.insumo_id} onChange={e => setBomForm(f=>({...f, insumo_id: e.target.value}))} style={{...iStyle, flex:2}}><option value="">Seleccionar insumo</option>{insumos.map(i=><option key={i.id} value={i.id}>{i.nombre}</option>)}</select>
-                <input type="number" placeholder="Cant." value={bomForm.cantidad} onChange={e => setBomForm(f=>({...f, cantidad: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <input type="number" step="0.001" placeholder="Cant." value={bomForm.cantidad} onChange={e => setBomForm(f=>({...f, cantidad: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
                 <select value={bomForm.unidad_id} onChange={e => setBomForm(f=>({...f, unidad_id: e.target.value}))} style={{...iStyle, flex:1}}><option value="">Unidad</option>{unidades.map(u=><option key={u.id} value={u.id}>{u.simbolo}</option>)}</select>
                 <Btn size="sm" accentColor={accentColor} onClick={handleAddBom}>+</Btn>
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 48px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 50px 90px 80px 50px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
               {['Insumo', 'Cantidad', 'Unidad', 'Precio/u', 'Costo', ''].map((h, i) => (
-                <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+                <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textAlign: i === 2 ? 'center' : (i >= 1 && i <= 4 ? 'right' : 'left') }}>{h}</div>
               ))}
             </div>
             {bom.map(r => <Row key={r.id} row={r} onDel={() => handleDeleteBom(r.id)} />)}
@@ -211,17 +331,23 @@ const RecetaDrawer = ({ producto, onClose, accentColor, negocioId, onNavigate })
             {addingEtapa && (
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
                 <input placeholder="Nombre etapa" value={etapaForm.nombre} onChange={e => setEtapaForm(f=>({...f, nombre: e.target.value}))} style={{...iStyle, flex:2}} />
-                <input type="number" placeholder="Min." value={etapaForm.tiempo_minutos} onChange={e => setEtapaForm(f=>({...f, tiempo_minutos: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
-                <input type="number" placeholder="Bs/h" value={etapaForm.costo_hora} onChange={e => setEtapaForm(f=>({...f, costo_hora: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <input type="number" step="0.001" placeholder="Min." value={etapaForm.tiempo_minutos} onChange={e => setEtapaForm(f=>({...f, tiempo_minutos: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
+                <input type="number" step="0.001" placeholder="Bs/h" value={etapaForm.costo_hora} onChange={e => setEtapaForm(f=>({...f, costo_hora: e.target.value}))} style={{...iStyle, flex:1, fontFamily:'var(--font-mono)'}} />
                 <Btn size="sm" accentColor={accentColor} onClick={handleAddEtapa}>+</Btn>
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '20px 20px 1fr 60px 80px 80px 40px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '30px 20px 1fr 60px 80px 80px 50px', gap: '6px', padding: '6px 0', borderBottom: '1px solid var(--border-mid)', marginBottom: '2px' }}>
               {['', '#', 'Etapa', 'Tiempo', 'Costo/h', 'Costo/u', ''].map((h, i) => (
                 <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textAlign: i >= 3 && i <= 5 ? 'right' : 'left' }}>{h}</div>
               ))}
             </div>
-            {etapas.map((et, idx) => <EtapaRow key={et.id} et={et} idx={idx} onDel={() => handleDeleteEtapa(et.id)} />)}
+            {etapas.map((et, idx) => (
+              <EtapaRow 
+                key={et.id} et={et} idx={idx} 
+                onDel={() => handleDeleteEtapa(et.id)} 
+                onReorder={handleReorder}
+              />
+            ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 40px 0 0' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginRight: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total MOD</span>
               <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: accentColor, fontWeight: 500 }}>Bs {totalMOD.toFixed(2)}</span>
@@ -239,8 +365,10 @@ const RecetaDrawer = ({ producto, onClose, accentColor, negocioId, onNavigate })
 };
 
 
-const Productos = ({ negocioId, onNavigate }) => {
-  const accentColor = 'var(--accent-industrial)';
+const Productos = ({ negocio, onNavigate }) => {
+  const negocioId = negocio?.id;
+  const isAgro = negocio?.rubro === 'agro_ganadero';
+  const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   const [productos, setProductos] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [mostrarArchivados, setMostrarArchivados] = useState(false);

@@ -9,7 +9,7 @@ const SUBRUBROS = {
     'Plásticos', 'Alimentaria', 'Química', 'Madera', 'Calzado', 'Otro',
   ],
   agro_ganadero: [
-    'Engorde bovino', 'Lechería', 'Porcinos', 'Aves de corral',
+    'Engorde bovino', 'Porcinos', 'Aves de corral',
     'Ovinos', 'Apicultura', 'Caprinos', 'Otro',
   ],
 };
@@ -19,7 +19,6 @@ const TEMPLATES = [
   { id: 't2', rubro: 'industrial',    nombre: 'Panificación',            desc: 'Pan, galletas, bizcochos',         insumos: 12, productos: 4, etapas: 5  },
   { id: 't3', rubro: 'industrial',    nombre: 'Textilería',              desc: 'Telas, prendas, accesorios',       insumos: 8,  productos: 3, etapas: 6  },
   { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde bovino',          desc: 'Novillos, toros, terneros',        insumos: 6,  productos: 1, etapas: 4  },
-  { id: 't5', rubro: 'agro_ganadero', nombre: 'Lechería',                desc: 'Leche fresca, derivados',          insumos: 5,  productos: 2, etapas: 3  },
   { id: 't6', rubro: 'industrial',    nombre: 'Metalmecánica',           desc: 'Piezas, estructuras, soldadura',   insumos: 11, productos: 5, etapas: 8  },
 ];
 
@@ -37,7 +36,6 @@ const TEMPLATE_PLANTILLA = {
   t2: 'panificacion',
   t3: 'textileria',
   t4: 'engorde_bovino',
-  t5: 'lecheria',
   t6: 'metalmecanica',
   blank: null,
 };

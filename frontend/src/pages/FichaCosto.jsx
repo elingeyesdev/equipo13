@@ -19,8 +19,44 @@ const MOD_COLS = [
   { key: 'total_lote', label: '/lote',     mono: true,  prefix: 'Bs ', sumable: true  },
 ];
 
-const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
-  const accentColor = 'var(--accent-industrial)';
+const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
+  const [local, setLocal] = useState(value);
+  useEffect(() => setLocal(value), [value]);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{prefix}</span>}
+          <input
+            type="number" value={local} min={min} max={max} step={step}
+            onChange={e => { const v = parseFloat(e.target.value) || 0; setLocal(v); onChange(v); }}
+            style={{
+              width: prefix ? '90px' : '80px', background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-subtle)', borderRadius: '6px',
+              color: 'var(--text-primary)', padding: prefix ? '6px 8px 6px 28px' : `6px ${suffix ? '28px' : '8px'} 6px 8px`,
+              fontSize: '13px', fontFamily: 'var(--font-mono)', outline: 'none',
+            }}
+            onFocus={e => e.target.style.borderColor = accentColor}
+            onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
+          />
+          {suffix && <span style={{ position: 'absolute', right: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{suffix}</span>}
+        </div>
+        {showSlider && (
+          <input type="range" min={min} max={max} step={step} value={local}
+            onChange={e => { const v = parseFloat(e.target.value); setLocal(v); onChange(v); }}
+            style={{ flex: 1, accentColor }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+const FichaCosto = ({ negocio, productoId, onNavigate }) => {
+  const negocioId = negocio?.id;
+  const isAgro = negocio?.rubro === 'agro_ganadero';
+  const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
 
   const [productos, setProductos] = useState([]);
   const [selectedProductoId, setSelectedProductoId] = useState(productoId || '');
@@ -67,40 +103,6 @@ const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
     costo_unit: d.subtotal, total_lote: d.subtotal * result.lote_cantidad,
   })) : [];
 
-  const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true }) => {
-    const [local, setLocal] = useState(value);
-    useEffect(() => setLocal(value), [value]);
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
-        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{prefix}</span>}
-            <input
-              type="number" value={local} min={min} max={max} step={step}
-              onChange={e => { const v = parseFloat(e.target.value) || 0; setLocal(v); onChange(v); }}
-              style={{
-                width: prefix ? '90px' : '80px', background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border-subtle)', borderRadius: '6px',
-                color: 'var(--text-primary)', padding: prefix ? '6px 8px 6px 28px' : `6px ${suffix ? '28px' : '8px'} 6px 8px`,
-                fontSize: '13px', fontFamily: 'var(--font-mono)', outline: 'none',
-              }}
-              onFocus={e => e.target.style.borderColor = accentColor}
-              onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-            />
-            {suffix && <span style={{ position: 'absolute', right: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{suffix}</span>}
-          </div>
-          {showSlider && (
-            <input type="range" min={min} max={max} step={step} value={local}
-              onChange={e => { const v = parseFloat(e.target.value); setLocal(v); onChange(v); }}
-              style={{ flex: 1, accentColor }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -109,7 +111,7 @@ const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
             Ficha de Costo
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-tertiary)' }}>
-            <RubroBadge rubro="industrial" />
+            <RubroBadge rubro={negocio?.rubro || 'industrial'} />
             {producto && <span>{producto.nombre}</span>}
             {result && <><span>·</span><span>Lote de {result.lote_cantidad} unidades</span></>}
           </div>
@@ -129,7 +131,7 @@ const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
             {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.codigo_sku ? `(${p.codigo_sku})` : ''}</option>)}
           </select>
         </div>
-        <NumControl label="Tamaño del lote" value={lote} min={1} max={10000} onChange={setLote} suffix="uds" />
+        <NumControl label="Tamaño del lote" value={lote} min={1} max={10000} onChange={setLote} suffix="uds" accentColor={accentColor} />
         <Btn icon="calculator" accentColor={accentColor} onClick={handleCalc} disabled={calculating || !selectedProductoId}>
           {calculating ? 'Calculando...' : 'Calcular'}
         </Btn>
@@ -164,7 +166,7 @@ const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
           <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
           <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>CIF — Costos Indirectos de Fabricación</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 3</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', maxWidth: '400px', lineHeight: 1.6 }}>
             Aquí podrás registrar tus costos indirectos mensuales (electricidad, alquiler, mantenimiento) para que el sistema los prorratee automáticamente.
           </div>
@@ -174,14 +176,14 @@ const FichaCosto = ({ negocioId, productoId, onNavigate }) => {
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
           <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
           <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Punto de Equilibrio</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 3</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
         </div>
 
         {/* WIP Placeholder */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
           <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
           <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Costo acumulado por etapa (WIP)</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 3</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
         </div>
       </>}
 
