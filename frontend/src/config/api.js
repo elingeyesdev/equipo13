@@ -10,6 +10,11 @@ export const apiFetch = async (path, options = {}) => {
       ...options.headers,
     },
   });
-  if (!res.ok) throw await res.json();
+  if (!res.ok) {
+    let err;
+    try { err = await res.json(); } catch(e) { err = { error: res.statusText }; }
+    throw err;
+  }
+  if (res.status === 204) return null;
   return res.json();
 };

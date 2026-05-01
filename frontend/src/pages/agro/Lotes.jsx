@@ -130,9 +130,9 @@ const mapLoteFromApi = (l) => ({
   pesoActualProm: parseFloat(l.peso_actual_prom) || 0,
   costos: {
     adquisicion: parseFloat(l.costo_adquisicion) || 0,
-    alimento:    parseFloat(l.costo_total || 0) - parseFloat(l.costo_adquisicion || 0),
-    sanidad: 0,
-    moObra: 0,
+    alimento:    parseFloat(l.costo_total || 0) - parseFloat(l.costo_adquisicion || 0) - (parseFloat(l.costo_sanidad) || 0) - (parseFloat(l.costo_mo) || 0),
+    sanidad: parseFloat(l.costo_sanidad) || 0,
+    moObra: parseFloat(l.costo_mo) || 0,
   },
   convAliment: 0,
 });

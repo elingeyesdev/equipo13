@@ -13,7 +13,17 @@ export const getLotes = async (req, res) => {
                 SELECT SUM(b.monto)
                 FROM bitacora_lote b
                 WHERE b.lote_id = l.id AND b.es_baja = false AND b.monto IS NOT NULL
-              ), 0) AS costo_total
+              ), 0) AS costo_total,
+              COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.tipo = 'Sanidad / Medicamento' AND b.monto IS NOT NULL
+              ), 0) AS costo_sanidad,
+              COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.tipo = 'Mano de obra' AND b.monto IS NOT NULL
+              ), 0) AS costo_mo
        FROM lotes l
        WHERE l.negocio_id = $1
        ORDER BY l.created_at DESC`,
@@ -35,7 +45,17 @@ export const getLoteById = async (req, res) => {
                 SELECT SUM(b.monto)
                 FROM bitacora_lote b
                 WHERE b.lote_id = l.id AND b.es_baja = false AND b.monto IS NOT NULL
-              ), 0) AS costo_total
+              ), 0) AS costo_total,
+              COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.tipo = 'Sanidad / Medicamento' AND b.monto IS NOT NULL
+              ), 0) AS costo_sanidad,
+              COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.tipo = 'Mano de obra' AND b.monto IS NOT NULL
+              ), 0) AS costo_mo
        FROM lotes l
        WHERE l.id = $1 AND l.negocio_id = $2`,
       [id, negocioId]

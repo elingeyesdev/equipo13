@@ -512,7 +512,7 @@ const Productos = ({ negocio, onNavigate }) => {
       )}
 
       {drawer && <ProductoDrawer producto={drawer === 'new' ? null : drawer} onClose={() => setDrawer(null)} onSave={handleSave} accentColor={accentColor} onNavigate={onNavigate} unidades={unidades} />}
-      {receta && <RecetaDrawer producto={receta} onClose={() => setReceta(null)} accentColor={accentColor} negocioId={negocioId} onNavigate={onNavigate} />}
+      {receta && <RecetaDrawer producto={receta} onClose={() => { setReceta(null); cargarProductos(); }} accentColor={accentColor} negocioId={negocioId} onNavigate={onNavigate} />}
     </div>
   );
 };

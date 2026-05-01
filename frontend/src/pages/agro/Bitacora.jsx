@@ -3,38 +3,33 @@ import { Icon } from '../../icons.jsx';
 import { StatusBadge, RubroBadge, MoneyDisplay, Btn } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
-const TIPOS_GASTO = ['Alimentación', 'Sanidad / Medicamento', 'Mano de obra', 'Baja (muerte/pérdida)', 'Otro gasto'];
-const ALIMENTOS = ['Balanceado iniciador (40kg)', 'Balanceado crecimiento (40kg)', 'Suplemento mineral (25kg)'];
-const PRECIOS_ALIMENTO = {
-  'Balanceado iniciador (40kg)': 85,
-  'Balanceado crecimiento (40kg)': 78,
-  'Suplemento mineral (25kg)': 145,
-};
+const TIPOS_FIJOS = ['Mano de obra', 'Baja (muerte/pérdida)', 'Otras pérdidas'];
 
 const TIPO_ICON = {
-  'Alimentación': { icon: 'layers',        color: 'var(--accent-agro)' },
-  'Sanidad':      { icon: 'alertTriangle',  color: 'var(--accent-industrial)' },
-  'Baja':         { icon: 'alertTriangle',  color: 'var(--accent-warning)' },
   'Mano de obra': { icon: 'user',           color: 'var(--text-tertiary)' },
+  'Baja':         { icon: 'alertTriangle',  color: 'var(--accent-warning)' },
   'ENTRADA':      { icon: 'checkCircle',    color: 'var(--accent-agro)' },
   'Otro gasto':   { icon: 'dollarSign',     color: 'var(--text-tertiary)' },
+  'Otras pérdidas': { icon: 'dollarSign',   color: 'var(--text-tertiary)' },
 };
 
 const Bitacora = ({ negocioId, activeLote }) => {
   const accentColor = 'var(--accent-agro)';
 
-  // El lote activo puede venir con _id (UUID real) o id (identificador visible)
-  const loteRealId = activeLote?._id || activeLote?.id;
+  const [lotes, setLotes] = useState([]);
+  const [selectedLoteId, setSelectedLoteId] = useState(activeLote?._id || activeLote?.id || null);
 
   const [registros, setRegistros] = useState([]);
   const [loadingRegistros, setLoadingRegistros] = useState(false);
   const [errorRegistros, setErrorRegistros] = useState(null);
-  const [loteData, setLoteData] = useState(activeLote || null);
+  const [loteData, setLoteData] = useState(null);
 
-  const [tipo, setTipo] = useState('Alimentación');
-  const [alimento, setAlimento] = useState(ALIMENTOS[0]);
+  const [categorias, setCategorias] = useState([]);
+  const [insumos, setInsumos] = useState([]);
+  const [tipo, setTipo] = useState(null);
+  const [selectedInsumoId, setSelectedInsumoId] = useState(null);
   const [sacos, setSacos] = useState(10);
-  const [costoSaco, setCostoSaco] = useState(85);
+  const [costoSaco, setCostoSaco] = useState(0);
   const [bajas, setBajas] = useState(1);
   const [pesoBaja, setPesoBaja] = useState(9.2);
   const [causaBaja, setCausaBaja] = useState('');
@@ -42,9 +37,53 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const totalAlim = sacos * costoSaco;
+  const totalAlim = (parseFloat(sacos) || 0) * (parseFloat(costoSaco) || 0);
+  const loteRealId = selectedLoteId;
 
-  // Cargar registros de la bitácora desde el API
+  useEffect(() => {
+    if (negocioId) {
+      apiFetch(`/api/negocios/${negocioId}/lotes`).then(data => {
+        setLotes(data);
+        if (!selectedLoteId && data.length > 0) {
+          setSelectedLoteId(data[0].id);
+        }
+      }).catch(console.error);
+
+      apiFetch(`/api/negocios/${negocioId}/insumos`).then(data => {
+        setInsumos(data);
+      }).catch(console.error);
+
+      apiFetch(`/api/negocios/${negocioId}/categorias`).then(data => {
+        setCategorias(data);
+      }).catch(console.error);
+    }
+  }, [negocioId]);
+
+  useEffect(() => {
+    if (tipo === null) {
+      setTipo(categorias.length > 0 ? categorias[0].nombre : 'Mano de obra');
+    }
+  }, [categorias]);
+
+  useEffect(() => {
+    const cat = categorias.find(c => c.nombre === tipo);
+    if (!cat) return;
+    const filtrados = insumos.filter(i => i.categoria_id === cat.id);
+    if (filtrados.length > 0) {
+      setSelectedInsumoId(filtrados[0].id);
+      setCostoSaco(parseFloat(filtrados[0].precio_unitario) || 0);
+    } else {
+      setSelectedInsumoId(null);
+      setCostoSaco(0);
+    }
+  }, [tipo, insumos]);
+
+  useEffect(() => {
+    if (activeLote) {
+      setSelectedLoteId(activeLote._id || activeLote.id);
+    }
+  }, [activeLote]);
+
   const fetchBitacora = async () => {
     if (!negocioId || !loteRealId) return;
     setLoadingRegistros(true);
@@ -59,7 +98,6 @@ const Bitacora = ({ negocioId, activeLote }) => {
     }
   };
 
-  // Cargar detalle actualizado del lote (para cabezas_activas post-baja)
   const fetchLote = async () => {
     if (!negocioId || !loteRealId) return;
     try {
@@ -73,9 +111,11 @@ const Bitacora = ({ negocioId, activeLote }) => {
     if (loteRealId) fetchLote();
   }, [negocioId, loteRealId]);
 
-  const handleAlimentoChange = al => {
-    setAlimento(al);
-    setCostoSaco(PRECIOS_ALIMENTO[al] || 85);
+  const handleInsumoChange = insumoId => {
+    const id = parseInt(insumoId);
+    setSelectedInsumoId(id);
+    const ins = insumos.find(i => i.id === id);
+    setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
   };
 
   const handleRegistrar = async () => {
@@ -90,8 +130,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
       let causaVal = null;
       let tipoApi = tipo;
 
-      if (tipo === 'Alimentación') {
-        detalle = `${sacos} sacos ${alimento}`;
+      const esCategoriaInsumo = !!categorias.find(c => c.nombre === tipo);
+      if (esCategoriaInsumo) {
+        const ins = insumos.find(i => i.id === selectedInsumoId);
+        const insumoNombre = ins ? ins.nombre : 'Insumo';
+        const unidad = ins?.unidad_simbolo || 'u';
+        detalle = `${sacos} ${unidad} ${insumoNombre}`;
         montoFinal = totalAlim;
       } else if (tipo === 'Baja (muerte/pérdida)') {
         detalle = `${bajas} cabeza${bajas > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
@@ -104,6 +148,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
       } else {
         detalle = notas || tipo;
         montoFinal = parseFloat(monto) || null;
+        tipoApi = tipo === 'Otras pérdidas' ? 'Otro gasto' : tipo;
       }
 
       const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`, {
@@ -121,11 +166,11 @@ const Bitacora = ({ negocioId, activeLote }) => {
       });
 
       setRegistros(prev => [nuevo, ...prev]);
-      // Refrescar lote para actualizar cabezas_activas si hubo baja
       if (esBaja) await fetchLote();
 
-      // Limpiar form
       setMonto(''); setNotas(''); setSacos(10); setCausaBaja(''); setBajas(1);
+      const ins = insumos.find(i => i.id === selectedInsumoId);
+      setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
     } catch (e) {
       alert(e?.error || 'Error al registrar');
     } finally {
@@ -136,20 +181,17 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const iNum = (label, value, onChange, placeholder = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
-      <input value={value} onChange={e => onChange(parseFloat(e.target.value) || 0)} type="number" placeholder={placeholder}
-        style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
+      <input value={value} onChange={e => onChange(e.target.value)} type="number" step="any" placeholder={placeholder}
+        style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
         onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
       />
     </div>
   );
 
-  // Calcular costo acumulado desde registros reales
   const costoAcumulado = (parseFloat(loteData?.costo_adquisicion) || 0) +
     registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0);
 
-  const cabezasActivas = loteData?.cabezas_activas ?? activeLote?.cabezasActivas ?? '—';
-  const tipoAnimal     = loteData?.tipo_animal     ?? activeLote?.tipo           ?? '—';
-  const identificador  = loteData?.identificador   ?? activeLote?.id             ?? '—';
+  const cabezasActivas = loteData?.cabezas_activas ?? '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -157,11 +199,20 @@ const Bitacora = ({ negocioId, activeLote }) => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
             <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>
-              Lote #{identificador} · {tipoAnimal}
+              Lote 
             </span>
+            <select 
+              value={selectedLoteId || ''} 
+              onChange={e => setSelectedLoteId(parseInt(e.target.value) || e.target.value)}
+              style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
+            >
+              {lotes.map(l => (
+                <option key={l.id} value={l.id}>#{l.identificador} · {l.tipo_animal}</option>
+              ))}
+            </select>
             <StatusBadge label={`${cabezasActivas} animales activos`} color={accentColor} />
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
             Costo acumulado:{' '}
             <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)' }}>
               Bs {costoAcumulado.toLocaleString('es-BO')}
@@ -172,26 +223,49 @@ const Bitacora = ({ negocioId, activeLote }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px', alignItems: 'flex-start' }}>
-        {/* Panel de registro */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Registrar gasto / evento</span>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {(() => {
+              const categoriaActiva = categorias.find(c => c.nombre === tipo);
+              const insumosFiltrados = categoriaActiva
+                ? insumos.filter(i => i.categoria_id === categoriaActiva.id)
+                : insumos;
+              return (
+            <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ width: '100%' }}>
-                {TIPOS_GASTO.map(t => <option key={t}>{t}</option>)}
+              <select value={tipo || ''} onChange={e => setTipo(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
+                {categorias.length > 0 && (
+                  <optgroup label="Categorías de insumos">
+                    {categorias.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="Otros">
+                  {TIPOS_FIJOS.map(t => <option key={t}>{t}</option>)}
+                </optgroup>
               </select>
             </div>
 
-            {tipo === 'Alimentación' && (
+            {categoriaActiva && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alimento</label>
-                  <select value={alimento} onChange={e => handleAlimentoChange(e.target.value)} style={{ width: '100%' }}>
-                    {ALIMENTOS.map(a => <option key={a}>{a}</option>)}
-                  </select>
+                  <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Insumo</label>
+                  {insumosFiltrados.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', padding: '7px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
+                      Sin insumos en esta categoría — agregá uno en la sección Insumos
+                    </div>
+                  ) : (
+                    <select value={selectedInsumoId || ''} onChange={e => handleInsumoChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
+                      {insumosFiltrados.map(ins => (
+                        <option key={ins.id} value={ins.id}>
+                          {ins.nombre}{ins.unidad_simbolo ? ` (${ins.unidad_simbolo})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   {iNum('Sacos', sacos, setSacos)}
@@ -213,7 +287,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Causa (opcional)</label>
                   <input value={causaBaja} onChange={e => setCausaBaja(e.target.value)} placeholder="Enfermedad respiratoria…"
-                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
                     onFocus={e => e.target.style.borderColor = 'var(--accent-warning)'} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
                   />
                 </div>
@@ -224,13 +298,13 @@ const Bitacora = ({ negocioId, activeLote }) => {
               </>
             )}
 
-            {(tipo === 'Sanidad / Medicamento' || tipo === 'Mano de obra' || tipo === 'Otro gasto') && (
+            {!categoriaActiva && tipo !== 'Baja (muerte/pérdida)' && (
               <>
                 {iNum('Monto (Bs)', monto, v => setMonto(v))}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Descripción</label>
                   <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Detalle del gasto…"
-                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
                     onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
                   />
                 </div>
@@ -241,10 +315,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
               style={{ marginTop: '4px', padding: '10px', borderRadius: '6px', border: 'none', background: accentColor, color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontSize: '13px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <Icon name="plus" size={14} /> {saving ? 'Registrando…' : 'Registrar →'}
             </button>
+            </>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Panel de bitácora */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Bitácora del lote</span>

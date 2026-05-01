@@ -27,15 +27,23 @@ const InsumoDrawer = ({
   unidades,
   proveedores
 }) => {
-  const [form, setForm] = useState(insumo || {
-    nombre: '',
-    codigo_sku: '',
-    categoria_id: '',
-    unidad_id: '',
-    precio_unitario: '',
-    proveedor_id: '',
-    es_variable: true,
-    notas: ''
+  const [form, setForm] = useState(() => {
+    if (insumo) {
+      return {
+        ...insumo,
+        precio_unitario: insumo.precio_unitario != null ? parseFloat(insumo.precio_unitario).toString() : ''
+      };
+    }
+    return {
+      nombre: '',
+      codigo_sku: '',
+      categoria_id: '',
+      unidad_id: '',
+      precio_unitario: '',
+      proveedor_id: '',
+      es_variable: true,
+      notas: ''
+    };
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const drawerRef = useRef(null);

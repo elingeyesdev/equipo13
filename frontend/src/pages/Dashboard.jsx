@@ -10,6 +10,7 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
   const accentColor = 'var(--accent-industrial)';
   const mock = MOCK_BY_NEGOCIO[negocioId] || MOCK_BY_NEGOCIO['n1'];
   
+  const [ultimasFichas, setUltimasFichas] = useState([]);
   const [metricas, setMetricas] = useState({
     productos: 0,
     insumos: 0,
@@ -80,6 +81,25 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
         ultimaFichaProd: uFicha ? uFicha.producto_nombre : '—',
         actividad: topActivities.length > 0 ? topActivities : [{ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' }]
       });
+
+      const fichasMapeadas = sortedFichas.slice(0, 4).map(f => {
+        const p = prod.find(pr => pr.id === f.producto_id);
+        const costoUnit = parseFloat(f.costo_unitario_total || 0);
+        const margen = 30; // standard 30% margin
+        const pvp = costoUnit / (1 - (margen / 100)); 
+        return {
+          id: f.id,
+          producto_id: f.producto_id,
+          nombre: f.producto_nombre || (p ? p.nombre : 'Desconocido'),
+          sku: (p && p.codigo_sku) ? p.codigo_sku : 'Sin SKU',
+          costoUnit: costoUnit,
+          pvp: pvp,
+          margen: margen,
+          fichaReciente: true
+        };
+      });
+      setUltimasFichas(fichasMapeadas);
+
     }).catch(e => console.error(e));
   }, [negocioId]);
 
@@ -124,11 +144,13 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
-        {productos.map((p, i) => (
-          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '12px 20px', borderBottom: i < productos.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
+        {ultimasFichas.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No hay fichas de costo calculadas.</div>
+        ) : ultimasFichas.map((p, i) => (
+          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '12px 20px', borderBottom: i < ultimasFichas.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            onClick={() => onNavigate('historial')}
+            onClick={() => onNavigate('historial', { fichaId: p.id })}
           >
             <div>
               <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px' }}>{p.nombre}</div>
@@ -140,7 +162,7 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
             <div style={{ textAlign: 'right' }}>
               <StatusBadge label={p.fichaReciente ? 'Reciente' : 'Sin ficha'} color={p.fichaReciente ? 'var(--accent-success)' : 'var(--text-tertiary)'} />
             </div>
-            <div><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={e => { e.stopPropagation(); onNavigate('historial'); }}>Ver ficha →</Btn></div>
+            <div><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={e => { e.stopPropagation(); onNavigate('historial', { fichaId: p.id }); }}>Ver ficha →</Btn></div>
           </div>
         ))}
       </div>
@@ -170,12 +192,56 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
   );
 };
 
-/* ── AGRO dashboard ───────────────────────────────────────── */
 const DashboardAgro = ({ negocio, onNavigate }) => {
   const negocioId = negocio.id;
   const accentColor = 'var(--accent-agro)';
-  const lotes = LOTES_DATA;
-  const dm = (MOCK_BY_NEGOCIO[negocioId] || {}).dashMetrics || {};
+  const [lotes, setLotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return '—';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return `hace ${m || 1}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h/24)}d`;
+  };
+
+  React.useEffect(() => {
+    apiFetch(`/api/negocios/${negocioId}/lotes`)
+      .then(data => {
+        const mapped = data.map(l => ({
+          ...l,
+          id: l.identificador || l.id,
+          tipo: l.tipo_animal,
+          entrada: l.fecha_entrada ? new Date(l.fecha_entrada).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+          dias: l.fecha_entrada ? Math.floor((Date.now() - new Date(l.fecha_entrada)) / 86400000) : 0,
+          cabezasActivas: l.cabezas_activas || 0,
+          cabezas_inicio: l.cabezas_inicio || 0,
+          costo_total: parseFloat(l.costo_total) || 0,
+          created_at: l.created_at
+        }));
+        setLotes(mapped);
+      })
+      .catch(e => console.error(e))
+      .finally(() => setLoading(false));
+  }, [negocioId]);
+
+  const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
+  const costoTotalAcc = lotes.reduce((s, l) => s + l.costo_total, 0);
+
+  const actividades = lotes.map(l => ({
+    icon: 'plus',
+    text: `Nuevo lote registrado: ${l.id} · ${l.cabezas_inicio} ${l.tipo === 'Cerdo' ? 'cerdos' : l.tipo === 'Bovino' ? 'bovinos' : 'animales'}`,
+    time: timeAgo(l.created_at),
+    date: new Date(l.created_at),
+    color: 'var(--accent-success)'
+  })).sort((a, b) => b.date - a.date).slice(0, 4);
+
+  if (actividades.length === 0) {
+    actividades.push({ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' });
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -191,10 +257,10 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        <MetricCard label="Lotes activos"         value={dm.lotes ?? lotes.length}      sub="en engorde"               icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
-        <MetricCard label="Animales en engorde"    value={dm.animales ?? lotes.reduce((s,l)=>s+l.cabezasActivas,0)} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
-        <MetricCard label="Costo total acumulado"  value={`Bs ${((dm.costoTotal ?? lotes.reduce((s,l)=>s+Object.values(l.costos).reduce((a,v)=>a+v,0),0))/1000).toFixed(1)}k`} sub="todos los lotes" icon={<Icon name="dollarSign" size={16} />} mono={false} />
-        <MetricCard label="Mejor ICA del período"  value={`${dm.mejorIca ?? Math.min(...lotes.map(l=>l.convAliment))} kg/kg`} sub="conversión alimenticia" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Lotes activos"         value={loading ? '...' : lotes.length}      sub="en engorde"               icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Animales en engorde"    value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
+        <MetricCard label="Costo total acumulado"  value={loading ? '...' : `Bs ${(costoTotalAcc/1000).toFixed(1)}k`} sub="todos los lotes" icon={<Icon name="dollarSign" size={16} />} mono={false} />
+        <MetricCard label="Mejor ICA del período"  value="—" sub="conversión alimenticia" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -207,43 +273,47 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i >= 3 && i <= 5 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
-        {lotes.map((l, i) => {
-          const totalCosto = Object.values(l.costos).reduce((s, v) => s + v, 0);
-          const icaColor = l.tipo === 'Cerdo' ? (l.convAliment <= 3.0 ? 'var(--accent-success)' : 'var(--accent-warning)') : (l.convAliment <= 8.0 ? 'var(--accent-success)' : 'var(--accent-warning)');
-          return (
-            <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 100px 100px 80px 100px', padding: '12px 20px', borderBottom: i < lotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', transition: 'background 0.1s', cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              onClick={() => onNavigate('lotes')}
-            >
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono, monospace' }}>{l.id}</span>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{l.tipo}</span>
-              <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-secondary)' }}>{l.dias}d</span>
-              <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{l.cabezasActivas} cab.</span>
-              <div style={{ textAlign: 'right' }}><MoneyDisplay value={totalCosto} size="sm" /></div>
-              <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: icaColor, fontWeight: 500 }}>{l.convAliment}</span>
-              <div><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={e => { e.stopPropagation(); onNavigate('lotes'); }}>Ver →</Btn></div>
-            </div>
-          );
-        })}
+        {loading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Cargando lotes...</div>
+        ) : lotes.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No hay lotes activos.</div>
+        ) : (
+          lotes.map((l, i) => {
+            return (
+              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 100px 100px 80px 100px', padding: '12px 20px', borderBottom: i < lotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', transition: 'background 0.1s', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onClick={() => onNavigate('lotes')}
+              >
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono, monospace' }}>{l.id}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{l.tipo}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-secondary)' }}>{l.dias}d</span>
+                <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{l.cabezasActivas} cab.</span>
+                <div style={{ textAlign: 'right' }}><MoneyDisplay value={l.costo_total} size="sm" /></div>
+                <span style={{ textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-tertiary)' }}>—</span>
+                <div><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={e => { e.stopPropagation(); onNavigate('lotes'); }}>Ver →</Btn></div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       <SectionCard title="Actividad reciente">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[
-            { icon: 'layers',        text: 'Alimentación registrada: 10 sacos bal. crecimiento — Lote L-2025-003', time: 'hace 2h',  color: accentColor },
-            { icon: 'alertTriangle', text: 'Baja registrada: 1 cabeza Lote L-2025-003 (enf. respiratoria)',        time: 'hace 3d',  color: 'var(--accent-warning)' },
-            { icon: 'plus',          text: 'Nuevo lote registrado: L-2025-005 · 30 cerdos',                        time: 'hace 2sem',color: 'var(--accent-success)' },
-          ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '6px', background: item.color + '1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name={item.icon} size={13} style={{ color: item.color }} />
+        {loading ? (
+           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Cargando actividad...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {actividades.map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '6px', background: item.color + '1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={item.icon} size={13} style={{ color: item.color }} />
+                </div>
+                <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-secondary)' }}>{item.text}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{item.time}</div>
               </div>
-              <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-secondary)' }}>{item.text}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{item.time}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </SectionCard>
     </div>
   );
