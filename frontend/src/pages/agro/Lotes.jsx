@@ -24,8 +24,8 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     tipo: 'Cerdo',
     identificador: '',
     fecha_entrada: '',
-    cabezas_inicio: 50,
-    peso_inicial_prom: 8.5,
+    cabezas_inicio: '50',
+    peso_inicial_prom: '8.5',
     costo_unitario: '',
   });
   const [saving, setSaving] = useState(false);

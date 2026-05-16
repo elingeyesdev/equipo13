@@ -19,9 +19,9 @@ const MOD_COLS = [
   { key: 'total_lote', label: '/lote',     mono: true,  prefix: 'Bs ', sumable: true  },
 ];
 
-const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
-  const [local, setLocal] = useState(value);
-  useEffect(() => setLocal(value), [value]);
+const NumControl = ({ label, rawValue, onRawChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
+  const num = parseFloat(rawValue) || 0;
+  const sliderVal = Math.min(max, Math.max(min, num));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
       <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
@@ -29,8 +29,8 @@ const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, pr
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{prefix}</span>}
           <input
-            type="number" value={local} min={min} max={max} step={step}
-            onChange={e => { const v = parseFloat(e.target.value) || 0; setLocal(v); onChange(v); }}
+            type="number" value={rawValue} min={min} max={max} step={step}
+            onChange={e => onRawChange(e.target.value)}
             style={{
               width: prefix ? '90px' : '80px', background: 'var(--bg-tertiary)',
               border: '1px solid var(--border-subtle)', borderRadius: '6px',
@@ -43,8 +43,8 @@ const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, pr
           {suffix && <span style={{ position: 'absolute', right: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{suffix}</span>}
         </div>
         {showSlider && (
-          <input type="range" min={min} max={max} step={step} value={local}
-            onChange={e => { const v = parseFloat(e.target.value); setLocal(v); onChange(v); }}
+          <input type="range" min={min} max={max} step={step} value={sliderVal}
+            onChange={e => onRawChange(e.target.value)}
             style={{ flex: 1, accentColor }}
           />
         )}
@@ -60,7 +60,8 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
 
   const [productos, setProductos] = useState([]);
   const [selectedProductoId, setSelectedProductoId] = useState(productoId || '');
-  const [lote, setLote] = useState(100);
+  const [loteRaw, setLoteRaw] = useState('100');
+  const lote = parseFloat(loteRaw) || 0;
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [result, setResult] = useState(null);
@@ -131,7 +132,7 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
             {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.codigo_sku ? `(${p.codigo_sku})` : ''}</option>)}
           </select>
         </div>
-        <NumControl label="Tamaño del lote" value={lote} min={1} max={10000} onChange={setLote} suffix="uds" accentColor={accentColor} />
+        <NumControl label="Tamaño del lote" rawValue={loteRaw} onRawChange={setLoteRaw} min={1} max={10000} suffix="uds" accentColor={accentColor} />
         <Btn icon="calculator" accentColor={accentColor} onClick={handleCalc} disabled={calculating || !selectedProductoId}>
           {calculating ? 'Calculando...' : 'Calcular'}
         </Btn>

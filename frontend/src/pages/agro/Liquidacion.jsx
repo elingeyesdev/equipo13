@@ -39,20 +39,30 @@ const Liquidacion = ({ negocioId, activeLote }) => {
   const loteData = lotes.find(l => l.id === selectedLoteId) || activeLote || null;
   const costoTotalLote = loteData?.costo_total || (loteData?.costos ? Object.values(loteData.costos).reduce((s, v) => s + v, 0) : 0);
 
-  const [cabezasVenta, setCabezasVenta] = useState(0);
-  const [pesoPromFinal, setPesoPromFinal] = useState(95);
-  const [rendimientoCanal, setRendimientoCanal] = useState(75);
-  const [transporte, setTransporte] = useState(350);
-  const [comision, setComision] = useState(0);
-  const [faena, setFaena] = useState(480);
-  const [otrosGastos, setOtrosGastos] = useState(0);
-  const [pvpPie, setPvpPie] = useState(22.00);
-  const [pvpGancho, setPvpGancho] = useState(32.00);
+  const [cabezasVentaRaw, setCabezasVentaRaw] = useState('0');
+  const [pesoPromFinalRaw, setPesoPromFinalRaw] = useState('95');
+  const [rendimientoCanalRaw, setRendimientoCanalRaw] = useState('75');
+  const [transporteRaw, setTransporteRaw] = useState('350');
+  const [comisionRaw, setComisionRaw] = useState('0');
+  const [faenaRaw, setFaenaRaw] = useState('480');
+  const [otrosGastosRaw, setOtrosGastosRaw] = useState('0');
+  const [pvpPieRaw, setPvpPieRaw] = useState('22');
+  const [pvpGanchoRaw, setPvpGanchoRaw] = useState('32');
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const cabezasVenta = parseFloat(cabezasVentaRaw) || 0;
+  const pesoPromFinal = parseFloat(pesoPromFinalRaw) || 0;
+  const rendimientoCanal = parseFloat(rendimientoCanalRaw) || 0;
+  const transporte = parseFloat(transporteRaw) || 0;
+  const comision = parseFloat(comisionRaw) || 0;
+  const faena = parseFloat(faenaRaw) || 0;
+  const otrosGastos = parseFloat(otrosGastosRaw) || 0;
+  const pvpPie = parseFloat(pvpPieRaw) || 0;
+  const pvpGancho = parseFloat(pvpGanchoRaw) || 0;
 
   useEffect(() => {
     if (loteData) {
-      setCabezasVenta(loteData.cabezasActivas || 0);
+      setCabezasVentaRaw(String(loteData.cabezasActivas || 0));
     }
   }, [loteData]);
 
@@ -77,12 +87,12 @@ const Liquidacion = ({ negocioId, activeLote }) => {
   const ica = gananciaTotal > 0 ? (alimentoConsumido / gananciaTotal).toFixed(2) : '—';
   const refICA = loteData?.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
 
-  const iNum = (label, value, onChange, prefix = 'Bs', hint = '') => (
+  const iNum = (label, rawValue, onRawChange, prefix = 'Bs', hint = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace', pointerEvents: 'none' }}>{prefix}</span>}
-        <input value={value === 0 && typeof value === 'string' ? '' : value} onChange={e => onChange(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))} type="number" step="any"
+        <input value={rawValue} onChange={e => onRawChange(e.target.value)} type="number" step="any"
           style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: `7px 8px 7px ${prefix ? '28px' : '10px'}`, fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
           onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
         />
@@ -186,8 +196,8 @@ const Liquidacion = ({ negocioId, activeLote }) => {
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Datos finales del lote</span>
             </div>
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {iNum('Animales vivos para venta', cabezasVenta, setCabezasVenta, '', 'cabezas')}
-              {iNum('Peso promedio final (kg/cab)', pesoPromFinal, setPesoPromFinal, '', '')}
+              {iNum('Animales vivos para venta', cabezasVentaRaw, setCabezasVentaRaw, '', 'cabezas')}
+              {iNum('Peso promedio final (kg/cab)', pesoPromFinalRaw, setPesoPromFinalRaw, '', '')}
               <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Peso total en pie</span>
                 <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
@@ -202,10 +212,10 @@ const Liquidacion = ({ negocioId, activeLote }) => {
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Gastos de venta</span>
             </div>
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {iNum('Transporte al matadero', transporte, setTransporte)}
-              {iNum('Comisión intermediario', comision, setComision)}
-              {iNum('Gastos de faena (gancho)', faena, setFaena, 'Bs', 'Solo si vende en gancho')}
-              {iNum('Otros', otrosGastos, setOtrosGastos)}
+              {iNum('Transporte al matadero', transporteRaw, setTransporteRaw)}
+              {iNum('Comisión intermediario', comisionRaw, setComisionRaw)}
+              {iNum('Gastos de faena (gancho)', faenaRaw, setFaenaRaw, 'Bs', 'Solo si vende en gancho')}
+              {iNum('Otros', otrosGastosRaw, setOtrosGastosRaw)}
             </div>
           </div>
 
@@ -214,15 +224,15 @@ const Liquidacion = ({ negocioId, activeLote }) => {
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Rendimiento canal</span>
             </div>
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {iNum('Rendimiento canal (%)', rendimientoCanal, setRendimientoCanal, '', 'Estándar cerdo: 72–78%')}
+              {iNum('Rendimiento canal (%)', rendimientoCanalRaw, setRendimientoCanalRaw, '', 'Estándar cerdo: 72–78%')}
               <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Peso gancho estimado</span>
                 <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: accentColor, fontWeight: 500 }}>
                   {pesoGancho.toFixed(0)} kg
                 </span>
               </div>
-              {iNum('PVP $/kg pie', pvpPie, setPvpPie, 'Bs', 'Precio mercado vivo')}
-              {iNum('PVP $/kg gancho', pvpGancho, setPvpGancho, 'Bs', 'Precio mercado canal')}
+              {iNum('PVP $/kg pie', pvpPieRaw, setPvpPieRaw, 'Bs', 'Precio mercado vivo')}
+              {iNum('PVP $/kg gancho', pvpGanchoRaw, setPvpGanchoRaw, 'Bs', 'Precio mercado canal')}
             </div>
           </div>
         </div>

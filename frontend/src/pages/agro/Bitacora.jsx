@@ -28,10 +28,10 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const [insumos, setInsumos] = useState([]);
   const [tipo, setTipo] = useState(null);
   const [selectedInsumoId, setSelectedInsumoId] = useState(null);
-  const [sacos, setSacos] = useState(10);
-  const [costoSaco, setCostoSaco] = useState(0);
-  const [bajas, setBajas] = useState(1);
-  const [pesoBaja, setPesoBaja] = useState(9.2);
+  const [sacos, setSacos] = useState('10');
+  const [costoSaco, setCostoSaco] = useState('0');
+  const [bajas, setBajas] = useState('1');
+  const [pesoBaja, setPesoBaja] = useState('9.2');
   const [causaBaja, setCausaBaja] = useState('');
   const [monto, setMonto] = useState('');
   const [notas, setNotas] = useState('');
@@ -71,10 +71,10 @@ const Bitacora = ({ negocioId, activeLote }) => {
     const filtrados = insumos.filter(i => i.categoria_id === cat.id);
     if (filtrados.length > 0) {
       setSelectedInsumoId(filtrados[0].id);
-      setCostoSaco(parseFloat(filtrados[0].precio_unitario) || 0);
+      setCostoSaco(String(parseFloat(filtrados[0].precio_unitario) || 0));
     } else {
       setSelectedInsumoId(null);
-      setCostoSaco(0);
+      setCostoSaco('0');
     }
   }, [tipo, insumos]);
 
@@ -115,7 +115,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
     const id = parseInt(insumoId);
     setSelectedInsumoId(id);
     const ins = insumos.find(i => i.id === id);
-    setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
+    setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
   };
 
   const handleRegistrar = async () => {
@@ -138,10 +138,11 @@ const Bitacora = ({ negocioId, activeLote }) => {
         detalle = `${sacos} ${unidad} ${insumoNombre}`;
         montoFinal = totalAlim;
       } else if (tipo === 'Baja (muerte/pérdida)') {
-        detalle = `${bajas} cabeza${bajas > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
+        const bajasNum = parseFloat(bajas) || 0;
+        detalle = `${bajas} cabeza${bajasNum > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
         esBaja = true;
-        cabezasBaja = bajas;
-        pesoBajaVal = pesoBaja;
+        cabezasBaja = bajasNum;
+        pesoBajaVal = parseFloat(pesoBaja) || 0;
         causaVal = causaBaja;
         tipoApi = 'Baja';
         montoFinal = null;
@@ -168,9 +169,9 @@ const Bitacora = ({ negocioId, activeLote }) => {
       setRegistros(prev => [nuevo, ...prev]);
       if (esBaja) await fetchLote();
 
-      setMonto(''); setNotas(''); setSacos(10); setCausaBaja(''); setBajas(1);
+      setMonto(''); setNotas(''); setSacos('10'); setCausaBaja(''); setBajas('1');
       const ins = insumos.find(i => i.id === selectedInsumoId);
-      setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
+      setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
     } catch (e) {
       alert(e?.error || 'Error al registrar');
     } finally {
