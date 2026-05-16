@@ -14,6 +14,8 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
     insumos: 0,
     ultimaFicha: 'Ninguna',
     ultimaFichaProd: '—',
+    productosSinFicha: '—',
+    fichasEsteMes: '—',
     actividad: []
   });
 
@@ -72,11 +74,23 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
       allActivities.sort((a, b) => b.date - a.date);
       const topActivities = allActivities.slice(0, 4);
 
+      const prodActivos = (prod || []).filter(p => p.activo !== false);
+      const productosConFicha = new Set((fichas || []).map(f => f.producto_id));
+      const sinFicha = prodActivos.filter(p => !productosConFicha.has(p.id)).length;
+
+      const now = new Date();
+      const fichasMes = (fichas || []).filter(f => {
+        const d = new Date(f.calculado_en);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length;
+
       setMetricas({
         productos: prod.length,
         insumos: ins.length,
         ultimaFicha: uFicha ? timeAgo(uFicha.calculado_en) : 'Ninguna',
         ultimaFichaProd: uFicha ? uFicha.producto_nombre : '—',
+        productosSinFicha: sinFicha,
+        fichasEsteMes: fichasMes,
         actividad: topActivities.length > 0 ? topActivities : [{ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' }]
       });
 
@@ -115,7 +129,7 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
         <MetricCard label="Productos" value={metricas.productos} sub="con receta activa" icon={<Icon name="package" size={16} />} accentColor={accentColor} mono={false} />
         <MetricCard label="Insumos registrados" value={metricas.insumos} sub="en el catálogo" icon={<Icon name="layers" size={16} />} mono={false} />
         <MetricCard label="Última ficha calculada" value={metricas.ultimaFicha} sub={metricas.ultimaFichaProd} icon={<Icon name="history" size={16} />} mono={false} />
-        <MetricCard label="Punto de equilibrio" value="Próximamente" sub="Disponible en Sprint 2" icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-warning)" mono={false} />
+        <MetricCard label="Productos sin ficha" value={metricas.productosSinFicha} sub="sin costo calculado" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -163,12 +177,14 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
             ))}
           </div>
         </SectionCard>
-        <SectionCard title="Distribución de costos">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0', gap: '8px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--accent-warning)' }}>Próximamente</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Disponible en Sprint 2</div>
-          </div>
-        </SectionCard>
+        <MetricCard
+          label="Fichas calculadas este mes"
+          value={metricas.fichasEsteMes}
+          sub={new Date().toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })}
+          icon={<Icon name="calculator" size={16} />}
+          accentColor={accentColor}
+          mono={false}
+        />
       </div>
     </div>
   );
@@ -212,6 +228,12 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
   const costoTotalAcc = lotes.reduce((s, l) => s + l.costo_total, 0);
+  const costoPorCabeza = totalAnimales > 0 ? costoTotalAcc / totalAnimales : null;
+  const costoPorCabezaDisplay = loading
+    ? '...'
+    : costoPorCabeza == null
+      ? '—'
+      : `Bs ${costoPorCabeza.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const actividades = lotes.map(l => ({
     icon: 'plus',
@@ -242,7 +264,7 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
         <MetricCard label="Lotes activos"         value={loading ? '...' : lotes.length}      sub="en engorde"               icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
         <MetricCard label="Animales en engorde"    value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
         <MetricCard label="Costo total acumulado"  value={loading ? '...' : `Bs ${(costoTotalAcc/1000).toFixed(1)}k`} sub="todos los lotes" icon={<Icon name="dollarSign" size={16} />} mono={false} />
-        <MetricCard label="Mejor ICA del período"  value="—" sub="conversión alimenticia" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Costo / cabeza promedio" value={costoPorCabezaDisplay} sub="todos los lotes activos" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
