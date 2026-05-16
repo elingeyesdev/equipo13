@@ -107,6 +107,15 @@ const App = () => {
     setUser(null);
     setNegocios([]);
     setNegocioId(null);
+    setActiveLote(null);
+    setActiveProductoId(null);
+    setPage('dashboard');
+  };
+
+  const handleNegocioChange = (id) => {
+    setNegocioId(id);
+    setActiveLote(null);
+    setActiveProductoId(null);
     setPage('dashboard');
   };
 
@@ -163,7 +172,7 @@ const App = () => {
       page={page}
       onNavigate={navigate}
       negocioId={negocioId}
-      onNegocioChange={id => { setNegocioId(id); navigate('dashboard'); }}
+      onNegocioChange={handleNegocioChange}
       negocios={negocios}
       user={user}
       onLogout={logout}
