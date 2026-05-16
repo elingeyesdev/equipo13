@@ -11,12 +11,33 @@ const CAT_COLORS_AGRO = {
   alimento:    'var(--accent-industrial)',
   sanidad:     'var(--accent-warning)',
   moObra:      'var(--text-tertiary)',
+  otros:       'var(--text-secondary)',
 };
 const CAT_LABELS = {
   adquisicion: 'Adquisición',
   alimento:    'Alimento',
   sanidad:     'Sanidad',
   moObra:      'Mano de obra',
+  otros:       'Otros',
+};
+const COSTOS_ORDER = ['adquisicion', 'alimento', 'sanidad', 'moObra', 'otros'];
+
+const fetchCostosDetalle = async (negocioId, loteUuid) => {
+  if (!negocioId || !loteUuid) {
+    return { alimento: null, sanidad: null, mano_obra: null, otros: null, total: null };
+  }
+  try {
+    const d = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/costos-detalle`);
+    return {
+      alimento: Number(d.alimento) || 0,
+      sanidad: Number(d.sanidad) || 0,
+      mano_obra: Number(d.mano_obra) || 0,
+      otros: Number(d.otros) || 0,
+      total: Number(d.total) || 0,
+    };
+  } catch {
+    return { alimento: null, sanidad: null, mano_obra: null, otros: null, total: null };
+  }
 };
 
 const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
@@ -116,9 +137,8 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
 };
 
 // Mapea el lote de la API al formato que usa LoteCard
-const mapLoteFromApi = (l) => ({
+const mapLoteFromApi = (l, costosDetalle) => ({
   ...l,
-  // compatibilidad con campos esperados por la card
   id: l.identificador || l.id,
   _id: l.id,
   tipo: l.tipo_animal,
@@ -130,32 +150,35 @@ const mapLoteFromApi = (l) => ({
   pesoActualProm: parseFloat(l.peso_actual_prom) || 0,
   costos: {
     adquisicion: parseFloat(l.costo_adquisicion) || 0,
-    alimento:    parseFloat(l.costo_total || 0) - parseFloat(l.costo_adquisicion || 0) - (parseFloat(l.costo_sanidad) || 0) - (parseFloat(l.costo_mo) || 0),
-    sanidad: parseFloat(l.costo_sanidad) || 0,
-    moObra: parseFloat(l.costo_mo) || 0,
+    alimento: costosDetalle?.alimento ?? null,
+    sanidad: costosDetalle?.sanidad ?? null,
+    moObra: costosDetalle?.mano_obra ?? null,
+    otros: costosDetalle?.otros ?? null,
   },
-  convAliment: 0,
+  costosTotal: costosDetalle?.total ?? null,
 });
 
 const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   const [desgloseOpen, setDesgloseOpen] = useState(false);
-  const totalCosto = Object.values(lote.costos).reduce((s, v) => s + v, 0);
+  const totalCosto = lote.costosTotal != null
+    ? lote.costosTotal
+    : (parseFloat(lote.costo_total) || Object.values(lote.costos).reduce((s, v) => s + (v ?? 0), 0));
   const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
   const refConv = lote.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
-  const convColor = lote.tipo === 'Cerdo'
-    ? (lote.convAliment <= 3.0 ? 'var(--accent-success)' : 'var(--accent-warning)')
-    : (lote.convAliment <= 8.0 ? 'var(--accent-success)' : 'var(--accent-warning)');
-
   const CostBar = ({ key_, label, val }) => {
-    const pct = totalCosto > 0 ? (val / totalCosto) * 100 : 0;
+    const pct = totalCosto > 0 && val != null ? (val / totalCosto) * 100 : 0;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
           <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MoneyDisplay value={val} size="xs" />
-            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', width: '32px', textAlign: 'right' }}>{pct.toFixed(0)}%</span>
+            {val != null
+              ? <MoneyDisplay value={val} size="xs" />
+              : <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', width: '32px', textAlign: 'right' }}>
+              {val != null ? `${pct.toFixed(0)}%` : '—'}
+            </span>
           </div>
         </div>
         <div style={{ height: '4px', background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
@@ -229,8 +252,8 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
         </button>
         {desgloseOpen && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
-            {Object.entries(lote.costos).map(([key_, val]) => (
-              <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={val} />
+            {COSTOS_ORDER.map(key_ => (
+              <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={lote.costos[key_]} />
             ))}
           </div>
         )}
@@ -258,7 +281,13 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
     setError(null);
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes`);
-      setLotes(data.map(mapLoteFromApi));
+      const mapped = await Promise.all(
+        data.map(async (l) => {
+          const detalle = await fetchCostosDetalle(negocioId, l.id);
+          return mapLoteFromApi(l, detalle);
+        })
+      );
+      setLotes(mapped);
     } catch (e) {
       setError(e?.error || 'Error al cargar lotes');
     } finally {
@@ -280,7 +309,8 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
         costo_adquisicion: form.costo_adquisicion,
       }),
     });
-    setLotes(prev => [mapLoteFromApi(nuevo), ...prev]);
+    const detalle = await fetchCostosDetalle(negocioId, nuevo.id);
+    setLotes(prev => [mapLoteFromApi(nuevo, detalle), ...prev]);
   };
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
