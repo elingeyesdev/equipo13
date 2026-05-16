@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { Icon } from '../icons.jsx';
-import { MOCK_BY_NEGOCIO, RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard } from '../components/ui.jsx';
+import { RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
-import { LOTES_DATA } from './agro/Lotes.jsx';
 
 /* ── INDUSTRIAL dashboard ─────────────────────────────────── */
 const DashboardIndustrial = ({ negocio, onNavigate }) => {
   const negocioId = negocio.id;
   const accentColor = 'var(--accent-industrial)';
-  const mock = MOCK_BY_NEGOCIO[negocioId] || MOCK_BY_NEGOCIO['n1'];
   
   const [ultimasFichas, setUltimasFichas] = useState([]);
   const [metricas, setMetricas] = useState({
@@ -85,16 +83,12 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
       const fichasMapeadas = sortedFichas.slice(0, 4).map(f => {
         const p = prod.find(pr => pr.id === f.producto_id);
         const costoUnit = parseFloat(f.costo_unitario_total || 0);
-        const margen = 30; // standard 30% margin
-        const pvp = costoUnit / (1 - (margen / 100)); 
         return {
           id: f.id,
           producto_id: f.producto_id,
           nombre: f.producto_nombre || (p ? p.nombre : 'Desconocido'),
           sku: (p && p.codigo_sku) ? p.codigo_sku : 'Sin SKU',
-          costoUnit: costoUnit,
-          pvp: pvp,
-          margen: margen,
+          costoUnit,
           fichaReciente: true
         };
       });
@@ -103,16 +97,6 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
     }).catch(e => console.error(e));
   }, [negocioId]);
 
-  const productos = (mock.productos || []).filter(p => p.activo !== false);
-
-  const MargenBar = ({ value }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ width: 64, height: 4, background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: value > 40 ? 'var(--accent-success)' : value > 20 ? 'var(--accent-warning)' : 'var(--accent-danger)', borderRadius: '2px' }} />
-      </div>
-      <span style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace', color: value > 40 ? 'var(--accent-success)' : 'var(--text-secondary)' }}>{value.toFixed(1)}%</span>
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -139,15 +123,15 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
           <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Productos — últimas fichas</span>
           <Btn variant="ghost" size="sm" icon="arrowRight" onClick={() => onNavigate('productos')}>Ver todos</Btn>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-          {['Producto', 'Costo unitario', 'Precio sugerido', 'Margen', 'Estado ficha', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+          {['Producto', 'Costo unitario', 'Estado ficha', ''].map((h, i) => (
+            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i === 1 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
         {ultimasFichas.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No hay fichas de costo calculadas.</div>
         ) : ultimasFichas.map((p, i) => (
-          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '12px 20px', borderBottom: i < ultimasFichas.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
+          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px', padding: '12px 20px', borderBottom: i < ultimasFichas.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             onClick={() => onNavigate('historial', { fichaId: p.id })}
@@ -157,8 +141,6 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>{p.sku}</div>
             </div>
             <div style={{ textAlign: 'right' }}><MoneyDisplay value={p.costoUnit} size="sm" /></div>
-            <div style={{ textAlign: 'right' }}><MoneyDisplay value={p.pvp} size="sm" color="green" /></div>
-            <div style={{ textAlign: 'right' }}><MargenBar value={p.margen} /></div>
             <div style={{ textAlign: 'right' }}>
               <StatusBadge label={p.fichaReciente ? 'Reciente' : 'Sin ficha'} color={p.fichaReciente ? 'var(--accent-success)' : 'var(--text-tertiary)'} />
             </div>
@@ -336,3 +318,4 @@ const Dashboard = ({ negocio, onNavigate }) => {
 };
 
 export default Dashboard;
+
