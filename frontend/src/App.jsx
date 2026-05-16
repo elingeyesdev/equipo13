@@ -31,7 +31,7 @@ const GastosCIFPlaceholder = ({ rubro }) => {
       </h1>
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '48px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
         <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={40} strokeWidth={1} /></div>
-        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el Sprint 2</div>
+        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el próximo sprint</div>
         <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: '380px' }}>
           {isAgro
             ? 'Aquí podrás registrar gastos fijos del campo (alquiler de pasturas, agua, amortización de instalaciones) que se prorratearán entre los lotes activos.'

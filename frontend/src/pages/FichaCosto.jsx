@@ -162,29 +162,6 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
         {/* MOD Table */}
         <CostTable title="MOD — Mano de Obra Directa" rows={modRows} columns={MOD_COLS} accentColor={accentColor} type="variable" loteSize={lote} />
 
-        {/* CIF Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>CIF — Costos Indirectos de Fabricación</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', maxWidth: '400px', lineHeight: 1.6 }}>
-            Aquí podrás registrar tus costos indirectos mensuales (electricidad, alquiler, mantenimiento) para que el sistema los prorratee automáticamente.
-          </div>
-        </div>
-
-        {/* Punto de Equilibrio Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Punto de Equilibrio</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-        </div>
-
-        {/* WIP Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Costo acumulado por etapa (WIP)</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-        </div>
       </>}
 
       {!result && !calculating && (
@@ -196,8 +173,13 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
           </div>
         </div>
       )}
+
+      <p style={{ margin: 0, padding: '12px 0 4px', fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.5 }}>
+        CIF, Punto de Equilibrio y WIP llegan en el próximo sprint.
+      </p>
     </div>
   );
 };
 
 export default FichaCosto;
+

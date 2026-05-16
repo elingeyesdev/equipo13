@@ -149,9 +149,6 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
             >
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
             </button>
-            <button style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}>
-              <Icon name="bell" size={16} />
-            </button>
             <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
             {/* Admin dropdown */}
             <div ref={adminRef} style={{ position: 'relative' }}>
