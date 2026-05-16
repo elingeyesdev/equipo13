@@ -3,17 +3,18 @@ import { Icon } from '../../icons.jsx';
 import { apiFetch } from '../../config/api.js';
 import { MoneyDisplay, Btn, StatusBadge, RubroBadge } from '../../components/ui.jsx';
 
-const Liquidacion = ({ negocioId, activeLote }) => {
+const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const accentColor = 'var(--accent-agro)';
 
   const [lotes, setLotes] = useState([]);
-  const [selectedLoteId, setSelectedLoteId] = useState(activeLote?._id || activeLote?.id || null);
+  const [selectedLoteUuid, setSelectedLoteUuid] = useState(activeLote?._id || null);
 
   useEffect(() => {
     if (negocioId) {
       apiFetch(`/api/negocios/${negocioId}/lotes`).then(data => {
         const mapped = data.map(l => ({
           ...l,
+          _id: l.id,
           id: l.identificador || l.id,
           tipo: l.tipo_animal,
           dias: l.fecha_entrada ? Math.floor((Date.now() - new Date(l.fecha_entrada)) / 86400000) : 0,
@@ -23,20 +24,20 @@ const Liquidacion = ({ negocioId, activeLote }) => {
           pesoInicialProm: parseFloat(l.peso_inicial_prom) || 0
         }));
         setLotes(mapped);
-        if (!selectedLoteId && mapped.length > 0) {
-          setSelectedLoteId(mapped[0].id);
+        if (!selectedLoteUuid && mapped.length > 0) {
+          setSelectedLoteUuid(mapped[0]._id);
         }
       }).catch(console.error);
     }
   }, [negocioId]);
 
   useEffect(() => {
-    if (activeLote) {
-      setSelectedLoteId(activeLote._id || activeLote.id);
+    if (activeLote?._id) {
+      setSelectedLoteUuid(activeLote._id);
     }
   }, [activeLote]);
 
-  const loteData = lotes.find(l => l.id === selectedLoteId) || activeLote || null;
+  const loteData = lotes.find(l => l._id === selectedLoteUuid) || (activeLote?._id === selectedLoteUuid ? activeLote : null);
   const costoTotalLote = loteData?.costo_total || (loteData?.costos ? Object.values(loteData.costos).reduce((s, v) => s + v, 0) : 0);
 
   const [cabezasVentaRaw, setCabezasVentaRaw] = useState('0');
@@ -49,6 +50,8 @@ const Liquidacion = ({ negocioId, activeLote }) => {
   const [pvpPieRaw, setPvpPieRaw] = useState('22');
   const [pvpGanchoRaw, setPvpGanchoRaw] = useState('32');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [liquidando, setLiquidando] = useState(false);
+  const [confirmError, setConfirmError] = useState(null);
 
   const cabezasVenta = parseFloat(cabezasVentaRaw) || 0;
   const pesoPromFinal = parseFloat(pesoPromFinalRaw) || 0;
@@ -150,6 +153,34 @@ const Liquidacion = ({ negocioId, activeLote }) => {
   const cabezasInicio = loteData?.cabezas_inicio ?? '—';
   const diasActivo = loteData?.dias ?? '—';
 
+  const handleConfirmLiquidar = async () => {
+    const loteUuid = loteData?._id;
+    if (!negocioId || !loteUuid) return;
+    setLiquidando(true);
+    setConfirmError(null);
+    const escenario = ganchoEsMejor ? 'gancho' : 'pie';
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/liquidar`, {
+        method: 'POST',
+        body: JSON.stringify({
+          cabezas_venta: cabezasVenta,
+          peso_prom_final: pesoPromFinal,
+          rendimiento_canal: rendimientoCanal,
+          escenario,
+          pvp_kg: escenario === 'gancho' ? pvpGancho : pvpPie,
+          gastos_finales: escenario === 'gancho' ? gastosGanchoTotal : gastosVenta,
+        }),
+      });
+      setShowConfirm(false);
+      setActiveLote?.(null);
+      onNavigate?.('lotes');
+    } catch (e) {
+      setConfirmError(e?.error || e?.message || 'Error al registrar la liquidación');
+    } finally {
+      setLiquidando(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <style>{`
@@ -169,12 +200,12 @@ const Liquidacion = ({ negocioId, activeLote }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Lote</span>
             <select
-              value={selectedLoteId || ''}
-              onChange={e => setSelectedLoteId(parseInt(e.target.value) || e.target.value)}
+              value={selectedLoteUuid || ''}
+              onChange={e => setSelectedLoteUuid(e.target.value)}
               style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
             >
               {lotes.map(l => (
-                <option key={l.id} value={l.id}>#{l.identificador || l.id} · {l.tipo}</option>
+                <option key={l._id} value={l._id}>#{l.id} · {l.tipo}</option>
               ))}
             </select>
             <StatusBadge label={`${loteData?.cabezasActivas ?? 0} animales activos`} color={accentColor} />
@@ -288,7 +319,7 @@ const Liquidacion = ({ negocioId, activeLote }) => {
             </div>
           </div>
 
-          <button onClick={() => setShowConfirm(true)} style={{ padding: '14px', borderRadius: '8px', border: `2px solid ${accentColor}`, background: accentColor, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <button onClick={() => { setConfirmError(null); setShowConfirm(true); }} style={{ padding: '14px', borderRadius: '8px', border: `2px solid ${accentColor}`, background: accentColor, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             <Icon name="checkSquare" size={16} /> Registrar liquidación y cerrar lote
           </button>
         </div>
@@ -297,6 +328,11 @@ const Liquidacion = ({ negocioId, activeLote }) => {
       {showConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '10px', padding: '28px 32px', width: '380px', maxWidth: 'calc(100vw - 32px)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {confirmError && (
+              <div style={{ background: 'var(--accent-danger)12', border: '1px solid var(--accent-danger)44', borderRadius: '6px', padding: '10px 12px', fontSize: '13px', color: 'var(--accent-danger)', lineHeight: 1.5 }}>
+                {confirmError}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Icon name="scale" size={20} style={{ color: accentColor }} />
               <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>¿Cerrar este lote?</span>
@@ -305,8 +341,10 @@ const Liquidacion = ({ negocioId, activeLote }) => {
               El lote <strong style={{ color: 'var(--text-primary)' }}>#{loteData?.id}</strong> se moverá al historial de liquidaciones. Esta acción no se puede deshacer.
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <Btn variant="secondary" onClick={() => setShowConfirm(false)}>Cancelar</Btn>
-              <Btn accentColor={accentColor} icon="checkSquare" onClick={() => setShowConfirm(false)}>Confirmar y cerrar</Btn>
+              <Btn variant="secondary" onClick={() => setShowConfirm(false)} disabled={liquidando}>Cancelar</Btn>
+              <Btn accentColor={accentColor} icon="checkSquare" onClick={handleConfirmLiquidar} disabled={liquidando}>
+                {liquidando ? 'Registrando...' : 'Confirmar y cerrar'}
+              </Btn>
             </div>
           </div>
         </div>

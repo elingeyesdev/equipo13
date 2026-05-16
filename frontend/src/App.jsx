@@ -136,7 +136,7 @@ const App = () => {
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
-      case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} />;
+      case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
