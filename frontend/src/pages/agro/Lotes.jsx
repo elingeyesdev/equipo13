@@ -138,6 +138,7 @@ const mapLoteFromApi = (l) => ({
 });
 
 const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
+  const [desgloseOpen, setDesgloseOpen] = useState(false);
   const totalCosto = Object.values(lote.costos).reduce((s, v) => s + v, 0);
   const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
@@ -198,13 +199,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
       </div>
 
       <div>
-        <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '12px' }}>Costo acumulado al día</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.entries(lote.costos).map(([key_, val]) => (
-            <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={val} />
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Total lote</div>
             <MoneyDisplay value={totalCosto} size="lg" />
@@ -214,6 +209,31 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
             <MoneyDisplay value={costoCabeza} size="md" />
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setDesgloseOpen(o => !o)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+            padding: '8px 0', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-subtle)',
+            cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)',
+          }}
+        >
+          Ver desglose de costos
+          <span style={{
+            display: 'inline-block',
+            fontSize: '10px',
+            lineHeight: 1,
+            transform: desgloseOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}>{desgloseOpen ? '▼' : '▶'}</span>
+        </button>
+        {desgloseOpen && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
+            {Object.entries(lote.costos).map(([key_, val]) => (
+              <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={val} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -311,3 +331,4 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 };
 
 export default Lotes;
+
