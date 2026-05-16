@@ -60,7 +60,22 @@ import {
   cerrarLote,
   getBitacora,
   createBitacoraEntry,
+  updateBitacoraEntry,
+  deleteBitacoraEntry,
+  getBitacoraHistorial,
 } from '../controllers/loteController.js';
+import {
+  getProcesos,
+  createProceso,
+  updateProceso,
+  deleteProceso,
+  getLoteProcesos,
+  asignarProceso,
+  cambiarEstadoProceso,
+  eliminarLoteProceso,
+  getAlertas,
+  getCostoPorCabeza,
+} from '../controllers/procesoController.js';
 
 const router = Router();
 
@@ -124,6 +139,27 @@ router.patch('/:negocioId/lotes/:id/cerrar', authMiddleware, negocioOwner, cerra
 
 // Bitácora — L-3
 router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);
+router.get('/:negocioId/lotes/:loteId/bitacora/historial', authMiddleware, negocioOwner, getBitacoraHistorial);
 router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
+router.put('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, updateBitacoraEntry);
+router.delete('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, deleteBitacoraEntry);
+
+// Procesos (catálogo) — P-1
+router.get('/:negocioId/procesos',                    authMiddleware, negocioOwner, getProcesos);
+router.post('/:negocioId/procesos',                   authMiddleware, negocioOwner, createProceso);
+router.put('/:negocioId/procesos/:id',                authMiddleware, negocioOwner, updateProceso);
+router.delete('/:negocioId/procesos/:id',             authMiddleware, negocioOwner, deleteProceso);
+
+// Alertas — P-1
+router.get('/:negocioId/procesos/alertas',            authMiddleware, negocioOwner, getAlertas);
+
+// Lote-Procesos — P-2
+router.get('/:negocioId/lotes/:loteId/procesos',               authMiddleware, negocioOwner, getLoteProcesos);
+router.post('/:negocioId/lotes/:loteId/procesos',              authMiddleware, negocioOwner, asignarProceso);
+router.patch('/:negocioId/lotes/:loteId/procesos/:lpId/estado',authMiddleware, negocioOwner, cambiarEstadoProceso);
+router.delete('/:negocioId/lotes/:loteId/procesos/:lpId',      authMiddleware, negocioOwner, eliminarLoteProceso);
+
+// Costo por cabeza — P-3
+router.get('/:negocioId/lotes/:loteId/costo-por-cabeza', authMiddleware, negocioOwner, getCostoPorCabeza);
 
 export default router;

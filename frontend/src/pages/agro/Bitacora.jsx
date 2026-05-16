@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { StatusBadge, RubroBadge, MoneyDisplay, Btn } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
+import HistorialBitacora from './HistorialBitacora.jsx';
 
 const TIPOS_FIJOS = ['Mano de obra', 'Baja (muerte/pérdida)', 'Otras pérdidas'];
 
@@ -36,6 +37,13 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const [monto, setMonto] = useState('');
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Edit/Delete/Historial state
+  const [showHistorial, setShowHistorial] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ fecha: '', tipo: '', detalle: '', monto: '', causa: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const totalAlim = (parseFloat(sacos) || 0) * (parseFloat(costoSaco) || 0);
   const loteRealId = selectedLoteId;
@@ -178,6 +186,56 @@ const Bitacora = ({ negocioId, activeLote }) => {
     }
   };
 
+  const startEdit = (r) => {
+    setEditingId(r.id);
+    setEditForm({
+      fecha: r.fecha ? r.fecha.split('T')[0] : '',
+      tipo: r.tipo || '',
+      detalle: r.detalle || '',
+      monto: r.monto != null ? r.monto : '',
+      causa: r.causa || '',
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingId) return;
+    setEditSaving(true);
+    try {
+      const updated = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora/${editingId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          fecha: editForm.fecha || undefined,
+          tipo: editForm.tipo || undefined,
+          detalle: editForm.detalle || undefined,
+          monto: editForm.monto !== '' ? parseFloat(editForm.monto) : undefined,
+          causa: editForm.causa || undefined,
+        }),
+      });
+      setRegistros(prev => prev.map(r => r.id === editingId ? updated : r));
+      setEditingId(null);
+    } catch (e) {
+      alert(e?.error || 'Error al editar');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async (registroId) => {
+    if (!confirm('¿Estás seguro de eliminar este registro? Se guardará en el historial.')) return;
+    setDeletingId(registroId);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora/${registroId}`, {
+        method: 'DELETE',
+      });
+      setRegistros(prev => prev.filter(r => r.id !== registroId));
+      await fetchLote();
+    } catch (e) {
+      alert(e?.error || 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const iNum = (label, value, onChange, placeholder = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
@@ -192,6 +250,10 @@ const Bitacora = ({ negocioId, activeLote }) => {
     registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0);
 
   const cabezasActivas = loteData?.cabezas_activas ?? '—';
+
+  if (showHistorial) {
+    return <HistorialBitacora negocioId={negocioId} loteId={loteRealId} onClose={() => setShowHistorial(false)} />;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -322,8 +384,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Bitácora del lote</span>
+            <button onClick={() => setShowHistorial(true)}
+              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'IBM Plex Sans, sans-serif' }}>
+              <Icon name="history" size={12} /> Historial
+            </button>
           </div>
 
           {loadingRegistros && (
@@ -338,9 +404,9 @@ const Bitacora = ({ negocioId, activeLote }) => {
 
           {registros.length > 0 && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-                {['Fecha', 'Tipo', 'Detalle', 'Monto'].map((h, i) => (
-                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '90px 100px 1fr 90px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+                {['Fecha', 'Tipo', 'Detalle', 'Monto', 'Acciones'].map((h, i) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i >= 3 ? 'right' : 'left' }}>{h}</div>
                 ))}
               </div>
               {registros.map((r, i) => {
@@ -348,8 +414,34 @@ const Bitacora = ({ negocioId, activeLote }) => {
                 const fechaStr = r.fecha
                   ? new Date(r.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
                   : '—';
+
+                if (editingId === r.id) {
+                  return (
+                    <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 1fr 90px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px', alignItems: 'center', background: accentColor + '10' }}>
+                      <input type="date" value={editForm.fecha} onChange={e => setEditForm({...editForm, fecha: e.target.value})}
+                        style={{ fontSize: '11px', padding: '3px 4px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono, monospace' }} />
+                      <input value={editForm.tipo} onChange={e => setEditForm({...editForm, tipo: e.target.value})}
+                        style={{ fontSize: '11px', padding: '3px 4px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+                      <input value={editForm.detalle} onChange={e => setEditForm({...editForm, detalle: e.target.value})}
+                        style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+                      <input type="number" step="any" value={editForm.monto} onChange={e => setEditForm({...editForm, monto: e.target.value})}
+                        style={{ fontSize: '11px', padding: '3px 4px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace' }} />
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                        <button onClick={handleEditSave} disabled={editSaving}
+                          style={{ padding: '3px 6px', borderRadius: '4px', border: 'none', background: accentColor, color: '#fff', cursor: 'pointer', fontSize: '10px' }}>
+                          {editSaving ? '…' : '✓'}
+                        </button>
+                        <button onClick={() => setEditingId(null)}
+                          style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: '10px' }}>
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
+                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 1fr 90px 80px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{fechaStr}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <Icon name={cfg.icon} size={12} style={{ color: cfg.color, flexShrink: 0 }} />
@@ -361,6 +453,16 @@ const Bitacora = ({ negocioId, activeLote }) => {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       {r.monto != null ? <MoneyDisplay value={parseFloat(r.monto)} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                      <button onClick={() => startEdit(r)} title="Editar"
+                        style={{ padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center' }}>
+                        <Icon name="edit" size={11} />
+                      </button>
+                      <button onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} title="Eliminar"
+                        style={{ padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--accent-warning)', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', opacity: deletingId === r.id ? 0.5 : 1 }}>
+                        <Icon name="trash" size={11} />
+                      </button>
                     </div>
                   </div>
                 );

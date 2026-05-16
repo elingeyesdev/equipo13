@@ -137,7 +137,7 @@ const mapLoteFromApi = (l) => ({
   convAliment: 0,
 });
 
-const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
+const LoteCard = ({ lote, onBitacora, onLiquidar, onProcesos, accentColor }) => {
   const totalCosto = Object.values(lote.costos).reduce((s, v) => s + v, 0);
   const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
@@ -219,6 +219,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
       <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
         <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver bitácora</Btn>
         <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>
+        <Btn variant="secondary" size="sm" onClick={() => onProcesos(lote)}>⚙ Procesos</Btn>
         <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>
       </div>
     </div>
@@ -266,11 +267,11 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
 
   const handleBitacora = lote => {
-    // Pasamos el lote con su _id real de la DB para que Bitácora pueda hacer fetch
     setActiveLote(lote);
     onNavigate('bitacora');
   };
   const handleLiquidar = lote => { setActiveLote(lote); onNavigate('liquidacion'); };
+  const handleProcesos = lote => { setActiveLote(lote); onNavigate('procesos'); };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -301,7 +302,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {lotes.map(l => (
-          <LoteCard key={l._id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} accentColor={accentColor} />
+          <LoteCard key={l._id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} onProcesos={handleProcesos} accentColor={accentColor} />
         ))}
       </div>
 
