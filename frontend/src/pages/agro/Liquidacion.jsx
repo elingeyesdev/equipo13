@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { apiFetch } from '../../config/api.js';
-import { MoneyDisplay, Btn } from '../../components/ui.jsx';
+import { MoneyDisplay, Btn, StatusBadge, RubroBadge } from '../../components/ui.jsx';
 
 const Liquidacion = ({ negocioId, activeLote }) => {
   const accentColor = 'var(--accent-agro)';
@@ -18,6 +18,7 @@ const Liquidacion = ({ negocioId, activeLote }) => {
           tipo: l.tipo_animal,
           dias: l.fecha_entrada ? Math.floor((Date.now() - new Date(l.fecha_entrada)) / 86400000) : 0,
           cabezasActivas: l.cabezas_activas || 0,
+          cabezas_inicio: l.cabezas_inicio || 0,
           costo_total: parseFloat(l.costo_total) || 0,
           pesoInicialProm: parseFloat(l.peso_inicial_prom) || 0
         }));
@@ -90,38 +91,25 @@ const Liquidacion = ({ negocioId, activeLote }) => {
     </div>
   );
 
-  const ResultCol = ({ titulo, recomendado, ingreso, gastosVenta, utilidad, utilCabeza, utilKg, margen, pvpLabel, pvp, setPvp, accentColor }) => (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0', background: recomendado ? accentColor + '08' : 'transparent', borderRadius: '8px', border: `1px solid ${recomendado ? accentColor + '44' : 'var(--border-subtle)'}`, overflow: 'hidden' }}>
-      <div style={{ padding: '14px 16px', background: recomendado ? accentColor + '18' : 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  const ResultCol = ({ titulo, recomendado, pesoTotal, pesoLabel, costoKg, ingreso, gastosVenta, utilidad, utilCabeza, utilKg, margen, accentColor }) => (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0', background: recomendado ? accentColor + '08' : 'transparent', borderRadius: '8px', border: `1px solid ${recomendado ? accentColor + '44' : 'var(--border-subtle)'}`, overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ padding: '14px 16px', background: recomendado ? accentColor + '18' : 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontSize: '13px', fontWeight: 600, color: recomendado ? accentColor : 'var(--text-primary)' }}>{titulo}</span>
-        {recomendado && <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: accentColor, background: accentColor + '22', border: `1px solid ${accentColor}44` }}>Recomendado ✓✓</span>}
+        {recomendado && <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: accentColor, background: accentColor + '22', border: `1px solid ${accentColor}44` }}>Recomendado</span>}
       </div>
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-            <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {pvpLabel}
-              <span style={{ marginLeft: '6px', cursor: 'help', color: 'var(--text-tertiary)' }} title="Precio de referencia del mercado local. Actualizalo antes de calcular.">ⓘ</span>
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace', pointerEvents: 'none' }}>Bs</span>
-              <input value={pvp} onChange={e => setPvp(parseFloat(e.target.value) || 0)} type="number" step="0.5"
-                style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 8px 8px 28px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
-                onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-              />
-              <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>/kg</span>
-            </div>
-          </div>
-        </div>
-
         {[
-          { label: 'Ingreso bruto',    value: ingreso,        color: 'default' },
-          { label: 'Costo total lote', value: costoTotalLote, color: 'default' },
-          { label: 'Gastos de venta',  value: gastosVenta,    color: 'default' },
+          { label: pesoLabel, mono: `${pesoTotal.toLocaleString('es-BO')} kg` },
+          { label: 'Costo / kg', value: costoKg },
+          { label: 'Ingreso bruto', value: ingreso },
+          { label: 'Costo total lote', value: costoTotalLote },
+          { label: 'Gastos de venta', value: gastosVenta },
         ].map((row, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: i === 2 ? '12px' : '0', borderBottom: i === 2 ? `1px solid ${recomendado ? accentColor + '33' : 'var(--border-subtle)'}` : 'none' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: i === 4 ? '12px' : '0', borderBottom: i === 4 ? `1px solid ${recomendado ? accentColor + '33' : 'var(--border-subtle)'}` : 'none' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.label}</span>
-            <MoneyDisplay value={row.value} size="sm" color={row.color} />
+            {row.mono
+              ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{row.mono}</span>
+              : <MoneyDisplay value={row.value} size="sm" />}
           </div>
         ))}
 
@@ -149,29 +137,49 @@ const Liquidacion = ({ negocioId, activeLote }) => {
     </div>
   );
 
+  const cabezasInicio = loteData?.cabezas_inicio ?? '—';
+  const diasActivo = loteData?.dias ?? '—';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Calculadora de liquidación — Lote
+      <style>{`
+        @media (max-width: 640px) {
+          .liquidacion-grid { grid-template-columns: 1fr !important; }
+          .liquidacion-cards { flex-direction: column !important; }
+          .liquidacion-ica-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
+      <h1 style={{ fontSize: '20px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+        Liquidación de lote
+      </h1>
+
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Lote</span>
             <select
               value={selectedLoteId || ''}
               onChange={e => setSelectedLoteId(parseInt(e.target.value) || e.target.value)}
-              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '16px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
+              style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
             >
               {lotes.map(l => (
-                <option key={l.id} value={l.id}>#{l.identificador || l.id}</option>
+                <option key={l.id} value={l.id}>#{l.identificador || l.id} · {l.tipo}</option>
               ))}
             </select>
-          </h1>
+            <StatusBadge label={`${loteData?.cabezasActivas ?? 0} animales activos`} color={accentColor} />
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+            {cabezasInicio} cabezas iniciales · {diasActivo} días activo · Costo acumulado:{' '}
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)' }}>
+              Bs {costoTotalLote.toLocaleString('es-BO')}
+            </span>
+          </div>
         </div>
-        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-          {loteData?.tipo || 'Desconocido'} · {loteData?.cabezasActivas || 0} animales · {loteData?.dias || 0} días de engorde
-        </div>
+        <RubroBadge rubro="agro_ganadero" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px', alignItems: 'flex-start' }}>
+      <div className="liquidacion-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -205,7 +213,7 @@ const Liquidacion = ({ negocioId, activeLote }) => {
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
               <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Rendimiento canal</span>
             </div>
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {iNum('Rendimiento canal (%)', rendimientoCanal, setRendimientoCanal, '', 'Estándar cerdo: 72–78%')}
               <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Peso gancho estimado</span>
@@ -213,17 +221,20 @@ const Liquidacion = ({ negocioId, activeLote }) => {
                   {pesoGancho.toFixed(0)} kg
                 </span>
               </div>
+              {iNum('PVP $/kg pie', pvpPie, setPvpPie, 'Bs', 'Precio mercado vivo')}
+              {iNum('PVP $/kg gancho', pvpGancho, setPvpGancho, 'Bs', 'Precio mercado canal')}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'flex', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+          <div className="liquidacion-cards" style={{ display: 'flex', gap: '14px' }}>
             <ResultCol
               titulo="Venta en pie (vivo)"
-              recomendado={!ganchoEsMejor}
-              pvpLabel="Precio mercado (Bs/kg)"
-              pvp={pvpPie} setPvp={setPvpPie}
+              recomendado={!ganchoEsMejor && utilPie >= 0}
+              pesoTotal={pesoTotalPie}
+              pesoLabel="Peso total en pie"
+              costoKg={costoKgVivo}
               ingreso={ingresoPie}
               gastosVenta={gastosVenta}
               utilidad={utilPie}
@@ -234,9 +245,10 @@ const Liquidacion = ({ negocioId, activeLote }) => {
             />
             <ResultCol
               titulo="Venta gancho (faenado)"
-              recomendado={ganchoEsMejor}
-              pvpLabel="Precio mercado (Bs/kg)"
-              pvp={pvpGancho} setPvp={setPvpGancho}
+              recomendado={ganchoEsMejor && utilGancho >= 0}
+              pesoTotal={pesoGancho}
+              pesoLabel="Peso gancho"
+              costoKg={costoKgGancho}
               ingreso={ingresoGancho}
               gastosVenta={gastosGanchoTotal}
               utilidad={utilGancho}
@@ -247,21 +259,9 @@ const Liquidacion = ({ negocioId, activeLote }) => {
             />
           </div>
 
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {[
-              { label: 'Costo total / kg vivo',  val: costoKgVivo },
-              { label: 'Costo total / kg gancho', val: costoKgGancho },
-            ].map((c, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{c.label}</span>
-                <MoneyDisplay value={c.val} size="md" />
-              </div>
-            ))}
-          </div>
-
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Conversión alimenticia del lote</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+            <div className="liquidacion-ica-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
               {[
                 { label: 'Alimento consumido',    val: `${alimentoConsumido.toFixed(0)} kg` },
                 { label: 'Ganancia de peso total', val: `${gananciaTotal.toFixed(0)} kg` },
@@ -286,7 +286,7 @@ const Liquidacion = ({ negocioId, activeLote }) => {
 
       {showConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '10px', padding: '28px 32px', width: '380px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '10px', padding: '28px 32px', width: '380px', maxWidth: 'calc(100vw - 32px)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Icon name="scale" size={20} style={{ color: accentColor }} />
               <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>¿Cerrar este lote?</span>
