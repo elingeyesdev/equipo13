@@ -3,6 +3,8 @@ import { Icon } from '../../icons.jsx';
 import { apiFetch } from '../../config/api.js';
 import { MoneyDisplay, Btn, StatusBadge, RubroBadge } from '../../components/ui.jsx';
 
+const safeDivide = (num, den) => (den === 0 ? null : num / den);
+
 const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const accentColor = 'var(--accent-agro)';
 
@@ -40,6 +42,24 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const loteData = lotes.find(l => l._id === selectedLoteUuid) || (activeLote?._id === selectedLoteUuid ? activeLote : null);
   const costoTotalLote = loteData?.costo_total || (loteData?.costos ? Object.values(loteData.costos).reduce((s, v) => s + v, 0) : 0);
 
+  // Fetch bitácora to compute real alimento consumed
+  const [bitacora, setBitacora] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+
+  useEffect(() => {
+    if (!negocioId || !selectedLoteUuid) return;
+    apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteUuid}/bitacora`)
+      .then(data => setBitacora(data || []))
+      .catch(() => setBitacora([]));
+  }, [negocioId, selectedLoteUuid]);
+
+  useEffect(() => {
+    if (!negocioId) return;
+    apiFetch(`/api/negocios/${negocioId}/categorias`)
+      .then(data => setCategorias(data || []))
+      .catch(() => setCategorias([]));
+  }, [negocioId]);
+
   const [cabezasVentaRaw, setCabezasVentaRaw] = useState('0');
   const [pesoPromFinalRaw, setPesoPromFinalRaw] = useState('95');
   const [rendimientoCanalRaw, setRendimientoCanalRaw] = useState('75');
@@ -69,6 +89,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     }
   }, [loteData]);
 
+  const sinDatosVenta = cabezasVenta === 0;
+
   const pesoTotalPie = cabezasVenta * pesoPromFinal;
   const pesoGancho = pesoTotalPie * (rendimientoCanal / 100);
   const gastosVenta = transporte + comision;
@@ -82,12 +104,21 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   const ganchoEsMejor = utilGancho > utilPie;
 
-  const costoKgVivo = costoTotalLote / pesoTotalPie;
-  const costoKgGancho = costoTotalLote / pesoGancho;
+  const costoKgVivo = safeDivide(costoTotalLote, pesoTotalPie);
+  const costoKgGancho = safeDivide(costoTotalLote, pesoGancho);
 
-  const alimentoConsumido = 2970; // Placeholder until feed is computed from bitacora
+  // ICA real from bitácora — find alimento categories
+  const alimentoCatNames = categorias
+    .filter(c => /aliment|forraje/i.test(c.nombre))
+    .map(c => c.nombre);
+  const entradasAlimento = bitacora.filter(
+    r => !r.es_baja && r.monto != null && alimentoCatNames.includes(r.tipo)
+  );
+  const alimentoConsumido = entradasAlimento.reduce((s, r) => s + parseFloat(r.monto), 0);
+  const hayDatosAlimento = entradasAlimento.length > 0;
+
   const gananciaTotal = (pesoPromFinal - (loteData?.pesoInicialProm || 8.5)) * cabezasVenta;
-  const ica = gananciaTotal > 0 ? (alimentoConsumido / gananciaTotal).toFixed(2) : '—';
+  const ica = hayDatosAlimento && gananciaTotal > 0 ? (alimentoConsumido / gananciaTotal).toFixed(2) : '—';
   const refICA = loteData?.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
 
   const iNum = (label, rawValue, onRawChange, prefix = 'Bs', hint = '') => (
@@ -104,6 +135,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     </div>
   );
 
+  const fmtSafe = (val) => val == null ? '—' : val;
+
   const ResultCol = ({ titulo, recomendado, pesoTotal, pesoLabel, costoKg, ingreso, gastosVenta, utilidad, utilCabeza, utilKg, margen, accentColor }) => (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0', background: recomendado ? accentColor + '08' : 'transparent', borderRadius: '8px', border: `1px solid ${recomendado ? accentColor + '44' : 'var(--border-subtle)'}`, overflow: 'hidden', minWidth: 0 }}>
       <div style={{ padding: '14px 16px', background: recomendado ? accentColor + '18' : 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -113,7 +146,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {[
           { label: pesoLabel, mono: `${pesoTotal.toLocaleString('es-BO')} kg` },
-          { label: 'Costo / kg', value: costoKg },
+          { label: 'Costo / kg', isSafe: true, safeVal: costoKg },
           { label: 'Ingreso bruto', value: ingreso },
           { label: 'Costo total lote', value: costoTotalLote },
           { label: 'Gastos de venta', value: gastosVenta },
@@ -122,14 +155,18 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.label}</span>
             {row.mono
               ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{row.mono}</span>
-              : <MoneyDisplay value={row.value} size="sm" />}
+              : row.isSafe
+                ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{row.safeVal == null ? '—' : `Bs ${row.safeVal.toFixed(2)}`}</span>
+                : <MoneyDisplay value={row.value} size="sm" />}
           </div>
         ))}
 
         <div style={{ background: recomendado ? accentColor + '18' : 'var(--bg-tertiary)', borderRadius: '6px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)' }}>Utilidad neta</span>
-            <MoneyDisplay value={utilidad} size="xl" color="green" />
+            {utilidad == null
+              ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '18px', color: 'var(--text-tertiary)' }}>—</span>
+              : <MoneyDisplay value={utilidad} size="xl" color="green" />}
           </div>
           <div style={{ height: '1px', background: 'var(--border-subtle)' }} />
           {[
@@ -140,8 +177,10 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
               <span style={{ color: 'var(--text-secondary)' }}>{r.label}</span>
               {r.pct !== null && r.pct !== undefined
-                ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--accent-success)', fontWeight: 500 }}>{r.pct.toFixed(0)}%</span>
-                : <MoneyDisplay value={r.val} size="xs" color="green" />
+                ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: r.pct == null ? 'var(--text-tertiary)' : 'var(--accent-success)', fontWeight: 500 }}>{r.pct == null ? '—' : `${r.pct.toFixed(0)}%`}</span>
+                : r.val == null
+                  ? <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>
+                  : <MoneyDisplay value={r.val} size="xs" color="green" />
               }
             </div>
           ))}
@@ -269,6 +308,14 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+          {sinDatosVenta && (
+            <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+              <Icon name="alertTriangle" size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              Ingresá cantidades para ver el escenario
+            </div>
+          )}
+
+          {!sinDatosVenta && (
           <div className="liquidacion-cards" style={{ display: 'flex', gap: '14px' }}>
             <ResultCol
               titulo="Venta en pie (vivo)"
@@ -278,10 +325,10 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
               costoKg={costoKgVivo}
               ingreso={ingresoPie}
               gastosVenta={gastosVenta}
-              utilidad={utilPie}
-              utilCabeza={utilPie / (cabezasVenta || 1)}
-              utilKg={utilPie / (pesoTotalPie || 1)}
-              margen={(utilPie / (costoTotalLote || 1)) * 100}
+              utilidad={pesoTotalPie === 0 ? null : utilPie}
+              utilCabeza={safeDivide(utilPie, cabezasVenta)}
+              utilKg={safeDivide(utilPie, pesoTotalPie)}
+              margen={safeDivide(utilPie * 100, costoTotalLote)}
               accentColor={accentColor}
             />
             <ResultCol
@@ -292,19 +339,21 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
               costoKg={costoKgGancho}
               ingreso={ingresoGancho}
               gastosVenta={gastosGanchoTotal}
-              utilidad={utilGancho}
-              utilCabeza={utilGancho / (cabezasVenta || 1)}
-              utilKg={utilGancho / (pesoGancho || 1)}
-              margen={(utilGancho / (costoTotalLote || 1)) * 100}
+              utilidad={pesoGancho === 0 ? null : utilGancho}
+              utilCabeza={safeDivide(utilGancho, cabezasVenta)}
+              utilKg={safeDivide(utilGancho, pesoGancho)}
+              margen={safeDivide(utilGancho * 100, costoTotalLote)}
               accentColor={accentColor}
             />
           </div>
+          )}
 
+          {hayDatosAlimento ? (
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Conversión alimenticia del lote</div>
             <div className="liquidacion-ica-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
               {[
-                { label: 'Alimento consumido',    val: `${alimentoConsumido.toFixed(0)} kg` },
+                { label: 'Alimento consumido (Bs)',    val: `Bs ${alimentoConsumido.toFixed(0)}` },
                 { label: 'Ganancia de peso total', val: `${gananciaTotal.toFixed(0)} kg` },
                 { label: 'Índice conversión (ICA)',val: `${ica} kg/kg`, highlight: true },
               ].map((s, i) => (
@@ -318,6 +367,12 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
               Referencia ({loteData?.tipo || 'Cerdo'} eficiente): <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-secondary)' }}>{refICA} kg alimento / 1 kg ganado</span>
             </div>
           </div>
+          ) : (
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Icon name="alertTriangle" size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>Sin datos de alimentación en bitácora — el ICA se calculará cuando registres alimentos.</span>
+          </div>
+          )}
 
           <button onClick={() => { setConfirmError(null); setShowConfirm(true); }} style={{ padding: '14px', borderRadius: '8px', border: `2px solid ${accentColor}`, background: accentColor, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             <Icon name="checkSquare" size={16} /> Registrar liquidación y cerrar lote
