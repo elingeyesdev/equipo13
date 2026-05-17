@@ -276,3 +276,27 @@ export async function archivarInsumo(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * DELETE /api/negocios/:negocioId/insumos/:id
+ * Elimina permanentemente un insumo.
+ */
+export async function deleteInsumo(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM insumos WHERE id = $1 AND negocio_id = $2 RETURNING id',
+      [id, negocioId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Insumo no encontrado' });
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}

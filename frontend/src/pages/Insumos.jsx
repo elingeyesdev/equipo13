@@ -362,6 +362,20 @@ const Insumos = ({ negocioId }) => {
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
                   ><Icon name="archive" size={14} /></button>
                 )}
+                <button onClick={async () => {
+                  if (!confirm('¿Eliminar este insumo permanentemente?')) return;
+                  try {
+                    setError('');
+                    await apiFetch(`/api/negocios/${negocioId}/insumos/${ins.id}`, { method: 'DELETE' });
+                    await recargarInsumos();
+                  } catch (e) {
+                    setError(e?.error || 'No se pudo eliminar el insumo');
+                  }
+                }} title="Eliminar"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px', transition: 'color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-danger)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                ><Icon name="trash" size={14} /></button>
               </div>
             </div>
           );

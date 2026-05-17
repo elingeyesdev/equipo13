@@ -116,3 +116,27 @@ export async function archivarProveedor(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * DELETE /api/negocios/:negocioId/proveedores/:id
+ * Elimina permanentemente un proveedor.
+ */
+export async function deleteProveedor(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM proveedores WHERE id = $1 AND negocio_id = $2 RETURNING id',
+      [id, negocioId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}

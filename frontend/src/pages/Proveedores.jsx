@@ -203,6 +203,20 @@ const Proveedores = ({ negocioId }) => {
                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-success)', cursor: 'pointer', padding: '4px' }}
                 ><Icon name="refresh" size={14} /></button>
               )}
+              <button onClick={async () => {
+                if (!confirm('¿Eliminar este proveedor permanentemente?')) return;
+                try {
+                  setError('');
+                  await apiFetch(`/api/negocios/${negocioId}/proveedores/${pv.id}`, { method: 'DELETE' });
+                  await cargarProveedores();
+                } catch (e) {
+                  setError(e?.error || 'No se pudo eliminar el proveedor');
+                }
+              }} title="Eliminar"
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-danger)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+              ><Icon name="trash" size={14} /></button>
             </div>
           </div>
         ))}

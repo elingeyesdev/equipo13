@@ -18,6 +18,7 @@ import {
   createProveedor,
   updateProveedor,
   archivarProveedor,
+  deleteProveedor,
 } from '../controllers/proveedorController.js';
 import {
   getInsumos,
@@ -25,6 +26,7 @@ import {
   createInsumo,
   updateInsumo,
   archivarInsumo,
+  deleteInsumo,
 } from '../controllers/insumoController.js';
 import {
   getProductos,
@@ -81,6 +83,7 @@ router.get('/:negocioId/proveedores', authMiddleware, negocioOwner, getProveedor
 router.post('/:negocioId/proveedores', authMiddleware, negocioOwner, createProveedor);
 router.put('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, updateProveedor);
 router.patch('/:negocioId/proveedores/:id/archivar', authMiddleware, negocioOwner, archivarProveedor);
+router.delete('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, deleteProveedor);
 
 // Insumos — S-4
 router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
@@ -88,6 +91,7 @@ router.get('/:negocioId/insumos/:id', authMiddleware, negocioOwner, getInsumoByI
 router.post('/:negocioId/insumos', authMiddleware, negocioOwner, createInsumo);
 router.put('/:negocioId/insumos/:id', authMiddleware, negocioOwner, updateInsumo);
 router.patch('/:negocioId/insumos/:id/archivar', authMiddleware, negocioOwner, archivarInsumo);
+router.delete('/:negocioId/insumos/:id', authMiddleware, negocioOwner, deleteInsumo);
 
 // Productos — D-1
 router.get('/:negocioId/productos', authMiddleware, negocioOwner, getProductos);
