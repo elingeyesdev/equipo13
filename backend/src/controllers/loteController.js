@@ -333,3 +333,145 @@ export const createBitacoraEntry = async (req, res) => {
     client.release();
   }
 };
+
+export const updateBitacoraEntry = async (req, res) => {
+  const { negocioId, loteId, id } = req.params;
+  const { fecha, tipo, detalle, monto, es_baja, cabezas_baja, peso_baja, causa } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Bloquear el lote dueño y validar pertenencia
+    const loteCheck = await client.query(
+      'SELECT id, cabezas_activas FROM lotes WHERE id = $1 AND negocio_id = $2 FOR UPDATE',
+      [loteId, negocioId]
+    );
+    if (!loteCheck.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Lote no encontrado en este negocio' });
+    }
+
+    // Cargar la entrada original (debe pertenecer al lote indicado)
+    const orig = await client.query(
+      'SELECT * FROM bitacora_lote WHERE id = $1 AND lote_id = $2',
+      [id, loteId]
+    );
+    if (!orig.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Entrada de bitácora no encontrada' });
+    }
+    const prev = orig.rows[0];
+
+    // Merge: si el campo no viene en el body, se mantiene el original
+    const nuevoTipo = tipo ?? prev.tipo;
+    if (!nuevoTipo) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'tipo es requerido' });
+    }
+    const nuevaFecha = fecha ?? prev.fecha;
+    const nuevoDetalle = detalle !== undefined ? detalle : prev.detalle;
+    const nuevoCausa = causa !== undefined ? causa : prev.causa;
+    const nuevoPesoBaja = peso_baja !== undefined ? peso_baja : prev.peso_baja;
+    const nuevoEsBaja = es_baja !== undefined ? !!es_baja : prev.es_baja;
+    const nuevoCabezasBaja = cabezas_baja !== undefined ? cabezas_baja : prev.cabezas_baja;
+    const nuevoMonto = nuevoEsBaja ? null : (monto !== undefined ? monto : prev.monto);
+
+    // Diferencia de cabezas_baja: revertir lo viejo (suma) y aplicar lo nuevo (resta)
+    const prevCabBaja = prev.es_baja && prev.cabezas_baja ? Number(prev.cabezas_baja) : 0;
+    const newCabBaja = nuevoEsBaja && nuevoCabezasBaja ? Number(nuevoCabezasBaja) : 0;
+    const delta = prevCabBaja - newCabBaja; // positivo: el lote recupera cabezas
+
+    if (delta !== 0) {
+      const cabezasActuales = Number(loteCheck.rows[0].cabezas_activas) || 0;
+      const nuevas = Math.max(0, cabezasActuales + delta);
+      await client.query(
+        'UPDATE lotes SET cabezas_activas = $1 WHERE id = $2',
+        [nuevas, loteId]
+      );
+    }
+
+    const { rows } = await client.query(
+      `UPDATE bitacora_lote
+       SET fecha = $1,
+           tipo = $2,
+           detalle = $3,
+           monto = $4,
+           es_baja = $5,
+           cabezas_baja = $6,
+           peso_baja = $7,
+           causa = $8
+       WHERE id = $9
+       RETURNING *`,
+      [
+        nuevaFecha,
+        nuevoTipo,
+        nuevoDetalle,
+        nuevoMonto,
+        nuevoEsBaja,
+        nuevoEsBaja ? (nuevoCabezasBaja || null) : null,
+        nuevoPesoBaja,
+        nuevoCausa,
+        id,
+      ]
+    );
+
+    await client.query('COMMIT');
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+};
+
+export const deleteBitacoraEntry = async (req, res) => {
+  const { negocioId, loteId, id } = req.params;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const loteCheck = await client.query(
+      'SELECT id, cabezas_activas FROM lotes WHERE id = $1 AND negocio_id = $2 FOR UPDATE',
+      [loteId, negocioId]
+    );
+    if (!loteCheck.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Lote no encontrado en este negocio' });
+    }
+
+    const orig = await client.query(
+      'SELECT * FROM bitacora_lote WHERE id = $1 AND lote_id = $2',
+      [id, loteId]
+    );
+    if (!orig.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Entrada de bitácora no encontrada' });
+    }
+    const prev = orig.rows[0];
+
+    // Si era baja, revertir las cabezas al lote
+    if (prev.es_baja && prev.cabezas_baja) {
+      const cabezasActuales = Number(loteCheck.rows[0].cabezas_activas) || 0;
+      const nuevas = cabezasActuales + Number(prev.cabezas_baja);
+      await client.query(
+        'UPDATE lotes SET cabezas_activas = $1 WHERE id = $2',
+        [nuevas, loteId]
+      );
+    }
+
+    await client.query('DELETE FROM bitacora_lote WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ ok: true, deleted: prev });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+};

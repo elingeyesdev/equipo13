@@ -63,6 +63,8 @@ import {
   liquidarLote,
   getBitacora,
   createBitacoraEntry,
+  updateBitacoraEntry,
+  deleteBitacoraEntry,
 } from '../controllers/loteController.js';
 
 const router = Router();
@@ -131,5 +133,7 @@ router.post('/:negocioId/lotes/:id/liquidar', authMiddleware, negocioOwner, liqu
 // Bitácora — L-3
 router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);
 router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
+router.put('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, updateBitacoraEntry);
+router.delete('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, deleteBitacoraEntry);
 
 export default router;
