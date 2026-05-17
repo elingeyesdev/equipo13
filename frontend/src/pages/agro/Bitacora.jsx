@@ -30,6 +30,8 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const [selectedInsumoId, setSelectedInsumoId] = useState(null);
   const [sacos, setSacos] = useState('10');
   const [costoSaco, setCostoSaco] = useState('0');
+  const [userEditedCantidad, setUserEditedCantidad] = useState(false);
+  const [userEditedPrecio, setUserEditedPrecio] = useState(false);
   const [bajas, setBajas] = useState('1');
   const [pesoBaja, setPesoBaja] = useState('9.2');
   const [causaBaja, setCausaBaja] = useState('');
@@ -71,10 +73,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
     const filtrados = insumos.filter(i => i.categoria_id === cat.id);
     if (filtrados.length > 0) {
       setSelectedInsumoId(filtrados[0].id);
-      setCostoSaco(String(parseFloat(filtrados[0].precio_unitario) || 0));
+      if (!userEditedPrecio) {
+        setCostoSaco(String(parseFloat(filtrados[0].precio_unitario) || 0));
+      }
     } else {
       setSelectedInsumoId(null);
-      setCostoSaco('0');
+      if (!userEditedPrecio) setCostoSaco('0');
     }
   }, [tipo, insumos]);
 
@@ -114,8 +118,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
   const handleInsumoChange = insumoId => {
     const id = parseInt(insumoId);
     setSelectedInsumoId(id);
+    // User deliberately picked a different insumo → reset flags & autocomplete
+    setUserEditedCantidad(false);
+    setUserEditedPrecio(false);
     const ins = insumos.find(i => i.id === id);
     setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
+    setSacos('10');
   };
 
   const handleRegistrar = async () => {
@@ -170,6 +178,8 @@ const Bitacora = ({ negocioId, activeLote }) => {
       if (esBaja) await fetchLote();
 
       setMonto(''); setNotas(''); setSacos('10'); setCausaBaja(''); setBajas('1');
+      setUserEditedCantidad(false);
+      setUserEditedPrecio(false);
       const ins = insumos.find(i => i.id === selectedInsumoId);
       setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
     } catch (e) {
@@ -269,8 +279,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
                   )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {iNum('Sacos', sacos, setSacos)}
-                  {iNum('Costo / saco (Bs)', costoSaco, setCostoSaco)}
+                  {(() => {
+                    const ins = insumos.find(i => i.id === selectedInsumoId);
+                    const unidadLabel = ins?.unidad_simbolo ? `Cantidad (${ins.unidad_simbolo})` : 'Cantidad';
+                    return <>{iNum(unidadLabel, sacos, v => { setUserEditedCantidad(true); setSacos(v); })}</>;
+                  })()}
+                  {iNum('Precio unitario (Bs)', costoSaco, v => { setUserEditedPrecio(true); setCostoSaco(v); })}
                 </div>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total</span>
