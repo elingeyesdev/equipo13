@@ -75,6 +75,12 @@ import {
   generarInsumos,
   deleteCorte,
 } from '../controllers/despieceController.js';
+import {
+  listarCompras,
+  stockPorInsumo,
+  crearCompra,
+  eliminarCompra,
+} from '../controllers/compraController.js';
 
 const router = Router();
 
@@ -96,6 +102,12 @@ router.post('/:negocioId/proveedores', authMiddleware, negocioOwner, createProve
 router.put('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, updateProveedor);
 router.patch('/:negocioId/proveedores/:id/archivar', authMiddleware, negocioOwner, archivarProveedor);
 router.delete('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, deleteProveedor);
+
+// Compras de insumos (inventario FIFO)
+router.get('/:negocioId/compras', authMiddleware, negocioOwner, listarCompras);
+router.get('/:negocioId/compras/:insumoId/stock', authMiddleware, negocioOwner, stockPorInsumo);
+router.post('/:negocioId/compras', authMiddleware, negocioOwner, crearCompra);
+router.delete('/:negocioId/compras/:id', authMiddleware, negocioOwner, eliminarCompra);
 
 // Insumos — S-4
 router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
