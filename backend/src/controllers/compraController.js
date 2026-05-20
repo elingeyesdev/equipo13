@@ -213,9 +213,12 @@ export async function reporteConsumo(req, res) {
       pool.query(
         `SELECT cl.id, cl.fecha_consumo, cl.cantidad_total, cl.costo_total,
                 cl.precio_promedio, cl.detalle_fifo, cl.notas,
-                l.identificador AS lote_identificador, l.id AS lote_id
+                l.identificador AS lote_identificador, l.id AS lote_id,
+                um.simbolo AS unidad_simbolo
          FROM consumos_lote cl
          JOIN lotes l ON l.id = cl.lote_id
+         JOIN insumos i ON i.id = cl.insumo_id
+         LEFT JOIN unidades_medida um ON um.id = i.unidad_id
          WHERE cl.insumo_id = $1 AND cl.negocio_id = $2
            AND ($3::date IS NULL OR cl.fecha_consumo >= $3)
            AND ($4::date IS NULL OR cl.fecha_consumo <= $4)
