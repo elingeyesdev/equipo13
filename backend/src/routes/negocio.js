@@ -68,6 +68,8 @@ import {
   createBitacoraEntry,
   updateBitacoraEntry,
   deleteBitacoraEntry,
+  consumirInsumo,
+  listarConsumos,
 } from '../controllers/loteController.js';
 import {
   getDespiece,
@@ -80,6 +82,7 @@ import {
   stockPorInsumo,
   crearCompra,
   eliminarCompra,
+  reporteConsumo,
 } from '../controllers/compraController.js';
 
 const router = Router();
@@ -108,6 +111,9 @@ router.get('/:negocioId/compras', authMiddleware, negocioOwner, listarCompras);
 router.get('/:negocioId/compras/:insumoId/stock', authMiddleware, negocioOwner, stockPorInsumo);
 router.post('/:negocioId/compras', authMiddleware, negocioOwner, crearCompra);
 router.delete('/:negocioId/compras/:id', authMiddleware, negocioOwner, eliminarCompra);
+
+// Reporte de consumo por insumo — T6
+router.get('/:negocioId/catalogo/:insumoId/consumos', authMiddleware, negocioOwner, reporteConsumo);
 
 // Insumos — S-4
 router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
@@ -165,5 +171,9 @@ router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, g
 router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
 router.put('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, updateBitacoraEntry);
 router.delete('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, deleteBitacoraEntry);
+
+// Consumo de insumos FIFO — T5
+router.post('/:negocioId/lotes/:loteId/consumir', authMiddleware, negocioOwner, consumirInsumo);
+router.get('/:negocioId/lotes/:loteId/consumos', authMiddleware, negocioOwner, listarConsumos);
 
 export default router;

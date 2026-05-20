@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { calcularConsumoFIFO } from '../services/inventarioFIFO.js';
 
 // ──────────────────────────────────────────────
 // LOTES
@@ -729,6 +730,122 @@ export const updateBitacoraEntry = async (req, res) => {
     client.release();
   }
 };
+
+// ──────────────────────────────────────────────
+// CONSUMO DE INSUMOS (FIFO)
+// ──────────────────────────────────────────────
+
+export async function consumirInsumo(req, res) {
+  const { negocioId, loteId } = req.params;
+  const { insumo_id, cantidad, fecha_consumo, notas } = req.body;
+
+  if (!insumo_id || !cantidad || parseFloat(cantidad) <= 0 || !fecha_consumo) {
+    return res.status(400).json({ error: 'insumo_id, cantidad (> 0) y fecha_consumo son requeridos' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const loteResult = await client.query(
+      'SELECT id FROM lotes WHERE id = $1 AND negocio_id = $2 AND activo = true',
+      [loteId, negocioId]
+    );
+    if (!loteResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Lote no encontrado o inactivo' });
+    }
+
+    const insumoResult = await client.query(
+      'SELECT id, nombre FROM insumos WHERE id = $1 AND negocio_id = $2',
+      [insumo_id, negocioId]
+    );
+    if (!insumoResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Insumo no encontrado' });
+    }
+
+    const capasResult = await client.query(
+      `SELECT id, cantidad_disponible, precio_unitario, fecha_compra
+       FROM compras_insumo
+       WHERE insumo_id = $1 AND negocio_id = $2 AND cantidad_disponible > 0
+       ORDER BY fecha_compra ASC, created_at ASC
+       FOR UPDATE`,
+      [insumo_id, negocioId]
+    );
+
+    let resultado;
+    try {
+      resultado = calcularConsumoFIFO({
+        capasStock: capasResult.rows,
+        cantidadRequerida: parseFloat(cantidad),
+      });
+    } catch (fifoError) {
+      await client.query('ROLLBACK');
+      return res.status(422).json({ error: fifoError.message });
+    }
+
+    const { lineasFIFO, actualizaciones, costoTotal, precioPromedio } = resultado;
+
+    for (const act of actualizaciones) {
+      await client.query(
+        'UPDATE compras_insumo SET cantidad_disponible = $1 WHERE id = $2',
+        [act.nueva_cantidad_disponible, act.compra_id]
+      );
+    }
+
+    const consumoResult = await client.query(
+      `INSERT INTO consumos_lote
+         (negocio_id, lote_id, insumo_id, fecha_consumo,
+          cantidad_total, costo_total, precio_promedio, detalle_fifo, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        negocioId, loteId, insumo_id, fecha_consumo,
+        cantidad, costoTotal, precioPromedio,
+        JSON.stringify(lineasFIFO),
+        notas || null,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    return res.status(201).json({
+      consumo: consumoResult.rows[0],
+      precio_promedio: precioPromedio,
+      costo_total: costoTotal,
+      detalle_fifo: lineasFIFO,
+    });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('consumirInsumo error:', err);
+    return res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
+export async function listarConsumos(req, res) {
+  const { negocioId, loteId } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT cl.*,
+              i.nombre AS insumo_nombre,
+              um.simbolo AS unidad_simbolo
+       FROM consumos_lote cl
+       JOIN insumos i ON i.id = cl.insumo_id
+       LEFT JOIN unidades_medida um ON um.id = i.unidad_id
+       WHERE cl.lote_id = $1 AND cl.negocio_id = $2
+       ORDER BY cl.fecha_consumo DESC, cl.created_at DESC`,
+      [loteId, negocioId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
 
 export const deleteBitacoraEntry = async (req, res) => {
   const { negocioId, loteId, id } = req.params;

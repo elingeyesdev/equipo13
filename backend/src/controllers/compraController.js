@@ -190,6 +190,66 @@ export async function crearCompra(req, res) {
 }
 
 /**
+ * GET /api/negocios/:negocioId/catalogo/:insumoId/consumos
+ */
+export async function reporteConsumo(req, res) {
+  const { negocioId, insumoId } = req.params;
+  const { fecha_desde, fecha_hasta } = req.query;
+
+  try {
+    const insumoResult = await pool.query(
+      `SELECT i.id, i.nombre, um.simbolo AS unidad_simbolo
+       FROM insumos i
+       LEFT JOIN unidades_medida um ON um.id = i.unidad_id
+       WHERE i.id = $1 AND i.negocio_id = $2`,
+      [insumoId, negocioId]
+    );
+
+    if (insumoResult.rowCount === 0) {
+      return res.status(404).json({ error: 'Insumo no encontrado' });
+    }
+
+    const [consumosResult, stockResult] = await Promise.all([
+      pool.query(
+        `SELECT cl.id, cl.fecha_consumo, cl.cantidad_total, cl.costo_total,
+                cl.precio_promedio, cl.detalle_fifo, cl.notas,
+                l.identificador AS lote_identificador, l.id AS lote_id
+         FROM consumos_lote cl
+         JOIN lotes l ON l.id = cl.lote_id
+         WHERE cl.insumo_id = $1 AND cl.negocio_id = $2
+           AND ($3::date IS NULL OR cl.fecha_consumo >= $3)
+           AND ($4::date IS NULL OR cl.fecha_consumo <= $4)
+         ORDER BY cl.fecha_consumo DESC`,
+        [insumoId, negocioId, fecha_desde || null, fecha_hasta || null]
+      ),
+      pool.query(
+        `SELECT COALESCE(SUM(cantidad_disponible), 0) AS stock_total
+         FROM compras_insumo
+         WHERE insumo_id = $1 AND negocio_id = $2`,
+        [insumoId, negocioId]
+      ),
+    ]);
+
+    const consumos = consumosResult.rows;
+    const resumen_periodo = {
+      total_cantidad: consumos.reduce((s, c) => s + parseFloat(c.cantidad_total), 0),
+      total_costo: consumos.reduce((s, c) => s + parseFloat(c.costo_total), 0),
+      cantidad_consumos: consumos.length,
+    };
+
+    res.json({
+      insumo: insumoResult.rows[0],
+      stock_actual: parseFloat(stockResult.rows[0].stock_total),
+      consumos_por_lote: consumos,
+      resumen_periodo,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
  * DELETE /api/negocios/:negocioId/compras/:id
  */
 export async function eliminarCompra(req, res) {

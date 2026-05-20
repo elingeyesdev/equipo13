@@ -18,6 +18,7 @@ import Lotes from './pages/agro/Lotes.jsx';
 import Bitacora from './pages/agro/Bitacora.jsx';
 import Liquidacion from './pages/agro/Liquidacion.jsx';
 import Despiece from './pages/agro/Despiece.jsx';
+import Compras from './pages/Compras.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -148,6 +149,7 @@ const App = () => {
       case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;
+      case 'compras':     return <Compras negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>

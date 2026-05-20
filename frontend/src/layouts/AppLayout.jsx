@@ -18,6 +18,7 @@ const NAV_AGRO = [
   { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
   { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
+  { id: 'compras',    label: 'Compras',           icon: 'shoppingCart' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
 ];
 const NAV_BOTTOM = [
