@@ -11,5 +11,11 @@ export async function aplicarPlantilla(plantilla, negocioId, db) {
     return;
   }
 
+  if (plantilla === 'industria_carnica') {
+    const { seedIndustriaCarnica } = await import('../../seeds/industria_carnica.js');
+    await seedIndustriaCarnica(negocioId, db);
+    return;
+  }
+
   console.warn(`Plantilla no implementada aún: ${plantilla}. Se creará el negocio vacío.`);
 }

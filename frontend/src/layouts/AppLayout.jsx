@@ -16,7 +16,8 @@ const NAV_AGRO = [
   { id: 'lotes',      label: 'Lotes activos',     icon: 'cow' },
   { id: 'bitacora',   label: 'Bitácora',          icon: 'clipboardList' },
   { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
-  { id: 'insumos',    label: 'Insumos (alimentos)',icon: 'layers' },
+  { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
+  { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
 ];
 const NAV_BOTTOM = [

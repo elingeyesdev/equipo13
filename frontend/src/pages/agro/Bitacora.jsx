@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { StatusBadge, RubroBadge, MoneyDisplay, Btn } from '../../components/ui.jsx';
+import { StatusBadge, RubroBadge, MoneyDisplay, Btn, InfoBanner, InfoTip } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
 const TIPOS_FIJOS = ['Mano de obra', 'Baja (muerte/pérdida)', 'Otras pérdidas'];
@@ -121,7 +121,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
     // User deliberately picked a different insumo → reset flags & autocomplete
     setUserEditedCantidad(false);
     setUserEditedPrecio(false);
-    const ins = insumos.find(i => i.id === id);
+    const ins = insumos.find(i => String(i.id) === String(id));
     setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
     setSacos('10');
   };
@@ -138,13 +138,18 @@ const Bitacora = ({ negocioId, activeLote }) => {
       let causaVal = null;
       let tipoApi = tipo;
 
+      let cantidadApi = null;
+      let precioApi = null;
+
       const esCategoriaInsumo = !!categorias.find(c => c.nombre === tipo);
       if (esCategoriaInsumo) {
-        const ins = insumos.find(i => i.id === selectedInsumoId);
+        const ins = insumos.find(i => String(i.id) === String(selectedInsumoId));
         const insumoNombre = ins ? ins.nombre : 'Insumo';
         const unidad = ins?.unidad_simbolo || 'u';
-        detalle = `${sacos} ${unidad} ${insumoNombre}`;
+        detalle = `${insumoNombre}`;
         montoFinal = totalAlim;
+        cantidadApi = parseFloat(sacos) || null;
+        precioApi = parseFloat(costoSaco) || null;
       } else if (tipo === 'Baja (muerte/pérdida)') {
         const bajasNum = parseFloat(bajas) || 0;
         detalle = `${bajas} cabeza${bajasNum > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
@@ -171,6 +176,9 @@ const Bitacora = ({ negocioId, activeLote }) => {
           cabezas_baja: cabezasBaja,
           peso_baja:    pesoBajaVal,
           causa:        causaVal,
+          cantidad_kg:  tipoApi === 'Alimento / Balanceado' ? cantidadApi : null,
+          cantidad:     cantidadApi,
+          precio_unitario: precioApi,
         }),
       });
 
@@ -180,7 +188,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
       setMonto(''); setNotas(''); setSacos('10'); setCausaBaja(''); setBajas('1');
       setUserEditedCantidad(false);
       setUserEditedPrecio(false);
-      const ins = insumos.find(i => i.id === selectedInsumoId);
+      const ins = insumos.find(i => String(i.id) === String(selectedInsumoId));
       setCostoSaco(ins ? String(parseFloat(ins.precio_unitario) || 0) : '0');
     } catch (e) {
       alert(e?.error || 'Error al registrar');
@@ -189,9 +197,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
     }
   };
 
-  const iNum = (label, value, onChange, placeholder = '') => (
+  const iNum = (label, value, onChange, placeholder = '', tip = null) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+        {tip && <InfoTip text={tip} />}
+      </div>
       <input value={value} onChange={e => onChange(e.target.value)} type="number" step="any" placeholder={placeholder}
         style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
         onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
@@ -206,6 +217,12 @@ const Bitacora = ({ negocioId, activeLote }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <InfoBanner
+        storageKey="banner_bitacora_v1"
+        title="Bitácora del lote"
+        text="La bitácora es el diario del lote. Cada gasto que registrés acá aumenta el costo total y se refleja en el despiece y la liquidación. Los registros de 'Alimento / Balanceado' son especiales: el campo Cantidad en kg se usa para calcular el ICa."
+        accentColor="var(--accent-agro)"
+      />
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
@@ -214,7 +231,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
             </span>
             <select 
               value={selectedLoteId || ''} 
-              onChange={e => setSelectedLoteId(parseInt(e.target.value) || e.target.value)}
+              onChange={e => setSelectedLoteId(e.target.value)}
               style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
             >
               {lotes.map(l => (
@@ -247,7 +264,10 @@ const Bitacora = ({ negocioId, activeLote }) => {
               return (
             <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</label>
+                <InfoTip text={"'Alimento / Balanceado' es especial: el sistema usa el campo Cantidad (kg) para calcular el ICa del lote.\nLos demás tipos solo suman el monto en Bs al costo total."} />
+              </div>
               <select value={tipo || ''} onChange={e => setTipo(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
                 {categorias.length > 0 && (
                   <optgroup label="Categorías de insumos">
@@ -280,11 +300,14 @@ const Bitacora = ({ negocioId, activeLote }) => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   {(() => {
-                    const ins = insumos.find(i => i.id === selectedInsumoId);
+                    const ins = insumos.find(i => String(i.id) === String(selectedInsumoId));
                     const unidadLabel = ins?.unidad_simbolo ? `Cantidad (${ins.unidad_simbolo})` : 'Cantidad';
-                    return <>{iNum(unidadLabel, sacos, v => { setUserEditedCantidad(true); setSacos(v); })}</>;
+                    const tipCantidad = tipo === 'Alimento / Balanceado'
+                      ? 'Kg físicos de balanceado entregados. El sistema usa este número para calcular el ICa — no el monto en Bs.'
+                      : 'Cantidad del insumo utilizado en esta entrega.';
+                    return <>{iNum(unidadLabel, sacos, v => { setUserEditedCantidad(true); setSacos(v); }, '', tipCantidad)}</>;
                   })()}
-                  {iNum('Precio unitario (Bs)', costoSaco, v => { setUserEditedPrecio(true); setCostoSaco(v); })}
+                  {iNum('Precio unitario (Bs)', costoSaco, v => { setUserEditedPrecio(true); setCostoSaco(v); }, '', 'Precio por unidad del insumo. Se autocompleta desde el catálogo — ajustalo si el precio cambió.')}
                 </div>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total</span>
@@ -296,8 +319,8 @@ const Bitacora = ({ negocioId, activeLote }) => {
             {tipo === 'Baja (muerte/pérdida)' && (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {iNum('Cantidad de bajas', bajas, setBajas)}
-                  {iNum('Peso estimado (kg)', pesoBaja, setPesoBaja)}
+                  {iNum('Cantidad de bajas', bajas, setBajas, '', 'Número de animales muertos o perdidos en este evento.')}
+                  {iNum('Peso estimado (kg)', pesoBaja, setPesoBaja, '', 'Peso promedio estimado de los animales perdidos. Se usa para ajustar el peso total del lote.')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Causa (opcional)</label>
@@ -315,7 +338,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
 
             {!categoriaActiva && tipo !== 'Baja (muerte/pérdida)' && (
               <>
-                {iNum('Monto (Bs)', monto, v => setMonto(v))}
+                {iNum('Monto (Bs)', monto, v => setMonto(v), '', 'Costo total de este gasto en bolivianos. Se suma directamente al costo acumulado del lote.')}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Descripción</label>
                   <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Detalle del gasto…"
@@ -353,9 +376,9 @@ const Bitacora = ({ negocioId, activeLote }) => {
 
           {registros.length > 0 && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-                {['Fecha', 'Tipo', 'Detalle', 'Monto'].map((h, i) => (
-                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '85px 110px 1fr 60px 80px 85px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+                {['Fecha', 'Tipo', 'Detalle', 'Cant.', 'Precio U.', 'Total'].map((h, i) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: (i >= 3) ? 'right' : 'left' }}>{h}</div>
                 ))}
               </div>
               {registros.map((r, i) => {
@@ -364,15 +387,21 @@ const Bitacora = ({ negocioId, activeLote }) => {
                   ? new Date(r.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
                   : '—';
                 return (
-                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
+                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '85px 110px 1fr 60px 80px 85px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{fechaStr}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <Icon name={cfg.icon} size={12} style={{ color: cfg.color, flexShrink: 0 }} />
                       <span style={{ fontSize: '12px', color: cfg.color, fontWeight: r.tipo === 'ENTRADA' ? 600 : 400 }}>{r.tipo}</span>
                     </div>
-                    <div>
-                      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{r.detalle}</span>
-                      {r.es_baja && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--accent-warning)', fontStyle: 'italic' }}>[costo redistribuido]</span>}
+                    <div style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }} title={r.detalle}>{r.detalle}</span>
+                      {r.es_baja && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--accent-warning)', fontStyle: 'italic' }}>[redistribuido]</span>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{r.cantidad != null ? parseFloat(r.cantidad).toLocaleString('es-BO') : '—'}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {r.precio_unitario != null ? <MoneyDisplay value={parseFloat(r.precio_unitario)} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       {r.monto != null ? <MoneyDisplay value={parseFloat(r.monto)} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}

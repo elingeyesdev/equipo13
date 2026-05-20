@@ -19,6 +19,7 @@ const TEMPLATES = [
   { id: 't2', rubro: 'industrial',    nombre: 'Panificación',            desc: 'Pan, galletas, bizcochos',         insumos: 12, productos: 4, etapas: 5  },
   { id: 't3', rubro: 'industrial',    nombre: 'Textilería',              desc: 'Telas, prendas, accesorios',       insumos: 8,  productos: 3, etapas: 6  },
   { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde bovino',          desc: 'Novillos, toros, terneros',        insumos: 6,  productos: 1, etapas: 4  },
+  { id: 't5', rubro: 'agro_ganadero', nombre: 'Industria cárnica',       desc: 'Cerdos, despiece, chorizo, morcilla', insumos: 16, productos: 2, etapas: 5 },
   { id: 't6', rubro: 'industrial',    nombre: 'Metalmecánica',           desc: 'Piezas, estructuras, soldadura',   insumos: 11, productos: 5, etapas: 8  },
 ];
 
@@ -36,6 +37,7 @@ const TEMPLATE_PLANTILLA = {
   t2: 'panificacion',
   t3: 'textileria',
   t4: 'engorde_bovino',
+  t5: 'industria_carnica',
   t6: 'metalmecanica',
   blank: null,
 };

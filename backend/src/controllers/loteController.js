@@ -323,6 +323,229 @@ export const getCostosDetalle = async (req, res) => {
 };
 
 // ──────────────────────────────────────────────
+// ESCENARIOS
+// ──────────────────────────────────────────────
+
+// POST /negocios/:negocioId/lotes/:id/escenarios
+// Body: { pvp_vivo, pvp_gancho, gastos_faena?, rendimiento_canal?, precios_cortes?: [{ corte_id, pvp }] }
+// Devuelve { vivo, gancho, cortes, recomendacion, desglose }
+export const getEscenarios = async (req, res) => {
+  const { negocioId, id } = req.params;
+  const {
+    pvp_vivo,
+    pvp_gancho,
+    gastos_faena,
+    rendimiento_canal,
+    precios_cortes,
+  } = req.body;
+
+  const pvpVivo = Number(pvp_vivo);
+  const pvpGancho = Number(pvp_gancho);
+  const gastosFaena = gastos_faena == null ? 0 : Number(gastos_faena);
+  const rendCanalParam = rendimiento_canal == null ? 75 : Number(rendimiento_canal);
+
+  if (!Number.isFinite(pvpVivo) || pvpVivo < 0) {
+    return res.status(400).json({ error: 'pvp_vivo es requerido y debe ser >= 0' });
+  }
+  if (!Number.isFinite(pvpGancho) || pvpGancho < 0) {
+    return res.status(400).json({ error: 'pvp_gancho es requerido y debe ser >= 0' });
+  }
+
+  try {
+    const { rows: loteRows } = await pool.query(
+      `SELECT l.*,
+              l.costo_adquisicion + COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.monto IS NOT NULL
+              ), 0) AS costo_base
+       FROM lotes l
+       WHERE l.id = $1 AND l.negocio_id = $2`,
+      [id, negocioId]
+    );
+    if (!loteRows.length) {
+      return res.status(404).json({ error: 'Lote no encontrado' });
+    }
+    const lote = loteRows[0];
+    const costo_base = Number(lote.costo_base);
+
+    // Pesos: usar liquidacion_jsonb si el lote ya fue liquidado, sino estimar con datos actuales
+    let peso_total_pie, peso_total_gancho, rendCanalUsado;
+    const liq = lote.liquidacion_jsonb;
+    if (liq && liq.peso_total_pie) {
+      peso_total_pie = Number(liq.peso_total_pie);
+      peso_total_gancho = Number(liq.peso_total_gancho);
+      rendCanalUsado = Number(liq.rendimiento_canal);
+    } else {
+      const cabezas = Number(lote.cabezas_activas) || 0;
+      const pesoProm = Number(lote.peso_actual_prom) || 0;
+      peso_total_pie = cabezas * pesoProm;
+      rendCanalUsado = rendCanalParam;
+      peso_total_gancho = peso_total_pie * rendCanalUsado / 100;
+    }
+
+    // Gastos de faena solo aplican a venta canal/cortes, no a venta en vivo
+    const costo_con_faena = costo_base + gastosFaena;
+
+    // Escenario 1 — Vivo
+    const ingreso_vivo = peso_total_pie * pvpVivo;
+    const utilidad_vivo = ingreso_vivo - costo_base;
+    const margen_vivo = ingreso_vivo > 0 ? (utilidad_vivo / ingreso_vivo) * 100 : null;
+
+    // Escenario 2 — Gancho
+    const ingreso_gancho = peso_total_gancho * pvpGancho;
+    const utilidad_gancho = ingreso_gancho - costo_con_faena;
+    const margen_gancho = ingreso_gancho > 0 ? (utilidad_gancho / ingreso_gancho) * 100 : null;
+
+    // Escenario 3 — Por cortes (opcional, solo si vienen precios)
+    let escenario_cortes = null;
+    const cortesInput = Array.isArray(precios_cortes) ? precios_cortes : [];
+    if (cortesInput.length > 0) {
+      const { rows: cortesDB } = await pool.query(
+        'SELECT * FROM despiece_cortes WHERE lote_id = $1',
+        [id]
+      );
+      const cortesMap = new Map(cortesDB.map(c => [c.id, c]));
+
+      let ingreso_cortes = 0;
+      const desglose = [];
+      for (const pc of cortesInput) {
+        const corte = cortesMap.get(pc.corte_id);
+        if (!corte) continue;
+        const pvp = Number(pc.pvp);
+        if (!Number.isFinite(pvp) || pvp < 0) continue;
+        const subtotal = Number(corte.peso_kg) * pvp;
+        ingreso_cortes += subtotal;
+        desglose.push({ nombre: corte.nombre, peso_kg: Number(corte.peso_kg), pvp, subtotal });
+      }
+
+      const utilidad_cortes = ingreso_cortes - costo_con_faena;
+      const margen_cortes = ingreso_cortes > 0 ? (utilidad_cortes / ingreso_cortes) * 100 : null;
+      escenario_cortes = {
+        ingreso: ingreso_cortes,
+        costo: costo_con_faena,
+        utilidad: utilidad_cortes,
+        margen: margen_cortes,
+        desglose,
+      };
+    }
+
+    // Recomendación: escenario con mayor utilidad
+    const opciones = [
+      { key: 'vivo', utilidad: utilidad_vivo },
+      { key: 'gancho', utilidad: utilidad_gancho },
+    ];
+    if (escenario_cortes !== null) {
+      opciones.push({ key: 'cortes', utilidad: escenario_cortes.utilidad });
+    }
+    const ganador = opciones.reduce((best, op) => op.utilidad > best.utilidad ? op : best);
+
+    res.json({
+      vivo:   { ingreso: ingreso_vivo,   costo: costo_base,       utilidad: utilidad_vivo,   margen: margen_vivo },
+      gancho: { ingreso: ingreso_gancho, costo: costo_con_faena,  utilidad: utilidad_gancho, margen: margen_gancho },
+      cortes: escenario_cortes,
+      recomendacion: ganador.key,
+      desglose: {
+        peso_total_pie,
+        peso_total_gancho,
+        rendimiento_canal: rendCanalUsado,
+        costo_base,
+        gastos_faena: gastosFaena,
+        costo_con_faena,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ──────────────────────────────────────────────
+// ICa — Conversión alimenticia
+// ──────────────────────────────────────────────
+
+// GET /negocios/:negocioId/lotes/:id/ica
+// ICa = kg_alimento_consumido / kg_ganados
+// kg_ganados = (peso_actual_prom - peso_inicial_prom) × cabezas_activas
+// kg_alimento = SUM(cantidad_kg) de entradas de tipo alimento en bitácora
+export const getIca = async (req, res) => {
+  const { negocioId, id } = req.params;
+  try {
+    const { rows: loteRows } = await pool.query(
+      'SELECT * FROM lotes WHERE id = $1 AND negocio_id = $2',
+      [id, negocioId]
+    );
+    if (!loteRows.length) {
+      return res.status(404).json({ error: 'Lote no encontrado' });
+    }
+    const lote = loteRows[0];
+
+    // kg de alimento consumido (suma de cantidad_kg en entradas clasificadas como alimento)
+    const { rows: alimentoRows } = await pool.query(
+      `SELECT COALESCE(SUM(b.cantidad_kg), 0) AS kg_alimento
+       FROM bitacora_lote b
+       LEFT JOIN lotes l ON l.id = b.lote_id
+       LEFT JOIN categorias_insumos c
+         ON c.nombre = b.tipo AND c.negocio_id = l.negocio_id
+       WHERE b.lote_id = $1
+         AND b.es_baja = false
+         AND b.cantidad_kg IS NOT NULL
+         AND COALESCE(
+               c.tipo,
+               CASE
+                 WHEN b.tipo ILIKE '%aliment%'
+                   OR b.tipo ILIKE '%balanceado%'
+                   OR b.tipo ILIKE '%forraje%'
+                   OR b.tipo ILIKE '%pastura%'
+                   OR b.tipo ILIKE '%silaje%'
+                   OR b.tipo ILIKE '%suplement%'
+                   OR b.tipo ILIKE '%grano%'
+                   OR b.tipo ILIKE '%maiz%'
+                   OR b.tipo ILIKE '%maíz%'
+                   OR b.tipo ILIKE '%heno%' THEN 'alimento'
+                 ELSE 'otros'
+               END
+             ) = 'alimento'`,
+      [id]
+    );
+    const kg_alimento = Number(alimentoRows[0].kg_alimento);
+
+    // kg ganados por el lote completo
+    const pesoActual = Number(lote.peso_actual_prom) || 0;
+    const pesoInicial = Number(lote.peso_inicial_prom) || 0;
+    const cabezas = Number(lote.cabezas_activas) || 0;
+    const kg_ganados = (pesoActual - pesoInicial) * cabezas;
+
+    if (kg_ganados <= 0) {
+      return res.status(422).json({
+        error: 'No se puede calcular ICa: el peso actual no supera el peso inicial o no hay cabezas activas',
+        kg_alimento,
+        kg_ganados,
+      });
+    }
+
+    const ica = kg_alimento / kg_ganados;
+
+    // Clasificación según referencia para cerdos (2.5–3.0)
+    let estado;
+    if (ica <= 3.0) estado = 'verde';
+    else if (ica <= 3.5) estado = 'ambar';
+    else estado = 'rojo';
+
+    res.json({
+      kg_alimento,
+      kg_ganados,
+      ica,
+      referencia: '2.5-3.0',
+      estado,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ──────────────────────────────────────────────
 // BITÁCORA
 // ──────────────────────────────────────────────
 
@@ -344,7 +567,7 @@ export const getBitacora = async (req, res) => {
 
 export const createBitacoraEntry = async (req, res) => {
   const { negocioId, loteId } = req.params;
-  const { fecha, tipo, detalle, monto, es_baja, cabezas_baja, peso_baja, causa } = req.body;
+  const { fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario } = req.body;
 
   if (!tipo) return res.status(400).json({ error: 'tipo es requerido' });
 
@@ -365,8 +588,8 @@ export const createBitacoraEntry = async (req, res) => {
     // Insertar registro en bitácora
     const { rows } = await client.query(
       `INSERT INTO bitacora_lote
-         (lote_id, fecha, tipo, detalle, monto, es_baja, cabezas_baja, peso_baja, causa)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (lote_id, fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         loteId,
@@ -374,10 +597,13 @@ export const createBitacoraEntry = async (req, res) => {
         tipo,
         detalle || null,
         es_baja ? null : (monto || null),
+        cantidad_kg || null,
         es_baja || false,
         cabezas_baja || null,
         peso_baja || null,
         causa || null,
+        cantidad || null,
+        precio_unitario || null,
       ]
     );
 
@@ -404,7 +630,7 @@ export const createBitacoraEntry = async (req, res) => {
 
 export const updateBitacoraEntry = async (req, res) => {
   const { negocioId, loteId, id } = req.params;
-  const { fecha, tipo, detalle, monto, es_baja, cabezas_baja, peso_baja, causa } = req.body;
+  const { fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario } = req.body;
 
   const client = await pool.connect();
   try {
@@ -444,6 +670,9 @@ export const updateBitacoraEntry = async (req, res) => {
     const nuevoEsBaja = es_baja !== undefined ? !!es_baja : prev.es_baja;
     const nuevoCabezasBaja = cabezas_baja !== undefined ? cabezas_baja : prev.cabezas_baja;
     const nuevoMonto = nuevoEsBaja ? null : (monto !== undefined ? monto : prev.monto);
+    const nuevaCantidadKg = cantidad_kg !== undefined ? cantidad_kg : prev.cantidad_kg;
+    const nuevaCantidad = cantidad !== undefined ? cantidad : prev.cantidad;
+    const nuevoPrecioUnitario = precio_unitario !== undefined ? precio_unitario : prev.precio_unitario;
 
     // Diferencia de cabezas_baja: revertir lo viejo (suma) y aplicar lo nuevo (resta)
     const prevCabBaja = prev.es_baja && prev.cabezas_baja ? Number(prev.cabezas_baja) : 0;
@@ -465,21 +694,27 @@ export const updateBitacoraEntry = async (req, res) => {
            tipo = $2,
            detalle = $3,
            monto = $4,
-           es_baja = $5,
-           cabezas_baja = $6,
-           peso_baja = $7,
-           causa = $8
-       WHERE id = $9
+           cantidad_kg = $5,
+           es_baja = $6,
+           cabezas_baja = $7,
+           peso_baja = $8,
+           causa = $9,
+           cantidad = $10,
+           precio_unitario = $11
+       WHERE id = $12
        RETURNING *`,
       [
         nuevaFecha,
         nuevoTipo,
         nuevoDetalle,
         nuevoMonto,
+        nuevaCantidadKg ?? null,
         nuevoEsBaja,
         nuevoEsBaja ? (nuevoCabezasBaja || null) : null,
         nuevoPesoBaja,
         nuevoCausa,
+        nuevaCantidad ?? null,
+        nuevoPrecioUnitario ?? null,
         id,
       ]
     );

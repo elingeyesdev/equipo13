@@ -62,11 +62,19 @@ import {
   cerrarLote,
   liquidarLote,
   getCostosDetalle,
+  getEscenarios,
+  getIca,
   getBitacora,
   createBitacoraEntry,
   updateBitacoraEntry,
   deleteBitacoraEntry,
 } from '../controllers/loteController.js';
+import {
+  getDespiece,
+  createDespiece,
+  generarInsumos,
+  deleteCorte,
+} from '../controllers/despieceController.js';
 
 const router = Router();
 
@@ -131,6 +139,14 @@ router.put('/:negocioId/lotes/:id', authMiddleware, negocioOwner, updateLote);
 router.patch('/:negocioId/lotes/:id/cerrar', authMiddleware, negocioOwner, cerrarLote);
 router.post('/:negocioId/lotes/:id/liquidar', authMiddleware, negocioOwner, liquidarLote);
 router.get('/:negocioId/lotes/:id/costos-detalle', authMiddleware, negocioOwner, getCostosDetalle);
+router.post('/:negocioId/lotes/:id/escenarios', authMiddleware, negocioOwner, getEscenarios);
+router.get('/:negocioId/lotes/:id/ica', authMiddleware, negocioOwner, getIca);
+
+// Despiece — J2 + J3
+router.get('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, getDespiece);
+router.post('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, createDespiece);
+router.post('/:negocioId/lotes/:id/despiece/generar-insumos', authMiddleware, negocioOwner, generarInsumos);
+router.delete('/:negocioId/lotes/:id/despiece/:corteId', authMiddleware, negocioOwner, deleteCorte);
 
 // Bitácora — L-3
 router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);

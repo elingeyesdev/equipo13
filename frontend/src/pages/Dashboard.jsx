@@ -194,6 +194,7 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
   const negocioId = negocio.id;
   const accentColor = 'var(--accent-agro)';
   const [lotes, setLotes] = useState([]);
+  const [ultimoLiquidado, setUltimoLiquidado] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const timeAgo = (dateStr) => {
@@ -220,7 +221,12 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
           costo_total: parseFloat(l.costo_total) || 0,
           created_at: l.created_at
         }));
-        setLotes(mapped);
+        const activos = mapped.filter(l => l.activo !== false);
+        const liquidados = mapped
+          .filter(l => l.activo === false && l.liquidacion_jsonb)
+          .sort((a, b) => new Date(b.liquidacion_jsonb.liquidado_en) - new Date(a.liquidacion_jsonb.liquidado_en));
+        setLotes(activos);
+        setUltimoLiquidado(liquidados[0] || null);
       })
       .catch(e => console.error(e))
       .finally(() => setLoading(false));
@@ -301,6 +307,50 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
           })
         )}
       </div>
+
+      {ultimoLiquidado && (() => {
+        const liq = ultimoLiquidado.liquidacion_jsonb;
+        const utilidad = parseFloat(liq.utilidad);
+        const margen = liq.margen != null ? parseFloat(liq.margen) : null;
+        const escanario_label = liq.escenario === 'pie' ? 'Venta en pie' : 'Venta gancho';
+        const fechaCierre = new Date(liq.liquidado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
+        return (
+          <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${accentColor}33`, borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${accentColor}22`, background: accentColor + '08', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Último lote cerrado</span>
+              <Btn variant="ghost" size="sm" icon="arrowRight" onClick={() => onNavigate('lotes')}>Ver lotes</Btn>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono, monospace' }}>
+                    #{ultimoLiquidado.id}
+                  </span>
+                  <StatusBadge label={ultimoLiquidado.tipo} color={accentColor} />
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}33` }}>
+                    {escanario_label}
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                  Cerrado el {fechaCierre} · {liq.cabezas_venta} cab. · {liq.peso_prom_final} kg/cab promedio
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Ingreso total', val: `Bs ${parseFloat(liq.ingreso).toLocaleString('es-BO', { minimumFractionDigits: 0 })}`, color: 'var(--text-primary)' },
+                  { label: 'Utilidad neta', val: `${utilidad >= 0 ? '+' : ''}Bs ${utilidad.toLocaleString('es-BO', { minimumFractionDigits: 0 })}`, color: utilidad >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' },
+                  { label: 'Margen s/ ingreso', val: margen != null ? `${margen.toFixed(1)}%` : '—', color: margen != null && margen >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' },
+                ].map((m, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '16px', fontWeight: 600, color: m.color }}>{m.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <SectionCard title="Actividad reciente">
         {loading ? (

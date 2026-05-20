@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { MoneyDisplay, StatusBadge, Btn } from '../../components/ui.jsx';
+import { MoneyDisplay, StatusBadge, Btn, InfoBanner, InfoTip, FormulaHint } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
 export const LOTES_DATA = [];
@@ -37,6 +37,15 @@ const fetchCostosDetalle = async (negocioId, loteUuid) => {
     };
   } catch {
     return { alimento: null, sanidad: null, mano_obra: null, otros: null, total: null };
+  }
+};
+
+const fetchIca = async (negocioId, loteUuid) => {
+  if (!negocioId || !loteUuid) return null;
+  try {
+    return await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/ica`);
+  } catch {
+    return null;
   }
 };
 
@@ -137,7 +146,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
 };
 
 // Mapea el lote de la API al formato que usa LoteCard
-const mapLoteFromApi = (l, costosDetalle) => ({
+const mapLoteFromApi = (l, costosDetalle, icaData) => ({
   ...l,
   id: l.identificador || l.id,
   _id: l.id,
@@ -156,7 +165,11 @@ const mapLoteFromApi = (l, costosDetalle) => ({
     otros: costosDetalle?.otros ?? null,
   },
   costosTotal: costosDetalle?.total ?? null,
+  icaData: icaData ?? null,
 });
+
+const ICA_COLOR = { verde: 'var(--accent-success)', ambar: 'var(--accent-warning)', rojo: 'var(--accent-danger)' };
+const ICA_LABEL = { verde: 'Eficiente', ambar: 'Aceptable', rojo: 'Revisar' };
 
 const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   const [desgloseOpen, setDesgloseOpen] = useState(false);
@@ -166,6 +179,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
   const refConv = lote.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
+  const icaColor = ICA_COLOR[lote.icaData?.estado] ?? 'var(--text-tertiary)';
   const CostBar = ({ key_, label, val }) => {
     const pct = totalCosto > 0 && val != null ? (val / totalCosto) * 100 : 0;
     return (
@@ -209,16 +223,58 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
         {[
-          { label: 'Activos',           val: `${lote.cabezasActivas} cabezas` },
-          { label: 'Bajas',             val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0 },
-          { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab` },
-          { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab` },
+          { label: 'Activos',            val: `${lote.cabezasActivas} cabezas` },
+          { label: 'Bajas',              val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0,
+            tip: 'Animales muertos o perdidos. El sistema descuenta la cabeza del conteo y redistribuye su costo entre los sobrevivientes.' },
+          { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab`,
+            tip: 'Peso promedio por cabeza al entrar al lote. Se usa para calcular la ganancia total de peso al cierre del ciclo.' },
+          { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab`,
+            tip: 'Peso promedio estimado a hoy. Actualizá con un pesaje real en la bitácora para mayor precisión.' },
         ].map((s, i) => (
           <div key={i} style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{s.label}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+              {s.label}
+              {s.tip && <InfoTip text={s.tip} />}
+            </div>
             <div style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', color: s.warn ? 'var(--accent-warning)' : 'var(--text-primary)', fontWeight: 500 }}>{s.val}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)' }}>
+            ICa
+            <InfoTip text="Índice de Conversión Alimenticia: cuántos kg de alimento consumió el lote por cada kg de peso ganado. Menor valor = mayor eficiencia." />
+          </span>
+          {lote.icaData ? (
+            <>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', fontWeight: 600, color: icaColor }}>
+                {parseFloat(lote.icaData.ica).toFixed(2)} <span style={{ fontSize: '11px', fontWeight: 400 }}>kg/kg</span>
+              </span>
+              <span style={{ padding: '1px 7px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, color: icaColor, background: icaColor + '1A', border: `1px solid ${icaColor}33` }}>
+                {ICA_LABEL[lote.icaData.estado] ?? lote.icaData.estado}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                ref. {lote.icaData.referencia} · kg alimento / kg ganado
+                <InfoTip
+                  text={'Verde ≤ 3.0 · Ámbar 3.0–3.5 · Rojo > 3.5 (cerdos).\nPara bovinos el rango eficiente es 6.0–8.0.'}
+                  position="left"
+                />
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+              Sin datos de alimentación — registrá kg consumidos en bitácora
+            </span>
+          )}
+        </div>
+        {lote.icaData && (
+          <FormulaHint
+            formula="ICa = kg de alimento consumidos ÷ (cabezas × kg ganados por cabeza)"
+            ejemplo={`${(parseFloat(lote.icaData.ica) * lote.cabezasActivas * pesoGanado).toFixed(0)} kg ÷ (${lote.cabezasActivas} cab × ${pesoGanado.toFixed(1)} kg) = ${parseFloat(lote.icaData.ica).toFixed(2)}`}
+          />
+        )}
       </div>
 
       <div>
@@ -283,8 +339,11 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes`);
       const mapped = await Promise.all(
         data.map(async (l) => {
-          const detalle = await fetchCostosDetalle(negocioId, l.id);
-          return mapLoteFromApi(l, detalle);
+          const [detalle, ica] = await Promise.all([
+            fetchCostosDetalle(negocioId, l.id),
+            fetchIca(negocioId, l.id),
+          ]);
+          return mapLoteFromApi(l, detalle, ica);
         })
       );
       setLotes(mapped);
@@ -309,8 +368,11 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
         costo_adquisicion: form.costo_adquisicion,
       }),
     });
-    const detalle = await fetchCostosDetalle(negocioId, nuevo.id);
-    setLotes(prev => [mapLoteFromApi(nuevo, detalle), ...prev]);
+    const [detalle, ica] = await Promise.all([
+      fetchCostosDetalle(negocioId, nuevo.id),
+      fetchIca(negocioId, nuevo.id),
+    ]);
+    setLotes(prev => [mapLoteFromApi(nuevo, detalle, ica), ...prev]);
   };
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
@@ -324,6 +386,12 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <InfoBanner
+        storageKey="banner_lotes_v1"
+        title="Lotes de engorde"
+        text="Cada lote representa un ciclo de producción animal. Registrá el lote primero y después usá la Bitácora para ir sumando gastos día a día. Al cerrar el ciclo, la Liquidación te muestra cuánto ganás según el escenario de venta."
+        accentColor="var(--accent-agro)"
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
