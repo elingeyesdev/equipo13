@@ -61,6 +61,7 @@ import {
   updateLote,
   cerrarLote,
   liquidarLote,
+  getCostosDetalle,
   getBitacora,
   createBitacoraEntry,
   updateBitacoraEntry,
@@ -129,6 +130,7 @@ router.post('/:negocioId/lotes', authMiddleware, negocioOwner, createLote);
 router.put('/:negocioId/lotes/:id', authMiddleware, negocioOwner, updateLote);
 router.patch('/:negocioId/lotes/:id/cerrar', authMiddleware, negocioOwner, cerrarLote);
 router.post('/:negocioId/lotes/:id/liquidar', authMiddleware, negocioOwner, liquidarLote);
+router.get('/:negocioId/lotes/:id/costos-detalle', authMiddleware, negocioOwner, getCostosDetalle);
 
 // Bitácora — L-3
 router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);

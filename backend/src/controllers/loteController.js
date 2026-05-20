@@ -254,6 +254,74 @@ export const liquidarLote = async (req, res) => {
   }
 };
 
+export const getCostosDetalle = async (req, res) => {
+  const { negocioId, id } = req.params;
+  try {
+    const loteCheck = await pool.query(
+      'SELECT id FROM lotes WHERE id = $1 AND negocio_id = $2',
+      [id, negocioId]
+    );
+    if (!loteCheck.rows.length) {
+      return res.status(404).json({ error: 'Lote no encontrado' });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT
+         COALESCE(
+           c.tipo,
+           CASE
+             WHEN b.tipo ILIKE '%aliment%'
+               OR b.tipo ILIKE '%balanceado%'
+               OR b.tipo ILIKE '%forraje%'
+               OR b.tipo ILIKE '%pastura%'
+               OR b.tipo ILIKE '%silaje%'
+               OR b.tipo ILIKE '%suplement%'
+               OR b.tipo ILIKE '%grano%'
+               OR b.tipo ILIKE '%maiz%'
+               OR b.tipo ILIKE '%maíz%'
+               OR b.tipo ILIKE '%heno%'        THEN 'alimento'
+             WHEN b.tipo ILIKE '%sanidad%'
+               OR b.tipo ILIKE '%medicament%'
+               OR b.tipo ILIKE '%vacuna%'
+               OR b.tipo ILIKE '%veterinari%'
+               OR b.tipo ILIKE '%antibiot%'
+               OR b.tipo ILIKE '%desparasit%'  THEN 'sanidad'
+             WHEN b.tipo ILIKE '%mano de obra%'
+               OR b.tipo ILIKE '%jornal%'
+               OR b.tipo ILIKE '%peón%'
+               OR b.tipo ILIKE '%peon%'
+               OR b.tipo ILIKE '%personal%'    THEN 'mano_obra'
+             ELSE                                   'otros'
+           END
+         ) AS bucket,
+         COALESCE(SUM(b.monto), 0)::float AS total
+       FROM bitacora_lote b
+       LEFT JOIN lotes l ON l.id = b.lote_id
+       LEFT JOIN categorias_insumos c
+         ON c.nombre = b.tipo AND c.negocio_id = l.negocio_id
+       WHERE b.lote_id = $1
+         AND b.es_baja = false
+         AND b.monto IS NOT NULL
+       GROUP BY bucket`,
+      [id]
+    );
+
+    const detalle = { alimento: 0, sanidad: 0, mano_obra: 0, otros: 0 };
+    for (const row of rows) {
+      if (row.bucket in detalle) {
+        detalle[row.bucket] = Number(row.total);
+      } else {
+        detalle.otros += Number(row.total);
+      }
+    }
+    const total = detalle.alimento + detalle.sanidad + detalle.mano_obra + detalle.otros;
+    res.json({ ...detalle, total });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ──────────────────────────────────────────────
 // BITÁCORA
 // ──────────────────────────────────────────────
