@@ -54,6 +54,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     tipo: 'Cerdo',
     identificador: '',
     fecha_entrada: '',
+    edad_promedio_dias: '0',
     cabezas_inicio: '50',
     peso_inicial_prom: '8.5',
     costo_unitario: '',
@@ -113,6 +114,19 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
             {iField('Identificador', 'identificador', 'text', 'L-2025-XXX')}
           </div>
           {iField('Fecha de entrada', 'fecha_entrada', 'date')}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Edad promedio al ingreso (días)</label>
+            <input
+              value={form.edad_promedio_dias}
+              onChange={e => set('edad_promedio_dias', e.target.value)}
+              type="number" min="0" step="1" placeholder="Ej: 28"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 11px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
+              onFocus={e => e.target.style.borderColor = accentColor}
+              onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
+            />
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Ej: lechones de 28 días → ingresar 28</span>
+          </div>
 
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Animales de entrada</div>
@@ -360,12 +374,13 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
     const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes`, {
       method: 'POST',
       body: JSON.stringify({
-        identificador:    form.identificador,
-        tipo_animal:      form.tipo,
-        fecha_entrada:    form.fecha_entrada || null,
-        cabezas_inicio:   form.cabezas_inicio,
+        identificador:     form.identificador,
+        tipo_animal:       form.tipo,
+        fecha_entrada:     form.fecha_entrada || null,
+        cabezas_inicio:    form.cabezas_inicio,
         peso_inicial_prom: form.peso_inicial_prom,
         costo_adquisicion: form.costo_adquisicion,
+        edad_promedio_dias: parseInt(form.edad_promedio_dias) || 0,
       }),
     });
     const [detalle, ica] = await Promise.all([

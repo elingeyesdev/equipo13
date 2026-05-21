@@ -16,8 +16,10 @@ import Categorias from './pages/Categorias.jsx';
 import Configuracion from './pages/Configuracion.jsx';
 import Lotes from './pages/agro/Lotes.jsx';
 import Bitacora from './pages/agro/Bitacora.jsx';
+import HojaVida from './pages/agro/HojaVida.jsx';
 import Liquidacion from './pages/agro/Liquidacion.jsx';
 import Despiece from './pages/agro/Despiece.jsx';
+import RegistroDia from './pages/agro/RegistroDia.jsx';
 import Compras from './pages/Compras.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
@@ -56,6 +58,7 @@ const App = () => {
   const [page, setPage] = useState('dashboard');
   const [negocioId, setNegocioId] = useState(null);
   const [activeLote, setActiveLote] = useState(null);
+  const [activeFecha, setActiveFecha] = useState(null);
   const [activeProductoId, setActiveProductoId] = useState(null);
 
   const loadNegocios = async () => {
@@ -147,8 +150,10 @@ const App = () => {
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
+      case 'hojavida':    return <HojaVida negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveFecha={setActiveFecha} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;
+      case 'registrodia': return <RegistroDia negocioId={negocioId} activeLote={activeLote} fecha={activeFecha} onNavigate={navigate} />;
       case 'compras':     return <Compras negocioId={negocioId} />;
       default:
         return (

@@ -78,6 +78,7 @@ export const createLote = async (req, res) => {
     cabezas_inicio,
     peso_inicial_prom,
     costo_adquisicion,
+    edad_promedio_dias,
   } = req.body;
 
   if (!identificador || !tipo_animal) {
@@ -90,8 +91,8 @@ export const createLote = async (req, res) => {
          (negocio_id, identificador, tipo_animal, fecha_entrada,
           cabezas_inicio, cabezas_activas,
           peso_inicial_prom, peso_actual_prom,
-          costo_adquisicion, activo)
-       VALUES ($1,$2,$3,$4,$5,$5,$6,$6,$7,true)
+          costo_adquisicion, edad_promedio_dias, activo)
+       VALUES ($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,true)
        RETURNING *`,
       [
         negocioId,
@@ -101,6 +102,7 @@ export const createLote = async (req, res) => {
         cabezas_inicio || 0,
         peso_inicial_prom || 0,
         costo_adquisicion || 0,
+        edad_promedio_dias != null ? parseInt(edad_promedio_dias) : 0,
       ]
     );
     res.status(201).json(rows[0]);

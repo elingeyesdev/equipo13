@@ -84,6 +84,13 @@ import {
   eliminarCompra,
   reporteConsumo,
 } from '../controllers/compraController.js';
+import {
+  getEstandarDelDia,
+  getVistaMensual,
+  getDetalleDia,
+  guardarRegistroDia,
+  confirmarDia,
+} from '../controllers/hojaVidaController.js';
 
 const router = Router();
 
@@ -175,5 +182,12 @@ router.delete('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioO
 // Consumo de insumos FIFO — T5
 router.post('/:negocioId/lotes/:loteId/consumir', authMiddleware, negocioOwner, consumirInsumo);
 router.get('/:negocioId/lotes/:loteId/consumos', authMiddleware, negocioOwner, listarConsumos);
+
+// Hoja de Vida del Lote
+router.get('/:negocioId/lotes/:loteId/estandar', authMiddleware, negocioOwner, getEstandarDelDia);
+router.get('/:negocioId/lotes/:loteId/hoja-de-vida', authMiddleware, negocioOwner, getVistaMensual);
+router.get('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, getDetalleDia);
+router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha/confirmar', authMiddleware, negocioOwner, confirmarDia);
+router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, guardarRegistroDia);
 
 export default router;

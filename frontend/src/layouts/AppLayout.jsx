@@ -15,6 +15,7 @@ const NAV_AGRO = [
   { id: 'dashboard',  label: 'Dashboard',         icon: 'dashboard' },
   { id: 'lotes',      label: 'Lotes activos',     icon: 'cow' },
   { id: 'bitacora',   label: 'Bitácora',          icon: 'clipboardList' },
+  { id: 'hojavida',   label: 'Hoja de Vida',      icon: 'fileText' },
   { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
   { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
