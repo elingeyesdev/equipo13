@@ -188,7 +188,7 @@ const Despiece = ({ negocioId, onNavigate }) => {
             label: 'Costo total del lote',
             value: `Bs ${fmt(costoTotalLote)}`,
             icon: 'dollarSign',
-            sub: 'Adquisición + bitácora',
+            sub: 'Adquisición + diario',
           },
           {
             label: 'Peso canal total',

@@ -71,11 +71,16 @@ const ChipSelector = ({ options, selected, onSelect, multi = false, accentColor 
 };
 
 /* ── Input ────────────────────────────────────────────────── */
-const Input = ({ label, value, onChange, type = 'text', placeholder = '', prefix, suffix, mono = false, style: xStyle = {}, onFocusColor = 'var(--accent-industrial)' }) => {
+const Input = ({ label, labelExtra, value, onChange, type = 'text', placeholder = '', prefix, suffix, mono = false, style: xStyle = {}, onFocusColor = 'var(--accent-industrial)' }) => {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {label && <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>}
+      {(label || labelExtra) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {label && <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>}
+          {labelExtra}
+        </div>
+      )}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {prefix && <span style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', fontSize: '13px', fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', pointerEvents: 'none' }}>{prefix}</span>}
         <input
@@ -103,10 +108,13 @@ const Input = ({ label, value, onChange, type = 'text', placeholder = '', prefix
 };
 
 /* ── MetricCard ───────────────────────────────────────────── */
-const MetricCard = ({ label, value, sub, icon, accentColor, mono = true }) => (
+const MetricCard = ({ label, labelExtra, value, sub, icon, accentColor, mono = true }) => (
   <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
+        {labelExtra}
+      </div>
       {icon && <span style={{ color: accentColor || 'var(--text-tertiary)', opacity: 0.7 }}>{icon}</span>}
     </div>
     <div style={{ fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', fontSize: '22px', color: accentColor || 'var(--text-primary)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</div>
@@ -220,7 +228,7 @@ const NegocioSelector = ({ negocios, selected, onSelect }) => {
 };
 
 /* ── CostTable ────────────────────────────────────────────── */
-const CostTable = ({ title, rows, columns, accentColor = 'var(--accent-industrial)', type = 'variable', loteSize = 100 }) => {
+const CostTable = ({ title, titleExtra, rows, columns, accentColor = 'var(--accent-industrial)', type = 'variable', loteSize = 100 }) => {
   const gridTpl = `1fr ${columns.slice(1).map(() => '88px').join(' ')}`;
   const totalRow = {};
   columns.forEach(col => {
@@ -237,7 +245,10 @@ const CostTable = ({ title, rows, columns, accentColor = 'var(--accent-industria
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>{title}</span>
+          {titleExtra}
+        </div>
         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{type}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: gridTpl, padding: '7px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>

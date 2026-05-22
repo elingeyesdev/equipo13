@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Icon } from '../icons.jsx';
-import { RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard } from '../components/ui.jsx';
+import { RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
 /* ── INDUSTRIAL dashboard ─────────────────────────────────── */
@@ -267,8 +267,8 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        <MetricCard label="Lotes activos"         value={loading ? '...' : lotes.length}      sub="en engorde"               icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
-        <MetricCard label="Animales en engorde"    value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
+        <MetricCard label="Lotes activos" labelExtra={<InfoTip text="Lotes con animales en curso. Un lote se cierra cuando lo liquidás desde la sección Liquidación." />} value={loading ? '...' : lotes.length} sub="en engorde" icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Animales en engorde" labelExtra={<InfoTip text="Total de animales en todos los lotes activos, descontando bajas registradas en el diario de producción." />} value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
         <MetricCard label="Costo total acumulado"  value={loading ? '...' : `Bs ${(costoTotalAcc/1000).toFixed(1)}k`} sub="todos los lotes" icon={<Icon name="dollarSign" size={16} />} mono={false} />
         <MetricCard label="Costo / cabeza promedio" value={costoPorCabezaDisplay} sub="todos los lotes activos" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
@@ -317,7 +317,10 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
         return (
           <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${accentColor}33`, borderRadius: '8px', overflow: 'hidden' }}>
             <div style={{ padding: '12px 20px', borderBottom: `1px solid ${accentColor}22`, background: accentColor + '08', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Último lote cerrado</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Último lote cerrado</span>
+                <InfoTip text="Muestra el resultado del último lote que fue liquidado. Los datos vienen del escenario que elegiste al momento de liquidar." />
+              </div>
               <Btn variant="ghost" size="sm" icon="arrowRight" onClick={() => onNavigate('lotes')}>Ver lotes</Btn>
             </div>
             <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>

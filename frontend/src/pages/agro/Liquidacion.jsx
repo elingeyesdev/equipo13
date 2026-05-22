@@ -48,7 +48,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   useEffect(() => {
     if (!negocioId || !selectedLoteUuid) return;
-    apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteUuid}/bitacora`)
+    apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteUuid}/diario`)
       .then(data => setBitacora(data || []))
       .catch(() => setBitacora([]));
   }, [negocioId, selectedLoteUuid]);
@@ -566,7 +566,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
           ) : (
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Icon name="alertTriangle" size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>Sin datos de alimentación en bitácora — el ICA se calculará cuando registres alimentos.</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>Sin datos de alimentación en el diario de producción — el ICA se calculará cuando registres alimentos.</span>
           </div>
           )}
 

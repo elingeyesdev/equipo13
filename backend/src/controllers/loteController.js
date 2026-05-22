@@ -549,10 +549,10 @@ export const getIca = async (req, res) => {
 };
 
 // ──────────────────────────────────────────────
-// BITÁCORA
+// DIARIO DE PRODUCCIÓN
 // ──────────────────────────────────────────────
 
-export const getBitacora = async (req, res) => {
+export const getDiario = async (req, res) => {
   const { loteId } = req.params;
   try {
     const { rows } = await pool.query(
@@ -568,7 +568,7 @@ export const getBitacora = async (req, res) => {
   }
 };
 
-export const createBitacoraEntry = async (req, res) => {
+export const createDiarioEntry = async (req, res) => {
   const { negocioId, loteId } = req.params;
   const { fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario } = req.body;
 
@@ -588,7 +588,7 @@ export const createBitacoraEntry = async (req, res) => {
       return res.status(404).json({ error: 'Lote no encontrado en este negocio' });
     }
 
-    // Insertar registro en bitácora
+    // Insertar registro en diario
     const { rows } = await client.query(
       `INSERT INTO bitacora_lote
          (lote_id, fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario)
@@ -631,7 +631,7 @@ export const createBitacoraEntry = async (req, res) => {
   }
 };
 
-export const updateBitacoraEntry = async (req, res) => {
+export const updateDiarioEntry = async (req, res) => {
   const { negocioId, loteId, id } = req.params;
   const { fecha, tipo, detalle, monto, cantidad_kg, es_baja, cabezas_baja, peso_baja, causa, cantidad, precio_unitario } = req.body;
 
@@ -656,7 +656,7 @@ export const updateBitacoraEntry = async (req, res) => {
     );
     if (!orig.rows.length) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Entrada de bitácora no encontrada' });
+      return res.status(404).json({ error: 'Entrada de diario no encontrada' });
     }
     const prev = orig.rows[0];
 
@@ -849,7 +849,7 @@ export async function listarConsumos(req, res) {
   }
 }
 
-export const deleteBitacoraEntry = async (req, res) => {
+export const deleteDiarioEntry = async (req, res) => {
   const { negocioId, loteId, id } = req.params;
 
   const client = await pool.connect();
@@ -871,7 +871,7 @@ export const deleteBitacoraEntry = async (req, res) => {
     );
     if (!orig.rows.length) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Entrada de bitácora no encontrada' });
+      return res.status(404).json({ error: 'Entrada de diario no encontrada' });
     }
     const prev = orig.rows[0];
 

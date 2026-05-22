@@ -110,7 +110,7 @@ const FilaConsumo = ({ c, expanded, onToggle }) => {
   );
 };
 
-const Bitacora = ({ negocioId, activeLote }) => {
+const DiarioProduccion = ({ negocioId, activeLote }) => {
   const accentColor = 'var(--accent-agro)';
 
   const [lotes, setLotes] = useState([]);
@@ -207,15 +207,15 @@ const Bitacora = ({ negocioId, activeLote }) => {
     }
   }, [consumoCantidad, consumoStockInfo]);
 
-  const fetchBitacora = async () => {
+  const fetchDiario = async () => {
     if (!negocioId || !loteRealId) return;
     setLoadingRegistros(true);
     setErrorRegistros(null);
     try {
-      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`);
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/diario`);
       setRegistros(data);
     } catch (e) {
-      setErrorRegistros(e?.error || 'Error al cargar la bitácora');
+      setErrorRegistros(e?.error || 'Error al cargar el diario de producción');
     } finally {
       setLoadingRegistros(false);
     }
@@ -238,7 +238,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
   };
 
   useEffect(() => {
-    fetchBitacora();
+    fetchDiario();
     fetchConsumos();
     if (loteRealId) fetchLote();
   }, [negocioId, loteRealId]);
@@ -352,7 +352,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
         tipoApi = tipo === 'Otras pérdidas' ? 'Otro gasto' : tipo;
       }
 
-      const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`, {
+      const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/diario`, {
         method: 'POST',
         body: JSON.stringify({
           fecha:           new Date().toISOString().split('T')[0],
@@ -405,7 +405,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
 
   // Mezclar registros y consumos en un solo historial ordenado por fecha desc
   const historial = [
-    ...registros.map(r => ({ ...r, _kind: 'bitacora', _sortDate: r.fecha || r.created_at })),
+    ...registros.map(r => ({ ...r, _kind: 'diario', _sortDate: r.fecha || r.created_at })),
     ...consumos.map(c => ({ ...c, _kind: 'consumo',   _sortDate: c.fecha_consumo || c.created_at })),
   ].sort((a, b) => {
     const da = new Date(b._sortDate || 0) - new Date(a._sortDate || 0);
@@ -416,9 +416,9 @@ const Bitacora = ({ negocioId, activeLote }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <InfoBanner
-        storageKey="banner_bitacora_v1"
-        title="Bitácora del lote"
-        text="La bitácora es el diario del lote. Cada gasto que registrés acá aumenta el costo total y se refleja en el despiece y la liquidación. Los registros de 'Alimento / Balanceado' son especiales: el campo Cantidad en kg se usa para calcular el ICa."
+        storageKey="banner_diario_v1"
+        title="Diario de producción"
+        text="El diario de producción es el registro diario del lote. Cada gasto que registrés acá aumenta el costo total y se refleja en el despiece y la liquidación. Los registros de 'Alimento / Balanceado' son especiales: el campo Cantidad en kg se usa para calcular el ICa."
         accentColor="var(--accent-agro)"
       />
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -642,7 +642,7 @@ const Bitacora = ({ negocioId, activeLote }) => {
         {/* ── Panel de historial ── */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Bitácora del lote</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Diario de producción</span>
           </div>
 
           {loadingRegistros && (
@@ -677,14 +677,14 @@ const Bitacora = ({ negocioId, activeLote }) => {
                   );
                 }
 
-                // Fila de bitácora normal
+                // Fila de diario normal
                 const r = item;
                 const cfg = TIPO_ICON[r.tipo] || { icon: 'dollarSign', color: 'var(--text-tertiary)' };
                 const fechaStr = r.fecha
                   ? new Date(r.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
                   : '—';
                 return (
-                  <div key={`bitacora-${r.id}`}
+                  <div key={`diario-${r.id}`}
                     style={{ display: 'grid', gridTemplateColumns: '85px 110px 1fr 60px 80px 85px 28px', padding: '11px 16px', borderBottom: !isLast ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{fechaStr}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -716,4 +716,4 @@ const Bitacora = ({ negocioId, activeLote }) => {
   );
 };
 
-export default Bitacora;
+export default DiarioProduccion;

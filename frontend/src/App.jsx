@@ -15,7 +15,7 @@ import Unidades from './pages/Unidades.jsx';
 import Categorias from './pages/Categorias.jsx';
 import Configuracion from './pages/Configuracion.jsx';
 import Lotes from './pages/agro/Lotes.jsx';
-import Bitacora from './pages/agro/Bitacora.jsx';
+import DiarioProduccion from './pages/agro/Bitacora.jsx';
 import HojaVida from './pages/agro/HojaVida.jsx';
 import Liquidacion from './pages/agro/Liquidacion.jsx';
 import Despiece from './pages/agro/Despiece.jsx';
@@ -43,7 +43,7 @@ const GastosCIFPlaceholder = ({ rubro }) => {
         </div>
         <div style={{ padding: '10px 16px', background: accentColor + '10', border: `1px solid ${accentColor}22`, borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
           {isAgro
-            ? 'Por ahora podés registrar estos gastos manualmente en la bitácora de cada lote usando "Otro gasto".'
+            ? 'Por ahora podés registrar estos gastos manualmente en el diario de producción de cada lote usando "Otro gasto".'
             : 'Por ahora, en la ficha de costo podés usar el método simplificado de % sobre MPD+MOD.'}
         </div>
       </div>
@@ -149,7 +149,7 @@ const App = () => {
       case 'categorias':  return <Categorias negocioId={negocioId} />;
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
-      case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
+      case 'diario':      return <DiarioProduccion negocioId={negocioId} activeLote={activeLote} />;
       case 'hojavida':    return <HojaVida negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveFecha={setActiveFecha} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;

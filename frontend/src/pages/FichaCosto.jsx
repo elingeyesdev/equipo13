@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RubroBadge, MoneyDisplay, Btn, CostTable } from '../components/ui.jsx';
+import { RubroBadge, MoneyDisplay, Btn, CostTable, InfoTip, InfoBanner } from '../components/ui.jsx';
 import { Icon } from '../icons.jsx';
 import { apiFetch } from '../config/api.js';
 
@@ -19,12 +19,15 @@ const MOD_COLS = [
   { key: 'total_lote', label: '/lote',     mono: true,  prefix: 'Bs ', sumable: true  },
 ];
 
-const NumControl = ({ label, rawValue, onRawChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
+const NumControl = ({ label, labelExtra, rawValue, onRawChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
   const num = parseFloat(rawValue) || 0;
   const sliderVal = Math.min(max, Math.max(min, num));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
-      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+        {labelExtra}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{prefix}</span>}
@@ -106,6 +109,12 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <InfoBanner
+        storageKey="banner_fichacosto_v1"
+        title="Ficha de Costo"
+        text="La ficha de costo calcula el costo unitario de producir 1 unidad del producto. Los cortes del lote aparecen con su precio real derivado del costeo del lote."
+        accentColor={accentColor}
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '5px' }}>
@@ -132,7 +141,11 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
             {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.codigo_sku ? `(${p.codigo_sku})` : ''}</option>)}
           </select>
         </div>
-        <NumControl label="Tamaño del lote" rawValue={loteRaw} onRawChange={setLoteRaw} min={1} max={10000} suffix="uds" accentColor={accentColor} />
+        <NumControl
+          label="Tamaño del lote"
+          labelExtra={<InfoTip text="Cantidad de unidades a producir en una corrida. Los costos fijos (MOD) se dividen entre este número para obtener el costo unitario." />}
+          rawValue={loteRaw} onRawChange={setLoteRaw} min={1} max={10000} suffix="uds" accentColor={accentColor}
+        />
         <Btn icon="calculator" accentColor={accentColor} onClick={handleCalc} disabled={calculating || !selectedProductoId}>
           {calculating ? 'Calculando...' : 'Calcular'}
         </Btn>
@@ -158,10 +171,18 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
         </div>
 
         {/* MPD Table */}
-        <CostTable title="MPD — Materia Prima Directa" rows={mpdRows} columns={MPD_COLS} accentColor={accentColor} type="variable" loteSize={lote} />
+        <CostTable
+          title="MPD — Materia Prima Directa"
+          titleExtra={<InfoTip text="Materiales Primos Directos: todo lo que entra físicamente al producto (carnes, condimentos, empaque)." />}
+          rows={mpdRows} columns={MPD_COLS} accentColor={accentColor} type="variable" loteSize={lote}
+        />
 
         {/* MOD Table */}
-        <CostTable title="MOD — Mano de Obra Directa" rows={modRows} columns={MOD_COLS} accentColor={accentColor} type="variable" loteSize={lote} />
+        <CostTable
+          title="MOD — Mano de Obra Directa"
+          titleExtra={<InfoTip text="Mano de Obra Directa: tiempo productivo por etapa × costo por hora." />}
+          rows={modRows} columns={MOD_COLS} accentColor={accentColor} type="variable" loteSize={lote}
+        />
 
       </>}
 

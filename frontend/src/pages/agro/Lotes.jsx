@@ -69,9 +69,12 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
   const totalPeso = cabezas * pesoUnit;
   const costoTotal = cabezas * costoUnit;
 
-  const iField = (label, key, type = 'text', placeholder = '') => (
+  const iField = (label, key, type = 'text', placeholder = '', tip = null) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-      <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+        {tip && <InfoTip text={tip} />}
+      </div>
       <input value={form[key]} onChange={e => set(key, e.target.value)}
         type={type} placeholder={placeholder} step={type === 'number' ? 'any' : undefined}
         style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 11px', fontSize: '14px', outline: 'none', fontFamily: type === 'number' ? 'IBM Plex Mono, monospace' : 'IBM Plex Sans, sans-serif' }}
@@ -133,7 +136,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {iField('Cantidad (cabezas)', 'cabezas_inicio', 'number')}
               {iField('Peso promedio (kg/cab)', 'peso_inicial_prom', 'number')}
-              {iField('Costo unitario (Bs/cab)', 'costo_unitario', 'number')}
+              {iField('Costo unitario (Bs/cab)', 'costo_unitario', 'number', '', 'Precio de compra por animal. El sistema multiplica por la cantidad de cabezas para obtener el costo total de adquisición del lote.')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'flex-end' }}>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '8px 11px' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '3px' }}>Total adquisición</div>
@@ -243,7 +246,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
           { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab`,
             tip: 'Peso promedio por cabeza al entrar al lote. Se usa para calcular la ganancia total de peso al cierre del ciclo.' },
           { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab`,
-            tip: 'Peso promedio estimado a hoy. Actualizá con un pesaje real en la bitácora para mayor precisión.' },
+            tip: 'Peso promedio estimado a hoy. Actualizá con un pesaje real en el diario de producción para mayor precisión.' },
         ].map((s, i) => (
           <div key={i} style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
@@ -279,7 +282,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
             </>
           ) : (
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-              Sin datos de alimentación — registrá kg consumidos en bitácora
+              Sin datos de alimentación — registrá kg consumidos en el diario de producción
             </span>
           )}
         </div>
@@ -330,7 +333,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
-        <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver bitácora</Btn>
+        <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver diario</Btn>
         <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>
         <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>
       </div>
@@ -392,10 +395,9 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
 
-  const handleBitacora = lote => {
-    // Pasamos el lote con su _id real de la DB para que Bitácora pueda hacer fetch
+  const handleDiario = lote => {
     setActiveLote(lote);
-    onNavigate('bitacora');
+    onNavigate('diario');
   };
   const handleLiquidar = lote => { setActiveLote(lote); onNavigate('liquidacion'); };
 
@@ -404,7 +406,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
       <InfoBanner
         storageKey="banner_lotes_v1"
         title="Lotes de engorde"
-        text="Cada lote representa un ciclo de producción animal. Registrá el lote primero y después usá la Bitácora para ir sumando gastos día a día. Al cerrar el ciclo, la Liquidación te muestra cuánto ganás según el escenario de venta."
+        text="Cada lote representa un ciclo de producción animal. Registrá el lote primero y después usá el Diario de producción para ir sumando gastos día a día. Al cerrar el ciclo, la Liquidación te muestra cuánto ganás según el escenario de venta."
         accentColor="var(--accent-agro)"
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -434,7 +436,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {lotes.map(l => (
-          <LoteCard key={l._id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} accentColor={accentColor} />
+          <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} />
         ))}
       </div>
 

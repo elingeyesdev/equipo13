@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { StatusBadge, Btn } from '../components/ui.jsx';
+import { StatusBadge, Btn, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
-const Field = ({ label, children }) => (
+const Field = ({ label, labelExtra, children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-    <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+      {labelExtra}
+    </div>
     {children}
   </div>
 );
@@ -96,7 +99,7 @@ const InsumoDrawer = ({
               {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </Field>
-          <Field label="Categoría">
+          <Field label="Categoría" labelExtra={<InfoTip text="La categoría 'Alimento / Balanceado' tiene comportamiento especial: el sistema la usa para identificar registros del diario que afectan el ICa." />}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {categorias.map(cat => (
                 <button key={cat.id} onClick={() => set('categoria_id', cat.id)} style={{
@@ -109,7 +112,7 @@ const InsumoDrawer = ({
               ))}
             </div>
           </Field>
-          <Field label="Tipo de costo">
+          <Field label="Tipo de costo" labelExtra={<InfoTip text="Marcá si el precio de este insumo cambia frecuentemente. Los insumos variables se destacan en la ficha de costo para que sepas cuáles revisar antes de cotizar." />}>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[{ v: true, l: 'Variable' }, { v: false, l: 'Fijo' }].map(t => (
                 <button key={t.l} onClick={() => set('es_variable', t.v)} style={{

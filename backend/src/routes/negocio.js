@@ -64,10 +64,10 @@ import {
   getCostosDetalle,
   getEscenarios,
   getIca,
-  getBitacora,
-  createBitacoraEntry,
-  updateBitacoraEntry,
-  deleteBitacoraEntry,
+  getDiario,
+  createDiarioEntry,
+  updateDiarioEntry,
+  deleteDiarioEntry,
   consumirInsumo,
   listarConsumos,
 } from '../controllers/loteController.js';
@@ -173,11 +173,11 @@ router.post('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, crea
 router.post('/:negocioId/lotes/:id/despiece/generar-insumos', authMiddleware, negocioOwner, generarInsumos);
 router.delete('/:negocioId/lotes/:id/despiece/:corteId', authMiddleware, negocioOwner, deleteCorte);
 
-// Bitácora — L-3
-router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);
-router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
-router.put('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, updateBitacoraEntry);
-router.delete('/:negocioId/lotes/:loteId/bitacora/:id', authMiddleware, negocioOwner, deleteBitacoraEntry);
+// Diario de producción — L-3
+router.get('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, getDiario);
+router.post('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, createDiarioEntry);
+router.put('/:negocioId/lotes/:loteId/diario/:id', authMiddleware, negocioOwner, updateDiarioEntry);
+router.delete('/:negocioId/lotes/:loteId/diario/:id', authMiddleware, negocioOwner, deleteDiarioEntry);
 
 // Consumo de insumos FIFO — T5
 router.post('/:negocioId/lotes/:loteId/consumir', authMiddleware, negocioOwner, consumirInsumo);

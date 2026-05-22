@@ -60,7 +60,7 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
         <Icon name="clipboardList" size={36} style={{ color: 'var(--text-tertiary)' }} />
         <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Seleccioná un lote</div>
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Ingresá a <strong>Lotes activos</strong>, abrí un lote desde la bitácora y luego volvé aquí.
+          Ingresá a <strong>Lotes activos</strong>, abrí un lote desde el diario de producción y luego volvé aquí.
         </div>
         <Btn variant="secondary" icon="chevronLeft" onClick={() => onNavigate?.('lotes')}>Ir a Lotes</Btn>
       </div>
