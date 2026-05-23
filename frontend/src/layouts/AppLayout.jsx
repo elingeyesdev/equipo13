@@ -20,7 +20,6 @@ const NAV_AGRO = [
     subItems: [
       { id: 'lotes',      label: 'Ver lotes',         icon: 'menu' },
       { id: 'diario',     label: 'Diario de producción', icon: 'clipboardList' },
-      { id: 'hojavida',   label: 'Hoja de Vida',      icon: 'fileText' },
       { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
       { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
     ]
@@ -28,6 +27,7 @@ const NAV_AGRO = [
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
   { id: 'compras',    label: 'Compras',           icon: 'shoppingCart' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
+  { id: 'servicios',  label: 'Servicios',         icon: 'wrench' },
 ];
 const NAV_BOTTOM = [
   { id: 'config',     label: 'Configuración',     icon: 'settings' },

@@ -29,11 +29,13 @@ async function loadLote(negocioId, loteId) {
 async function loadItemsConDetalle(registroId) {
   const { rows } = await pool.query(
     `SELECT rdi.*,
-            i.nombre AS insumo_nombre,
-            um.simbolo AS unidad_simbolo
+            i.nombre   AS insumo_nombre,
+            um.simbolo AS unidad_simbolo,
+            cs.nombre  AS catalogo_servicio_nombre
      FROM registro_diario_item rdi
-     LEFT JOIN insumos i ON i.id = rdi.insumo_id
-     LEFT JOIN unidades_medida um ON um.id = rdi.unidad_id
+     LEFT JOIN insumos i             ON i.id  = rdi.insumo_id
+     LEFT JOIN unidades_medida um    ON um.id = rdi.unidad_id
+     LEFT JOIN catalogo_servicios cs ON cs.id = rdi.servicio_id
      WHERE rdi.registro_diario_id = $1
      ORDER BY rdi.created_at`,
     [registroId]
@@ -291,32 +293,29 @@ export async function guardarRegistroDia(req, res) {
         `INSERT INTO registro_diario_item
            (registro_diario_id, tipo,
             insumo_id, cantidad, unidad_id,
-            servicio_nombre, costo_servicio)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            servicio_id, servicio_nombre, costo_servicio, realizado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           registroId,
           item.tipo,
-          item.tipo === 'insumo' ? (item.insumo_id || null) : null,
-          item.tipo === 'insumo' ? (item.cantidad || null) : null,
-          item.tipo === 'insumo' ? (item.unidad_id || null) : null,
+          item.tipo === 'insumo' ? (item.insumo_id  || null) : null,
+          item.tipo === 'insumo' ? (item.cantidad   || null) : null,
+          item.tipo === 'insumo' ? (item.unidad_id  || null) : null,
+          item.tipo === 'servicio' ? (item.servicio_id    || null) : null,
           item.tipo === 'servicio' ? (item.servicio_nombre || null) : null,
-          item.tipo === 'servicio' ? (item.costo_servicio || null) : null,
+          item.tipo === 'servicio' ? (item.costo_servicio  || null) : null,
+          item.tipo === 'servicio' ? (item.realizado_por   || null) : null,
         ]
       );
     }
 
-    // Devolver registro guardado con items
-    const { rows: regRows } = await client.query(
+    await client.query('COMMIT');
+    const { rows: regRows } = await pool.query(
       'SELECT * FROM registro_diario_lote WHERE id = $1',
       [registroId]
     );
-    const itemsRows = await client.query(
-      'SELECT * FROM registro_diario_item WHERE registro_diario_id = $1 ORDER BY created_at',
-      [registroId]
-    );
-
-    await client.query('COMMIT');
-    res.json({ ...regRows[0], items: itemsRows.rows });
+    const savedItems = await loadItemsConDetalle(registroId);
+    res.json({ ...regRows[0], items: savedItems });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('guardarRegistroDia error:', err);

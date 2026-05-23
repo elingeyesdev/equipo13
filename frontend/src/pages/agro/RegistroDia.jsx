@@ -60,8 +60,11 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
   const [addMode,      setAddMode]      = useState('none');
   const [newInsumoId,  setNewInsumoId]  = useState('');
   const [newCantidad,  setNewCantidad]  = useState('');
-  const [newServNom,   setNewServNom]   = useState('');
-  const [newServCosto, setNewServCosto] = useState('');
+  const [newServId,          setNewServId]          = useState('');
+  const [newServNom,         setNewServNom]         = useState('');
+  const [newServCosto,       setNewServCosto]       = useState('');
+  const [newServRealizadoPor,setNewServRealizadoPor]= useState('');
+  const [catalogo,           setCatalogo]           = useState([]);
   const [stockInfo,    setStockInfo]    = useState(null);
   const [loadingStock, setLoadingStock] = useState(false);
 
@@ -76,10 +79,12 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
     Promise.all([
       apiFetch(`/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida/${fecha}`),
       apiFetch(`/api/negocios/${negocioId}/insumos`),
+      apiFetch(`/api/negocios/${negocioId}/servicios`),
     ])
-      .then(([detalle, insList]) => {
+      .then(([detalle, insList, serviciosList]) => {
         setData(detalle);
         setInsumos(insList || []);
+        setCatalogo(serviciosList || []);
         if (detalle.registro) {
           setItems((detalle.registro.items || []).map(it => ({
             tipo:            it.tipo,
@@ -89,8 +94,10 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
             unidad_id:       it.unidad_id || null,
             unidad_simbolo:  it.unidad_simbolo || '',
             costo_real:      it.costo_real != null ? parseFloat(it.costo_real) : null,
+            servicio_id:     it.servicio_id || null,
             servicio_nombre: it.servicio_nombre || '',
             costo_servicio:  it.costo_servicio != null ? String(it.costo_servicio) : '',
+            realizado_por:   it.realizado_por || '',
           })));
           setNotas(detalle.registro.notas_del_dia || '');
         }
@@ -122,12 +129,19 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
   };
 
   const addServicio = () => {
-    if (!newServNom) return;
+    const servicioCatalogo = catalogo.find(s => s.id === newServId);
+    const nombre = newServId && newServId !== '__otro__'
+      ? (servicioCatalogo?.nombre || '')
+      : newServNom;
+    if (!nombre) return;
     setItems(prev => [...prev, {
-      tipo: 'servicio', servicio_nombre: newServNom,
-      costo_servicio: newServCosto,
+      tipo: 'servicio',
+      servicio_id:     (newServId && newServId !== '__otro__') ? newServId : null,
+      servicio_nombre: nombre,
+      costo_servicio:  newServCosto,
+      realizado_por:   newServRealizadoPor,
     }]);
-    setNewServNom(''); setNewServCosto(''); setAddMode('none');
+    setNewServId(''); setNewServNom(''); setNewServCosto(''); setNewServRealizadoPor(''); setAddMode('none');
   };
 
   const removeItem = idx => setItems(prev => prev.filter((_, i) => i !== idx));
@@ -143,12 +157,14 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
             notas_del_dia: notas || null,
             items: items.map(it => ({
               tipo:            it.tipo,
-              insumo_id:       it.tipo === 'insumo'    ? it.insumo_id       : undefined,
-              cantidad:        it.tipo === 'insumo'    ? parseFloat(it.cantidad) : undefined,
-              unidad_id:       it.tipo === 'insumo'    ? it.unidad_id       : undefined,
-              servicio_nombre: it.tipo === 'servicio'  ? it.servicio_nombre : undefined,
+              insumo_id:       it.tipo === 'insumo'   ? it.insumo_id        : undefined,
+              cantidad:        it.tipo === 'insumo'   ? parseFloat(it.cantidad) : undefined,
+              unidad_id:       it.tipo === 'insumo'   ? it.unidad_id        : undefined,
+              servicio_id:     it.tipo === 'servicio' ? (it.servicio_id    || undefined) : undefined,
+              servicio_nombre: it.tipo === 'servicio' ? it.servicio_nombre  : undefined,
               costo_servicio:  it.tipo === 'servicio' && it.costo_servicio
                 ? parseFloat(it.costo_servicio) : undefined,
+              realizado_por:   it.tipo === 'servicio' ? (it.realizado_por  || undefined) : undefined,
             })),
           }),
         }
@@ -179,8 +195,10 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
         unidad_id:       it.unidad_id || null,
         unidad_simbolo:  it.unidad_simbolo || '',
         costo_real:      it.costo_real != null ? parseFloat(it.costo_real) : null,
+        servicio_id:     it.servicio_id || null,
         servicio_nombre: it.servicio_nombre || '',
         costo_servicio:  it.costo_servicio != null ? String(it.costo_servicio) : '',
+        realizado_por:   it.realizado_por || '',
       })));
       setShowConfirm(false);
     } catch (e) {
@@ -410,11 +428,18 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
                             <div style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {it.servicio_nombre}
                             </div>
-                            {it.costo_servicio && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
-                                <MoneyDisplay value={parseFloat(it.costo_servicio)} size="xs" />
-                              </div>
-                            )}
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '1px' }}>
+                              {it.costo_servicio && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
+                                  <MoneyDisplay value={parseFloat(it.costo_servicio)} size="xs" />
+                                </div>
+                              )}
+                              {it.realizado_por && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                  {it.realizado_por}
+                                </div>
+                              )}
+                            </div>
                           </>
                         )}
                       </div>
@@ -528,23 +553,41 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
                     <div style={{ padding: '14px', background: 'var(--bg-primary)', border: '1px solid var(--accent-industrial)44', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--accent-industrial)' }}>Agregar servicio</div>
 
+                      {/* Selector de catálogo */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Descripción</label>
-                        <input
-                          type="text"
-                          value={newServNom}
-                          onChange={e => setNewServNom(e.target.value)}
-                          placeholder="Ej: Revisión veterinaria, limpieza general…"
-                          style={{ padding: '8px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }}
-                        />
+                        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Servicio</label>
+                        <select
+                          value={newServId}
+                          onChange={e => { setNewServId(e.target.value); setNewServNom(''); }}
+                          style={{ padding: '8px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">— Seleccioná del catálogo —</option>
+                          {catalogo.map(s => (
+                            <option key={s.id} value={s.id}>{s.nombre} ({s.unidad})</option>
+                          ))}
+                          <option value="__otro__">Otro / escribir nombre…</option>
+                        </select>
                       </div>
 
+                      {/* Nombre libre si eligió "Otro" */}
+                      {newServId === '__otro__' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Descripción del servicio</label>
+                          <input
+                            type="text"
+                            value={newServNom}
+                            onChange={e => setNewServNom(e.target.value)}
+                            placeholder="Ej: Limpieza de bebederos…"
+                            style={{ padding: '8px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Costo */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Costo (opcional)</label>
+                        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Costo (Bs, opcional)</label>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="number" min="0" step="0.01"
                           value={newServCosto}
                           onChange={e => setNewServCosto(e.target.value)}
                           placeholder="0.00"
@@ -552,9 +595,23 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
                         />
                       </div>
 
+                      {/* Realizado por */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Realizado por (opcional)</label>
+                        <input
+                          type="text"
+                          value={newServRealizadoPor}
+                          onChange={e => setNewServRealizadoPor(e.target.value)}
+                          placeholder="Nombre del técnico o empresa…"
+                          style={{ padding: '8px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }}
+                        />
+                      </div>
+
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <Btn variant="ghost" onClick={() => { setAddMode('none'); setNewServNom(''); setNewServCosto(''); }}>Cancelar</Btn>
-                        <Btn variant="primary" onClick={addServicio} disabled={!newServNom} icon="plus">Agregar</Btn>
+                        <Btn variant="ghost" onClick={() => { setAddMode('none'); setNewServId(''); setNewServNom(''); setNewServCosto(''); setNewServRealizadoPor(''); }}>Cancelar</Btn>
+                        <Btn variant="primary" onClick={addServicio}
+                          disabled={!newServId || (newServId === '__otro__' && !newServNom)}
+                          icon="plus">Agregar</Btn>
                       </div>
                     </div>
                   )}

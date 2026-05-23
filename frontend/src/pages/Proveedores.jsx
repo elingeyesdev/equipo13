@@ -63,9 +63,14 @@ const ProveedorDrawer = ({ proveedor, onClose, onSave, accentColor }) => {
   );
 };
 
-const Proveedores = ({ negocioId }) => {
+const Proveedores = ({ negocioId, onNavigate, setActiveProveedor }) => {
   const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
   const accentColor = negocio.rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
+
+  const handleVerDetalle = (proveedor) => {
+    setActiveProveedor?.(proveedor);
+    onNavigate?.('detalleproveedor');
+  };
   const [proveedores, setProveedores] = useState([]);
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [drawer, setDrawer] = useState(null);
@@ -138,7 +143,7 @@ const Proveedores = ({ negocioId }) => {
       )}
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 130px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
           {['Proveedor', 'Contacto', 'Insumos', 'Estado', ''].map((h, i) => (
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em' }}>{h}</div>
           ))}
@@ -151,7 +156,7 @@ const Proveedores = ({ negocioId }) => {
 
         {!loading && visibles.map((pv, i) => (
           <div key={pv.id}
-            style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 80px', padding: '13px 20px', borderBottom: i < visibles.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: pv.activo ? 1 : 0.5 }}
+            style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 130px', padding: '13px 20px', borderBottom: i < visibles.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: pv.activo ? 1 : 0.5 }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
@@ -171,7 +176,14 @@ const Proveedores = ({ negocioId }) => {
               </span>
             </div>
             <div><StatusBadge label={pv.activo ? 'Activo' : 'Archivado'} color={pv.activo ? 'var(--accent-success)' : 'var(--text-tertiary)'} /></div>
-            <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                onClick={() => handleVerDetalle(pv)}
+                title="Ver detalle y compras"
+                style={{ background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '5px', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontFamily: 'var(--font-sans)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+              ><Icon name="eye" size={13} /> Ver</button>
               <button onClick={() => setDrawer(pv)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}

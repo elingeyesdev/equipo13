@@ -19,7 +19,15 @@ import {
   updateProveedor,
   archivarProveedor,
   deleteProveedor,
+  getComprasByProveedor,
 } from '../controllers/proveedorController.js';
+import {
+  getServicios,
+  createServicio,
+  updateServicio,
+  archivarServicio,
+  seedServiciosCerdos,
+} from '../controllers/servicioController.js';
 import {
   getInsumos,
   getInsumoById,
@@ -112,6 +120,14 @@ router.post('/:negocioId/proveedores', authMiddleware, negocioOwner, createProve
 router.put('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, updateProveedor);
 router.patch('/:negocioId/proveedores/:id/archivar', authMiddleware, negocioOwner, archivarProveedor);
 router.delete('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, deleteProveedor);
+router.get('/:negocioId/proveedores/:id/compras', authMiddleware, negocioOwner, getComprasByProveedor);
+
+// Catálogo de servicios
+router.get('/:negocioId/servicios', authMiddleware, negocioOwner, getServicios);
+router.post('/:negocioId/servicios', authMiddleware, negocioOwner, createServicio);
+router.post('/:negocioId/servicios/seed-cerdos', authMiddleware, negocioOwner, seedServiciosCerdos);
+router.put('/:negocioId/servicios/:id', authMiddleware, negocioOwner, updateServicio);
+router.patch('/:negocioId/servicios/:id/archivar', authMiddleware, negocioOwner, archivarServicio);
 
 // Compras de insumos (inventario FIFO)
 router.get('/:negocioId/compras', authMiddleware, negocioOwner, listarCompras);

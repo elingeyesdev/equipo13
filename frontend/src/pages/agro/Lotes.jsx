@@ -29,6 +29,7 @@ const fetchCostosDetalle = async (negocioId, loteUuid) => {
   try {
     const d = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/costos-detalle`);
     return {
+      adquisicion: Number(d.adquisicion) || 0,
       alimento: Number(d.alimento) || 0,
       sanidad: Number(d.sanidad) || 0,
       mano_obra: Number(d.mano_obra) || 0,
@@ -175,7 +176,7 @@ const mapLoteFromApi = (l, costosDetalle, icaData) => ({
   pesoInicialProm: parseFloat(l.peso_inicial_prom) || 0,
   pesoActualProm: parseFloat(l.peso_actual_prom) || 0,
   costos: {
-    adquisicion: parseFloat(l.costo_adquisicion) || 0,
+    adquisicion: costosDetalle?.adquisicion ?? parseFloat(l.costo_adquisicion) ?? 0,
     alimento: costosDetalle?.alimento ?? null,
     sanidad: costosDetalle?.sanidad ?? null,
     moObra: costosDetalle?.mano_obra ?? null,
@@ -188,7 +189,7 @@ const mapLoteFromApi = (l, costosDetalle, icaData) => ({
 const ICA_COLOR = { verde: 'var(--accent-success)', ambar: 'var(--accent-warning)', rojo: 'var(--accent-danger)' };
 const ICA_LABEL = { verde: 'Eficiente', ambar: 'Aceptable', rojo: 'Revisar' };
 
-const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
+const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
   const [desgloseOpen, setDesgloseOpen] = useState(false);
   const totalCosto = lote.costosTotal != null
     ? lote.costosTotal
@@ -220,12 +221,17 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   };
 
   return (
-    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px', opacity: isCerrado ? 0.65 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
             <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Lote #{lote.id}</span>
             <StatusBadge label={lote.tipo} color={accentColor} />
+            {isCerrado && (
+              <span style={{ padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, background: 'var(--accent-danger)22', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)55', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Faenado
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{lote.dias} días en engorde · Entrada: {lote.entrada}</div>
         </div>
@@ -334,8 +340,8 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
 
       <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
         <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver diario</Btn>
-        <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>
-        <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>
+        {!isCerrado && <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>}
+        {!isCerrado && <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>}
       </div>
     </div>
   );
@@ -347,6 +353,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showFaenados, setShowFaenados] = useState(false);
 
   const fetchLotes = async () => {
     if (!negocioId) return;
@@ -393,7 +400,9 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
     setLotes(prev => [mapLoteFromApi(nuevo, detalle, ica), ...prev]);
   };
 
-  const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
+  const lotesActivos = lotes.filter(l => l.activo !== false);
+  const lotesFaenados = lotes.filter(l => l.activo === false);
+  const totalAnimales = lotesActivos.reduce((s, l) => s + l.cabezasActivas, 0);
 
   const handleDiario = lote => {
     setActiveLote(lote);
@@ -413,7 +422,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
             <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Lotes de engorde</h1>
-            <span style={{ background: 'var(--accent-agro)1A', color: 'var(--accent-agro)', border: '1px solid var(--accent-agro)33', borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}>{lotes.length} activos</span>
+            <span style={{ background: 'var(--accent-agro)1A', color: 'var(--accent-agro)', border: '1px solid var(--accent-agro)33', borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}>{lotesActivos.length} activos</span>
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{totalAnimales} animales en total</div>
         </div>
@@ -428,17 +437,42 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
           {error}
         </div>
       )}
-      {!loading && !error && lotes.length === 0 && (
+      {!loading && !error && lotesActivos.length === 0 && lotesFaenados.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)', fontSize: '14px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
           No hay lotes registrados. ¡Registrá el primero!
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {lotes.map(l => (
+        {lotesActivos.map(l => (
           <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} />
         ))}
       </div>
+
+      {lotesFaenados.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setShowFaenados(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'transparent', border: 'none', borderTop: '1px solid var(--border-subtle)',
+              paddingTop: '16px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-tertiary)',
+              fontFamily: 'var(--font-sans)', textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'inline-block', fontSize: '10px', lineHeight: 1, transform: showFaenados ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>▶</span>
+            {showFaenados ? 'Ocultar' : 'Mostrar'} {lotesFaenados.length} lote{lotesFaenados.length !== 1 ? 's' : ''} faenado{lotesFaenados.length !== 1 ? 's' : ''}
+          </button>
+          {showFaenados && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {lotesFaenados.map(l => (
+                <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} isCerrado />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={handleSaveLote} accentColor={accentColor} />}
     </div>

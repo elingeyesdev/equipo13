@@ -21,6 +21,8 @@ import Liquidacion from './pages/agro/Liquidacion.jsx';
 import Despiece from './pages/agro/Despiece.jsx';
 import RegistroDia from './pages/agro/RegistroDia.jsx';
 import Compras from './pages/Compras.jsx';
+import DetalleProveedor from './pages/DetalleProveedor.jsx';
+import CatalogoServicios from './pages/agro/CatalogoServicios.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -58,6 +60,7 @@ const App = () => {
   const [page, setPage] = useState('dashboard');
   const [negocioId, setNegocioId] = useState(null);
   const [activeLote, setActiveLote] = useState(null);
+  const [activeProveedor, setActiveProveedor] = useState(null);
   const [activeFecha, setActiveFecha] = useState(null);
   const [activeProductoId, setActiveProductoId] = useState(null);
 
@@ -142,19 +145,21 @@ const App = () => {
       case 'fichas':      return <FichaCosto negocio={negocio} productoId={activeProductoId} onNavigate={navigate} />;
       case 'productos':   return <Productos negocio={negocio} onNavigate={navigate} />;
       case 'insumos':     return <Insumos negocioId={negocioId} />;
-      case 'proveedores': return <Proveedores negocioId={negocioId} />;
+      case 'proveedores':       return <Proveedores negocioId={negocioId} onNavigate={navigate} setActiveProveedor={setActiveProveedor} />;
+      case 'detalleproveedor':  return <DetalleProveedor negocioId={negocioId} activeProveedor={activeProveedor} onNavigate={navigate} />;
       case 'historial':   return <Historial negocio={negocio} onNavigate={navigate} />;
       case 'gastos':      return <GastosCIFPlaceholder rubro={negocio?.rubro || 'industrial'} />;
       case 'unidades':    return <Unidades negocioId={negocioId} />;
       case 'categorias':  return <Categorias negocioId={negocioId} />;
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
-      case 'diario':      return <DiarioProduccion negocioId={negocioId} activeLote={activeLote} />;
+      case 'diario':      return <DiarioProduccion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'hojavida':    return <HojaVida negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveFecha={setActiveFecha} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;
       case 'registrodia': return <RegistroDia negocioId={negocioId} activeLote={activeLote} fecha={activeFecha} onNavigate={navigate} />;
       case 'compras':     return <Compras negocioId={negocioId} />;
+      case 'servicios':   return <CatalogoServicios negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>

@@ -17,16 +17,220 @@ const NavBtn = ({ onClick, children }) => (
   </button>
 );
 
+// Intensidad del color según estado del día
+const getDiaColors = (dia, esHoy, accentColor) => {
+  if (esHoy && dia?.confirmado) return { bg: accentColor,                  border: accentColor,              num: '#fff' };
+  if (esHoy)                    return { bg: 'var(--accent-industrial)18', border: 'var(--accent-industrial)', num: 'var(--accent-industrial)' };
+  if (dia?.confirmado)          return { bg: accentColor + 'CC',           border: accentColor,              num: '#fff' };
+  if (dia?.tiene_registro)      return { bg: 'var(--accent-warning)28',    border: 'var(--accent-warning)99', num: 'var(--accent-warning)' };
+  return                               { bg: 'var(--bg-secondary)',         border: 'var(--border-subtle)',   num: 'var(--text-secondary)' };
+};
+
+// ── Vista Calendario ─────────────────────────────────────────────────────────
+const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
+  const diasMap = {};
+  dias.forEach(d => { diasMap[d.dia_del_mes] = d; });
+
+  const daysInMonth = new Date(anio, mes, 0).getDate();
+  const firstDayJS  = new Date(anio, mes - 1, 1).getDay();
+  const startOffset = firstDayJS === 0 ? 6 : firstDayJS - 1;
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+      {/* Encabezado días */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '4px' }}>
+        {['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', padding: '3px 0', letterSpacing: '0.07em' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Grilla de días */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+        {cells.map((dayNum, i) => {
+          if (!dayNum) return <div key={`e-${i}`} style={{ aspectRatio: '1' }} />;
+
+          const dia       = diasMap[dayNum];
+          const esHoy     = dia?.fecha === hoy;
+          const hayFuturo = dia?.fecha > hoy;
+          const colors    = getDiaColors(dia, esHoy, accentColor);
+          const sanidad   = dia?.estandar_resumido?.sanitario_hoy ?? [];
+          const tooltip   = dia
+            ? `${dia.fecha} · ${dia.confirmado ? 'Confirmado' : dia.tiene_registro ? 'Borrador' : 'Sin registro'}${sanidad.length ? ` · Sanidad (${sanidad.length})` : ''}`
+            : '';
+
+          return (
+            <button
+              key={dayNum}
+              onClick={() => dia && onAbrirDia(dia.fecha)}
+              title={tooltip}
+              disabled={!dia}
+              style={{
+                aspectRatio: '1',
+                borderRadius: '7px',
+                border: `1px solid ${colors.border}`,
+                background: colors.bg,
+                cursor: dia ? 'pointer' : 'default',
+                opacity: hayFuturo ? 0.35 : 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                padding: '2px',
+                position: 'relative',
+                transition: 'filter 0.1s, transform 0.1s',
+                outline: esHoy ? `2px solid var(--accent-industrial)` : 'none',
+                outlineOffset: '1px',
+              }}
+              onMouseEnter={e => { if (dia && !hayFuturo) { e.currentTarget.style.filter = 'brightness(1.15)'; e.currentTarget.style.transform = 'scale(1.08)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: esHoy ? 700 : 500, color: colors.num, fontFamily: 'IBM Plex Mono, monospace', lineHeight: 1 }}>
+                {dayNum}
+              </span>
+              {dia?.fase && (
+                <span style={{ fontSize: '7px', lineHeight: 1, color: dia.confirmado ? 'rgba(255,255,255,0.65)' : 'var(--text-tertiary)', maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {dia.fase.length > 6 ? dia.fase.substring(0, 5) + '…' : dia.fase}
+                </span>
+              )}
+              {sanidad.length > 0 && (
+                <span style={{ position: 'absolute', top: '3px', right: '3px', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent-warning)' }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Leyenda */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+        {[
+          { bg: accentColor + 'CC',            border: accentColor,                label: 'Confirmado' },
+          { bg: 'var(--accent-warning)28',      border: 'var(--accent-warning)99',  label: 'Borrador' },
+          { bg: 'var(--bg-secondary)',           border: 'var(--border-subtle)',     label: 'Sin registro' },
+          { bg: 'var(--accent-industrial)18',   border: 'var(--accent-industrial)', label: 'Hoy' },
+        ].map(({ bg, border, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: '2px', background: bg, border: `1px solid ${border}`, display: 'inline-block', flexShrink: 0 }} />
+            {label}
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent-warning)', display: 'inline-block', flexShrink: 0 }} />
+          Sanidad
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Vista Lista ──────────────────────────────────────────────────────────────
+const ListaMes = ({ dias, hoy, onAbrirDia, accentColor }) => {
+  const borderColor = (dia, esHoy) => {
+    if (esHoy)              return 'var(--accent-industrial)';
+    if (dia.confirmado)     return accentColor;
+    if (dia.tiene_registro) return 'var(--accent-warning)';
+    return 'var(--border-subtle)';
+  };
+
+  const statusInfo = (dia) => {
+    if (dia.confirmado)      return { label: 'Confirmado', color: accentColor };
+    if (dia.tiene_registro)  return { label: 'Borrador',   color: 'var(--accent-warning)' };
+    return                          { label: 'Sin registro', color: 'var(--text-tertiary)' };
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      {dias.map(dia => {
+        const esHoy    = dia.fecha === hoy;
+        const bColor   = borderColor(dia, esHoy);
+        const status   = statusInfo(dia);
+        const diaSem   = DIAS_SEMANA[new Date(dia.fecha + 'T12:00:00').getDay()];
+        const alim     = dia.estandar_resumido?.alimentacion?.[0];
+        const sanidad  = dia.estandar_resumido?.sanitario_hoy ?? [];
+        const hayFuturo = dia.fecha > hoy;
+
+        return (
+          <div
+            key={dia.fecha}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '16px',
+              padding: '11px 14px',
+              background: esHoy
+                ? 'var(--accent-industrial)0D'
+                : dia.confirmado
+                  ? 'var(--accent-agro)08'
+                  : dia.tiene_registro
+                    ? 'var(--accent-warning)08'
+                    : 'var(--bg-secondary)',
+              border: `1px solid ${esHoy ? 'var(--accent-industrial)33' : dia.confirmado ? accentColor + '33' : dia.tiene_registro ? 'var(--accent-warning)33' : 'var(--border-subtle)'}`,
+              borderLeft: `3px solid ${bColor}`,
+              borderRadius: '8px',
+              opacity: hayFuturo ? 0.65 : 1,
+            }}
+          >
+            <div style={{ minWidth: '72px' }}>
+              <div style={{ fontSize: '13px', fontWeight: esHoy ? 600 : 400, color: esHoy ? 'var(--accent-industrial)' : 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                {diaSem} {dia.dia_del_mes}
+                {esHoy && <span style={{ fontSize: '10px', color: 'var(--accent-industrial)', fontWeight: 400 }}>hoy</span>}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>día {dia.dias_en_lote}</div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {dia.fase && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{dia.fase}</span>}
+                {sanidad.length > 0 && (
+                  <span title={sanidad.map(s => s.descripcion).join(' · ')}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--accent-warning)', fontWeight: 500, cursor: 'help' }}>
+                    <Icon name="alertCircle" size={11} /> Sanidad ({sanidad.length})
+                  </span>
+                )}
+              </div>
+              {alim && (
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {alim.descripcion}
+                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', marginLeft: '4px' }}>· {alim.cantidad_por_cabeza_kg} kg/cab</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '110px', justifyContent: 'flex-end' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: status.color, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: '12px', color: status.color, whiteSpace: 'nowrap' }}>{status.label}</span>
+            </div>
+
+            <button
+              onClick={() => onAbrirDia(dia.fecha)}
+              style={{ background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'var(--font-sans)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+            >
+              Abrir día <Icon name="chevronRight" size={12} />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Componente principal ─────────────────────────────────────────────────────
 const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
   const accentColor = 'var(--accent-agro)';
   const hoy = new Date().toISOString().split('T')[0];
   const now = new Date();
 
   const [anio, setAnio] = useState(now.getFullYear());
-  const [mes, setMes]   = useState(now.getMonth() + 1); // 1-indexed
+  const [mes, setMes]   = useState(now.getMonth() + 1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  const [vista, setVista]     = useState('calendario'); // 'calendario' | 'lista'
 
   const loteId = activeLote?._id;
 
@@ -39,21 +243,15 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
       .catch(e  => { setError(e?.error || 'Error al cargar la hoja de vida'); setLoading(false); });
   }, [negocioId, loteId, anio, mes]);
 
-  const prevMes = () => {
-    if (mes === 1) { setAnio(a => a - 1); setMes(12); }
-    else setMes(m => m - 1);
-  };
-  const nextMes = () => {
-    if (mes === 12) { setAnio(a => a + 1); setMes(1); }
-    else setMes(m => m + 1);
-  };
+  const prevMes = () => { if (mes === 1) { setAnio(a => a - 1); setMes(12); } else setMes(m => m - 1); };
+  const nextMes = () => { if (mes === 12) { setAnio(a => a + 1); setMes(1); } else setMes(m => m + 1); };
 
   const handleAbrirDia = (fecha) => {
     if (setActiveFecha) setActiveFecha(fecha);
     if (onNavigate) onNavigate('registrodia');
   };
 
-  // ── Sin lote seleccionado ────────────────────────────────────────────────
+  // ── Sin lote ──────────────────────────────────────────────────────────────
   if (!activeLote || !loteId) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px', textAlign: 'center' }}>
@@ -67,41 +265,24 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
     );
   }
 
-  // ── Helpers de estado del día ────────────────────────────────────────────
-  const borderColor = (dia, esHoy) => {
-    if (esHoy)           return 'var(--accent-industrial)';
-    if (dia.confirmado)  return accentColor;
-    if (dia.tiene_registro) return 'var(--accent-warning)';
-    return 'var(--border-subtle)';
-  };
-
-  const statusInfo = (dia) => {
-    if (dia.confirmado)      return { label: 'Confirmado', color: accentColor };
-    if (dia.tiene_registro)  return { label: 'Borrador', color: 'var(--accent-warning)' };
-    return { label: 'Sin registro', color: 'var(--text-tertiary)' };
-  };
-
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <button
-          onClick={() => onNavigate?.('lotes')}
+          onClick={() => onNavigate?.('diario')}
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '4px 0', fontFamily: 'var(--font-sans)' }}
           onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
         >
-          <Icon name="chevronLeft" size={14} /> Lotes
+          <Icon name="chevronLeft" size={14} /> Diario de producción
         </button>
         <span style={{ color: 'var(--border-mid)' }}>·</span>
         <div>
           <div style={{ fontSize: '17px', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
             Hoja de Vida — Lote #{activeLote.id}
-            <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-tertiary)', marginLeft: '8px' }}>
-              · {activeLote.tipo}
-            </span>
+            <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-tertiary)', marginLeft: '8px' }}>· {activeLote.tipo}</span>
           </div>
           {data?.fase_predominante && (
             <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
@@ -111,7 +292,7 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
         </div>
       </div>
 
-      {/* Navegación de meses */}
+      {/* Barra de navegación + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
         <NavBtn onClick={prevMes}><Icon name="chevronLeft" size={14} /> Mes anterior</NavBtn>
         <div style={{ flex: 1, textAlign: 'center', fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', minWidth: '160px' }}>
@@ -119,18 +300,34 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
         </div>
         <NavBtn onClick={nextMes}>Mes siguiente <Icon name="chevronRight" size={14} /></NavBtn>
 
-        {/* Leyenda */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', paddingLeft: '16px', borderLeft: '1px solid var(--border-subtle)' }}>
+        {/* Toggle vista */}
+        <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: '7px', overflow: 'hidden', marginLeft: '8px' }}>
           {[
-            { color: accentColor,                label: 'Confirmado' },
-            { color: 'var(--accent-warning)',     label: 'Borrador' },
-            { color: 'var(--text-tertiary)',      label: 'Sin registro' },
-            { color: 'var(--accent-industrial)',  label: 'Hoy' },
-          ].map(({ color, label }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
-              {label}
-            </div>
+            { key: 'calendario', icon: 'grid', label: 'Calendario' },
+            { key: 'lista',      icon: 'list', label: 'Lista'      },
+          ].map(({ key, icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setVista(key)}
+              title={label}
+              style={{
+                background: vista === key ? accentColor : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '12px',
+                color: vista === key ? '#fff' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-sans)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { if (vista !== key) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+              onMouseLeave={e => { if (vista !== key) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Icon name={icon} size={13} /> {label}
+            </button>
           ))}
         </div>
       </div>
@@ -147,94 +344,26 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
         </div>
       )}
 
-      {/* Lista de días */}
+      {/* Contenido */}
       {!loading && !error && data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-          {data.dias.map(dia => {
-            const esHoy    = dia.fecha === hoy;
-            const bColor   = borderColor(dia, esHoy);
-            const status   = statusInfo(dia);
-            const diaSem   = DIAS_SEMANA[new Date(dia.fecha + 'T12:00:00').getDay()];
-            const alim     = dia.estandar_resumido?.alimentacion?.[0];
-            const sanidad  = dia.estandar_resumido?.sanitario_hoy ?? [];
-            const hayFuturo = dia.fecha > hoy;
-
-            return (
-              <div
-                key={dia.fecha}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '16px',
-                  padding: '11px 14px',
-                  background: esHoy
-                    ? 'var(--accent-industrial)0D'
-                    : dia.confirmado
-                      ? 'var(--accent-agro)08'
-                      : dia.tiene_registro
-                        ? 'var(--accent-warning)08'
-                        : 'var(--bg-secondary)',
-                  border: `1px solid ${esHoy ? 'var(--accent-industrial)33' : dia.confirmado ? accentColor + '33' : dia.tiene_registro ? 'var(--accent-warning)33' : 'var(--border-subtle)'}`,
-                  borderLeft: `3px solid ${bColor}`,
-                  borderRadius: '8px',
-                  opacity: hayFuturo ? 0.65 : 1,
-                }}
-              >
-                {/* Fecha */}
-                <div style={{ minWidth: '72px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: esHoy ? 600 : 400, color: esHoy ? 'var(--accent-industrial)' : 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                    {diaSem} {dia.dia_del_mes}
-                    {esHoy && <span style={{ fontSize: '10px', color: 'var(--accent-industrial)', fontWeight: 400 }}>hoy</span>}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
-                    día {dia.dias_en_lote}
-                  </div>
-                </div>
-
-                {/* Fase + nutrición + sanidad */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    {dia.fase && (
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{dia.fase}</span>
-                    )}
-                    {sanidad.length > 0 && (
-                      <span
-                        title={sanidad.map(s => s.descripcion).join(' · ')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--accent-warning)', fontWeight: 500, cursor: 'help' }}
-                      >
-                        <Icon name="alertCircle" size={11} /> Sanidad ({sanidad.length})
-                      </span>
-                    )}
-                  </div>
-                  {alim && (
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {alim.descripcion}
-                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', marginLeft: '4px' }}>· {alim.cantidad_por_cabeza_kg} kg/cab</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status badge */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '110px', justifyContent: 'flex-end' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: status.color, display: 'inline-block', flexShrink: 0 }} />
-                  <span style={{ fontSize: '12px', color: status.color, whiteSpace: 'nowrap' }}>{status.label}</span>
-                </div>
-
-                {/* Abrir día */}
-                <button
-                  onClick={() => handleAbrirDia(dia.fecha)}
-                  style={{
-                    background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px',
-                    padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)',
-                    display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0,
-                    fontFamily: 'var(--font-sans)',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-                >
-                  Abrir día <Icon name="chevronRight" size={12} />
-                </button>
-              </div>
-            );
-          })}
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px' }}>
+          {vista === 'calendario' ? (
+            <CalendarioMes
+              dias={data.dias}
+              hoy={hoy}
+              anio={anio}
+              mes={mes}
+              onAbrirDia={handleAbrirDia}
+              accentColor={accentColor}
+            />
+          ) : (
+            <ListaMes
+              dias={data.dias}
+              hoy={hoy}
+              onAbrirDia={handleAbrirDia}
+              accentColor={accentColor}
+            />
+          )}
         </div>
       )}
     </div>

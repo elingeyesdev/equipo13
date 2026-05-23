@@ -306,6 +306,15 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
         }
       `}</style>
 
+      <button
+        onClick={() => onNavigate?.('lotes')}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '4px 0', fontFamily: 'var(--font-sans)', alignSelf: 'flex-start' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+      >
+        <Icon name="chevronLeft" size={14} /> Lotes
+      </button>
+
       <h1 style={{ fontSize: '20px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
         Liquidación de lote
       </h1>

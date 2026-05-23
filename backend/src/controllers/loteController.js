@@ -261,12 +261,13 @@ export const getCostosDetalle = async (req, res) => {
   const { negocioId, id } = req.params;
   try {
     const loteCheck = await pool.query(
-      'SELECT id FROM lotes WHERE id = $1 AND negocio_id = $2',
+      'SELECT id, costo_adquisicion FROM lotes WHERE id = $1 AND negocio_id = $2',
       [id, negocioId]
     );
     if (!loteCheck.rows.length) {
       return res.status(404).json({ error: 'Lote no encontrado' });
     }
+    const costo_adquisicion = parseFloat(loteCheck.rows[0].costo_adquisicion) || 0;
 
     const { rows } = await pool.query(
       `SELECT
@@ -317,8 +318,8 @@ export const getCostosDetalle = async (req, res) => {
         detalle.otros += Number(row.total);
       }
     }
-    const total = detalle.alimento + detalle.sanidad + detalle.mano_obra + detalle.otros;
-    res.json({ ...detalle, total });
+    const total = costo_adquisicion + detalle.alimento + detalle.sanidad + detalle.mano_obra + detalle.otros;
+    res.json({ adquisicion: costo_adquisicion, ...detalle, total });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
