@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { asignarCostosConjuntos } from '../services/calculoCostosConjuntos.js';
 
 // GET /negocios/:negocioId/lotes/:id/despiece
 export const getDespiece = async (req, res) => {
@@ -216,5 +217,115 @@ export const deleteCorte = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /negocios/:negocioId/lotes/:id/despiece/asignar-costos-conjuntos
+// body: { costo_operativo_desposte, canal: 'minorista'|'mayorista' }
+export const asignarCostosConjuntosValorVentas = async (req, res) => {
+  const { negocioId, id: loteId } = req.params;
+  const { costo_operativo_desposte, canal } = req.body;
+
+  if (!costo_operativo_desposte || !canal) {
+    return res.status(400).json({ error: 'Falta costo_operativo_desposte o canal' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Cargar el costo total del lote ("costo canal fría")
+    const loteCheck = await client.query(
+      'SELECT id, costo_adquisicion FROM lotes WHERE id = $1 AND negocio_id = $2 FOR UPDATE',
+      [loteId, negocioId]
+    );
+    if (!loteCheck.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Lote no encontrado' });
+    }
+
+    const costoBitacora = await client.query(
+      `SELECT COALESCE(SUM(monto), 0) AS total FROM bitacora_lote WHERE lote_id = $1 AND es_baja = false AND monto IS NOT NULL`,
+      [loteId]
+    );
+    const costo_adquisicion = Number(loteCheck.rows[0].costo_adquisicion) || 0;
+    const costo_total_lote = costo_adquisicion + Number(costoBitacora.rows[0].total);
+
+    // 2. Cargar los cortes del lote
+    const { rows: cortesRows } = await client.query(
+      `SELECT * FROM despiece_cortes WHERE lote_id = $1 FOR UPDATE`,
+      [loteId]
+    );
+    if (!cortesRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El lote no tiene cortes registrados' });
+    }
+
+    // 3. Cargar precios de mercado vigentes para el canal dado
+    const { rows: preciosRows } = await client.query(
+      `SELECT DISTINCT ON (corte_nombre) corte_nombre, precio_unitario 
+       FROM precios_mercado_cortes 
+       WHERE negocio_id = $1 AND canal = $2 AND activo = true 
+       ORDER BY corte_nombre, fecha_vigencia DESC`,
+      [negocioId, canal]
+    );
+    
+    const preciosMercado = {};
+    preciosRows.forEach(p => {
+      preciosMercado[p.corte_nombre] = Number(p.precio_unitario);
+    });
+
+    // 4. Llamar al servicio puro
+    const cortesParaServicio = cortesRows.map(c => ({
+      nombre: c.nombre,
+      peso_kg: Number(c.peso_kg)
+    }));
+
+    let resultados;
+    try {
+      resultados = asignarCostosConjuntos({
+        cortes: cortesParaServicio,
+        preciosMercado,
+        costoCanalFria: costo_total_lote,
+        costoOperativoDesposte: Number(costo_operativo_desposte)
+      });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: e.message });
+    }
+
+    // 5. Actualizar en DB
+    for (const r of resultados) {
+      // update despiece_cortes
+      const { rows: updatedCorte } = await client.query(
+        `UPDATE despiece_cortes SET costo_kg_derivado = $1 WHERE lote_id = $2 AND nombre = $3 RETURNING *`,
+        [r.costo_kg, loteId, r.nombre]
+      );
+      
+      const corteDB = updatedCorte[0];
+      
+      if (corteDB.insumo_generado_id) {
+        // update insumos
+        await client.query(
+          `UPDATE insumos SET precio_unitario = $1 WHERE id = $2`,
+          [r.costo_kg, corteDB.insumo_generado_id]
+        );
+        
+        // update compras_insumo (FIFO)
+        await client.query(
+          `UPDATE compras_insumo SET precio_unitario = $1 WHERE insumo_id = $2`,
+          [r.costo_kg, corteDB.insumo_generado_id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ detalle: resultados });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 };
