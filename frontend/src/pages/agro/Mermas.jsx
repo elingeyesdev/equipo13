@@ -147,9 +147,7 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
                       transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>
-                      {t === 'AYUNO' ? '⏱️' : t === 'FRIO' ? '❄️' : t === 'DESPOSTE' ? '✂️' : '🔥'}
-                    </span>
+                    <Icon name={cfg.icon} size={20} />
                     {cfg.label}
                   </button>
                 );
@@ -252,8 +250,8 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
 
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-          <Btn accentColor={nodoColor} onClick={save} disabled={saving}>
-            {saving ? 'Registrando…' : '⚖️ Registrar Pesaje'}
+          <Btn accentColor={nodoColor} icon="scale" onClick={save} disabled={saving}>
+            {saving ? 'Registrando…' : 'Registrar Pesaje'}
           </Btn>
         </div>
       </div>
@@ -266,7 +264,6 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
 // ─────────────────────────────────────────────────────────────
 const NodoCard = ({ tipo, data, onClick }) => {
   const cfg = NODO_CONFIG[tipo];
-  const emoji = tipo === 'AYUNO' ? '⏱️' : tipo === 'FRIO' ? '❄️' : tipo === 'DESPOSTE' ? '✂️' : '🔥';
   const pct = parseFloat(data?.promedio_porcentaje_merma || 0);
   const hasData = data && parseInt(data.registros || 0) > 0;
 
@@ -287,7 +284,7 @@ const NodoCard = ({ tipo, data, onClick }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
         <div>
-          <div style={{ fontSize: 22, marginBottom: 4 }}>{emoji}</div>
+          <div style={{ marginBottom: 4, color: cfg.color }}><Icon name={cfg.icon} size={24} /></div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{cfg.desc}</div>
         </div>
@@ -388,8 +385,8 @@ const Mermas = ({ negocioId, activeLote }) => {
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
-            ⚖️ Control de Mermas
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon name="scale" size={20} /> Control de Mermas
           </h1>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             Registro y análisis de pérdidas en los 4 nodos productivos
@@ -412,7 +409,7 @@ const Mermas = ({ negocioId, activeLote }) => {
 
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0 }}>
-        {[{ id: 'dashboard', label: '📊 Resumen' }, { id: 'lista', label: '📋 Registros' }].map(t => (
+        {[{ id: 'dashboard', label: 'Resumen', icon: 'pieChart' }, { id: 'lista', label: 'Registros', icon: 'clipboardList' }].map(t => (
           <button
             key={t.id}
             onClick={() => setView(t.id)}
@@ -421,9 +418,10 @@ const Mermas = ({ negocioId, activeLote }) => {
               fontSize: 13, fontWeight: view === t.id ? 600 : 400,
               color: view === t.id ? AC : 'var(--text-secondary)',
               borderBottom: `2px solid ${view === t.id ? AC : 'transparent'}`,
-              transition: 'all 0.15s', fontFamily: 'var(--font-sans)',
+              transition: 'all 0.15s', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '6px'
             }}
           >
+            {t.icon && <Icon name={t.icon} size={14} />}
             {t.label}
           </button>
         ))}
