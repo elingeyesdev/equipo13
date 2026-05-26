@@ -5,6 +5,12 @@ export async function aplicarPlantilla(plantilla, negocioId, db) {
     return;
   }
 
+  if (plantilla === 'engorde_porcino') {
+    const { seedEngordePorcino } = await import('../../seeds/engorde_porcino.js');
+    await seedEngordePorcino(negocioId, db);
+    return;
+  }
+
   if (plantilla === 'industria_carnica') {
     const { seedIndustriaCarnica } = await import('../../seeds/industria_carnica.js');
     await seedIndustriaCarnica(negocioId, db);

@@ -80,7 +80,6 @@ const CatalogoServicios = ({ negocioId }) => {
   const [drawer, setDrawer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [seeding, setSeeding] = useState(false);
 
   const cargar = async () => {
     if (!negocioId) return;
@@ -118,20 +117,6 @@ const CatalogoServicios = ({ negocioId }) => {
     }
   };
 
-  const handleSeed = async () => {
-    if (!confirm('¿Cargar los 16 servicios sugeridos para engorde de cerdos? Solo funciona si el catálogo está vacío.')) return;
-    setSeeding(true);
-    setError('');
-    try {
-      await apiFetch(`/api/negocios/${negocioId}/servicios/seed-cerdos`, { method: 'POST' });
-      await cargar();
-    } catch (e) {
-      setError(e?.error || 'No se pudo cargar la plantilla');
-    } finally {
-      setSeeding(false);
-    }
-  };
-
   const activos    = servicios.filter(s => s.activo);
   const archivados = servicios.filter(s => !s.activo);
   const visibles   = mostrarArchivados ? servicios : activos;
@@ -144,11 +129,6 @@ const CatalogoServicios = ({ negocioId }) => {
           <span style={{ background: accentColor + '1A', color: accentColor, border: `1px solid ${accentColor}33`, borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>{activos.length} activos</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {activos.length === 0 && !loading && (
-            <Btn variant="secondary" icon="download" onClick={handleSeed} loading={seeding}>
-              Plantilla para cerdos
-            </Btn>
-          )}
           <Btn icon="plus" accentColor={accentColor} onClick={() => setDrawer('new')}>Nuevo servicio</Btn>
         </div>
       </div>
@@ -169,7 +149,7 @@ const CatalogoServicios = ({ negocioId }) => {
         {!loading && visibles.length === 0 && (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
             <Icon name="tool" size={28} style={{ display: 'block', margin: '0 auto 10px' }} />
-            El catálogo está vacío. Creá servicios manualmente o cargá la plantilla para cerdos.
+            El catálogo está vacío. Creá servicios manualmente.
           </div>
         )}
 

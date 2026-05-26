@@ -49,7 +49,11 @@ export async function getInsumos(req, res) {
   try {
     const params = [negocioId];
     let idx = 2;
-    let query = `${INSUMO_SELECT} WHERE i.negocio_id = $1`;
+    let query = `${INSUMO_SELECT} WHERE i.negocio_id = $1
+      AND i.id NOT IN (
+        SELECT insumo_generado_id FROM despiece_cortes
+        WHERE insumo_generado_id IS NOT NULL
+      )`;
 
     if (activo === 'false') {
       query += ` AND i.activo = false`;
