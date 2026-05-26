@@ -9,7 +9,7 @@ const MONEDAS_OPTS = ['BOB', 'USD', 'ARS', 'PEN'];
 
 const PLANTILLAS_POR_RUBRO = {
   industrial:    [{ value: 'industria_lactea', label: 'Industria láctea' }],
-  agro_ganadero: [{ value: 'engorde_bovino',   label: 'Engorde bovino'  }],
+  agro_ganadero: [{ value: 'engorde_porcino', label: 'Engorde porcino bajo confinamiento' }],
 };
 
 const RUBRO_COLOR = {
@@ -654,7 +654,7 @@ const Configuracion = ({ negocioId, onNavigate, user, negocios = [], loadNegocio
               <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--accent-warning)', background: 'var(--accent-warning)18', border: '1px solid var(--accent-warning)33', letterSpacing: '0.05em' }}>EN DESARROLLO</span>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Próximamente podrás invitar operarios y asignarles acceso solo a registro de gastos y bitácora de alimentación.
+              Próximamente podrás invitar operarios y asignarles acceso solo a registro de gastos y diario de producción.
             </p>
           </div>
         </div>

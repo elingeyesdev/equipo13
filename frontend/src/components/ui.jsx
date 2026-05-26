@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../icons.jsx';
 
 /* ── MoneyDisplay ─────────────────────────────────────────── */
@@ -70,11 +71,16 @@ const ChipSelector = ({ options, selected, onSelect, multi = false, accentColor 
 };
 
 /* ── Input ────────────────────────────────────────────────── */
-const Input = ({ label, value, onChange, type = 'text', placeholder = '', prefix, suffix, mono = false, style: xStyle = {}, onFocusColor = 'var(--accent-industrial)' }) => {
+const Input = ({ label, labelExtra, value, onChange, type = 'text', placeholder = '', prefix, suffix, mono = false, style: xStyle = {}, onFocusColor = 'var(--accent-industrial)' }) => {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {label && <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>}
+      {(label || labelExtra) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {label && <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>}
+          {labelExtra}
+        </div>
+      )}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {prefix && <span style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', fontSize: '13px', fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', pointerEvents: 'none' }}>{prefix}</span>}
         <input
@@ -102,10 +108,13 @@ const Input = ({ label, value, onChange, type = 'text', placeholder = '', prefix
 };
 
 /* ── MetricCard ───────────────────────────────────────────── */
-const MetricCard = ({ label, value, sub, icon, accentColor, mono = true }) => (
+const MetricCard = ({ label, labelExtra, value, sub, icon, accentColor, mono = true }) => (
   <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
+        {labelExtra}
+      </div>
       {icon && <span style={{ color: accentColor || 'var(--text-tertiary)', opacity: 0.7 }}>{icon}</span>}
     </div>
     <div style={{ fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)', fontSize: '22px', color: accentColor || 'var(--text-primary)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</div>
@@ -219,7 +228,7 @@ const NegocioSelector = ({ negocios, selected, onSelect }) => {
 };
 
 /* ── CostTable ────────────────────────────────────────────── */
-const CostTable = ({ title, rows, columns, accentColor = 'var(--accent-industrial)', type = 'variable', loteSize = 100 }) => {
+const CostTable = ({ title, titleExtra, rows, columns, accentColor = 'var(--accent-industrial)', type = 'variable', loteSize = 100 }) => {
   const gridTpl = `1fr ${columns.slice(1).map(() => '88px').join(' ')}`;
   const totalRow = {};
   columns.forEach(col => {
@@ -236,7 +245,10 @@ const CostTable = ({ title, rows, columns, accentColor = 'var(--accent-industria
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>{title}</span>
+          {titleExtra}
+        </div>
         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{type}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: gridTpl, padding: '7px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
@@ -328,6 +340,175 @@ const SectionCard = ({ title, children, action }) => (
   </div>
 );
 
+/* ── InfoTip ──────────────────────────────────────────────── */
+// Ícono ? que muestra un tooltip al hacer hover.
+// Uso: <InfoTip text="Explicación breve" />
+const InfoTip = ({ text, position = 'top', width = 230 }) => {
+  const [visible, setVisible] = useState(false);
+  const targetRef = useRef(null);
+  const [coords, setCoords] = useState({});
+
+  useEffect(() => {
+    if (visible && targetRef.current) {
+      const rect = targetRef.current.getBoundingClientRect();
+      const offset = 8;
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+      
+      let top, left, transform;
+      if (position === 'top') {
+        top = rect.top + scrollY - offset;
+        left = rect.left + scrollX + rect.width / 2;
+        transform = 'translate(-50%, -100%)';
+      } else if (position === 'bottom') {
+        top = rect.bottom + scrollY + offset;
+        left = rect.left + scrollX + rect.width / 2;
+        transform = 'translate(-50%, 0)';
+      } else if (position === 'right') {
+        top = rect.top + scrollY + rect.height / 2;
+        left = rect.right + scrollX + offset;
+        transform = 'translate(0, -50%)';
+      } else if (position === 'left') {
+        top = rect.top + scrollY + rect.height / 2;
+        left = rect.left + scrollX - offset;
+        transform = 'translate(-100%, -50%)';
+      }
+      setCoords({ top, left, transform });
+    }
+  }, [visible, position]);
+
+  return (
+    <span
+      ref={targetRef}
+      style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', cursor: 'default' }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      <Icon name="info" size={13} style={{ color: 'var(--text-tertiary)', opacity: 0.6, flexShrink: 0 }} />
+      {visible && createPortal(
+        <div style={{
+          position: 'absolute',
+          top: coords.top,
+          left: coords.left,
+          transform: coords.transform,
+          width,
+          background: 'var(--bg-elevated, var(--bg-secondary))',
+          border: '1px solid var(--border-mid, var(--border-subtle))',
+          borderRadius: '6px',
+          padding: '8px 10px',
+          fontSize: '12px',
+          lineHeight: 1.5,
+          color: 'var(--text-secondary)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          zIndex: 999999,
+          pointerEvents: 'none',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {text}
+        </div>,
+        document.body
+      )}
+    </span>
+  );
+};
+
+/* ── InfoBanner ───────────────────────────────────────────── */
+// Banda explicativa que se muestra una sola vez por clave (localStorage).
+// Uso: <InfoBanner storageKey="banner_lotes_v1" title="..." text="..." accentColor="..." />
+const InfoBanner = ({ storageKey, title, text, accentColor = 'var(--accent-industrial)' }) => {
+  const [visible, setVisible] = useState(() => !localStorage.getItem(storageKey));
+
+  const dismiss = () => {
+    localStorage.setItem(storageKey, '1');
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div style={{
+      display: 'flex',
+      gap: '12px',
+      padding: '12px 16px',
+      background: accentColor + '0D',
+      border: `1px solid ${accentColor}33`,
+      borderLeft: `3px solid ${accentColor}`,
+      borderRadius: '6px',
+      marginBottom: '20px',
+    }}>
+      <Icon name="info" size={16} style={{ color: accentColor, flexShrink: 0, marginTop: '2px' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {title && (
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>
+            {title}
+          </div>
+        )}
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          {text}
+        </div>
+      </div>
+      <button
+        onClick={dismiss}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text-tertiary)', padding: '0 2px', flexShrink: 0,
+          display: 'flex', alignItems: 'flex-start',
+        }}
+        title="Cerrar"
+      >
+        <Icon name="x" size={14} />
+      </button>
+    </div>
+  );
+};
+
+/* ── FormulaHint ──────────────────────────────────────────── */
+// Despliega el desglose de un cálculo al hacer clic en "¿cómo se calcula?".
+// Uso: <FormulaHint formula="ICa = kg alimento ÷ (cabezas × kg ganados)" ejemplo="242 ÷ 86.5 = 2.80" />
+const FormulaHint = ({ formula, ejemplo, accentColor = 'var(--accent-agro)' }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ marginTop: '4px' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          fontSize: '11px', color: 'var(--text-tertiary)',
+          fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <Icon name="chevronRight" size={11} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }} />
+        {open ? 'Ocultar cálculo' : '¿Cómo se calcula?'}
+      </button>
+
+      {open && (
+        <div style={{
+          marginTop: '6px',
+          padding: '10px 12px',
+          background: 'var(--bg-tertiary)',
+          border: `1px solid ${accentColor}33`,
+          borderLeft: `2px solid ${accentColor}`,
+          borderRadius: '5px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+            {formula}
+          </div>
+          {ejemplo && (
+            <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: accentColor, letterSpacing: '-0.01em' }}>
+              = {ejemplo}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── MOCK_BY_NEGOCIO ──────────────────────────────────────── */
 const MOCK_BY_NEGOCIO = {
   n1: {
@@ -393,4 +574,5 @@ export {
   MoneyDisplay, RubroBadge, ChipSelector, Input, MetricCard,
   WIPBars, PuntoEquilibrioCard, NegocioSelector, CostTable,
   StatusBadge, Btn, Divider, SectionCard, MOCK_BY_NEGOCIO,
+  InfoTip, InfoBanner, FormulaHint,
 };

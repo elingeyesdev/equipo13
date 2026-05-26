@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { Icon } from '../icons.jsx';
-import { MOCK_BY_NEGOCIO, RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard } from '../components/ui.jsx';
+import { RubroBadge, Btn, MetricCard, MoneyDisplay, StatusBadge, SectionCard, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
-import { LOTES_DATA } from './agro/Lotes.jsx';
 
 /* ── INDUSTRIAL dashboard ─────────────────────────────────── */
 const DashboardIndustrial = ({ negocio, onNavigate }) => {
   const negocioId = negocio.id;
   const accentColor = 'var(--accent-industrial)';
-  const mock = MOCK_BY_NEGOCIO[negocioId] || MOCK_BY_NEGOCIO['n1'];
   
   const [ultimasFichas, setUltimasFichas] = useState([]);
   const [metricas, setMetricas] = useState({
@@ -16,6 +14,8 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
     insumos: 0,
     ultimaFicha: 'Ninguna',
     ultimaFichaProd: '—',
+    productosSinFicha: '—',
+    fichasEsteMes: '—',
     actividad: []
   });
 
@@ -74,27 +74,35 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
       allActivities.sort((a, b) => b.date - a.date);
       const topActivities = allActivities.slice(0, 4);
 
+      const prodActivos = (prod || []).filter(p => p.activo !== false);
+      const productosConFicha = new Set((fichas || []).map(f => f.producto_id));
+      const sinFicha = prodActivos.filter(p => !productosConFicha.has(p.id)).length;
+
+      const now = new Date();
+      const fichasMes = (fichas || []).filter(f => {
+        const d = new Date(f.calculado_en);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length;
+
       setMetricas({
         productos: prod.length,
         insumos: ins.length,
         ultimaFicha: uFicha ? timeAgo(uFicha.calculado_en) : 'Ninguna',
         ultimaFichaProd: uFicha ? uFicha.producto_nombre : '—',
+        productosSinFicha: sinFicha,
+        fichasEsteMes: fichasMes,
         actividad: topActivities.length > 0 ? topActivities : [{ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' }]
       });
 
       const fichasMapeadas = sortedFichas.slice(0, 4).map(f => {
         const p = prod.find(pr => pr.id === f.producto_id);
         const costoUnit = parseFloat(f.costo_unitario_total || 0);
-        const margen = 30; // standard 30% margin
-        const pvp = costoUnit / (1 - (margen / 100)); 
         return {
           id: f.id,
           producto_id: f.producto_id,
           nombre: f.producto_nombre || (p ? p.nombre : 'Desconocido'),
           sku: (p && p.codigo_sku) ? p.codigo_sku : 'Sin SKU',
-          costoUnit: costoUnit,
-          pvp: pvp,
-          margen: margen,
+          costoUnit,
           fichaReciente: true
         };
       });
@@ -103,16 +111,6 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
     }).catch(e => console.error(e));
   }, [negocioId]);
 
-  const productos = (mock.productos || []).filter(p => p.activo !== false);
-
-  const MargenBar = ({ value }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ width: 64, height: 4, background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: value > 40 ? 'var(--accent-success)' : value > 20 ? 'var(--accent-warning)' : 'var(--accent-danger)', borderRadius: '2px' }} />
-      </div>
-      <span style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace', color: value > 40 ? 'var(--accent-success)' : 'var(--text-secondary)' }}>{value.toFixed(1)}%</span>
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -131,7 +129,7 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
         <MetricCard label="Productos" value={metricas.productos} sub="con receta activa" icon={<Icon name="package" size={16} />} accentColor={accentColor} mono={false} />
         <MetricCard label="Insumos registrados" value={metricas.insumos} sub="en el catálogo" icon={<Icon name="layers" size={16} />} mono={false} />
         <MetricCard label="Última ficha calculada" value={metricas.ultimaFicha} sub={metricas.ultimaFichaProd} icon={<Icon name="history" size={16} />} mono={false} />
-        <MetricCard label="Punto de equilibrio" value="Próximamente" sub="Disponible en Sprint 2" icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-warning)" mono={false} />
+        <MetricCard label="Productos sin ficha" value={metricas.productosSinFicha} sub="sin costo calculado" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -139,15 +137,15 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
           <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Productos — últimas fichas</span>
           <Btn variant="ghost" size="sm" icon="arrowRight" onClick={() => onNavigate('productos')}>Ver todos</Btn>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-          {['Producto', 'Costo unitario', 'Precio sugerido', 'Margen', 'Estado ficha', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+          {['Producto', 'Costo unitario', 'Estado ficha', ''].map((h, i) => (
+            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i === 1 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
         {ultimasFichas.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>No hay fichas de costo calculadas.</div>
         ) : ultimasFichas.map((p, i) => (
-          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 140px 100px 120px', padding: '12px 20px', borderBottom: i < ultimasFichas.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
+          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px', padding: '12px 20px', borderBottom: i < ultimasFichas.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             onClick={() => onNavigate('historial', { fichaId: p.id })}
@@ -157,8 +155,6 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>{p.sku}</div>
             </div>
             <div style={{ textAlign: 'right' }}><MoneyDisplay value={p.costoUnit} size="sm" /></div>
-            <div style={{ textAlign: 'right' }}><MoneyDisplay value={p.pvp} size="sm" color="green" /></div>
-            <div style={{ textAlign: 'right' }}><MargenBar value={p.margen} /></div>
             <div style={{ textAlign: 'right' }}>
               <StatusBadge label={p.fichaReciente ? 'Reciente' : 'Sin ficha'} color={p.fichaReciente ? 'var(--accent-success)' : 'var(--text-tertiary)'} />
             </div>
@@ -181,12 +177,14 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
             ))}
           </div>
         </SectionCard>
-        <SectionCard title="Distribución de costos">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0', gap: '8px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--accent-warning)' }}>Próximamente</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Disponible en Sprint 2</div>
-          </div>
-        </SectionCard>
+        <MetricCard
+          label="Fichas calculadas este mes"
+          value={metricas.fichasEsteMes}
+          sub={new Date().toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })}
+          icon={<Icon name="calculator" size={16} />}
+          accentColor={accentColor}
+          mono={false}
+        />
       </div>
     </div>
   );
@@ -196,6 +194,7 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
   const negocioId = negocio.id;
   const accentColor = 'var(--accent-agro)';
   const [lotes, setLotes] = useState([]);
+  const [ultimoLiquidado, setUltimoLiquidado] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const timeAgo = (dateStr) => {
@@ -222,7 +221,12 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
           costo_total: parseFloat(l.costo_total) || 0,
           created_at: l.created_at
         }));
-        setLotes(mapped);
+        const activos = mapped.filter(l => l.activo !== false);
+        const liquidados = mapped
+          .filter(l => l.activo === false && l.liquidacion_jsonb)
+          .sort((a, b) => new Date(b.liquidacion_jsonb.liquidado_en) - new Date(a.liquidacion_jsonb.liquidado_en));
+        setLotes(activos);
+        setUltimoLiquidado(liquidados[0] || null);
       })
       .catch(e => console.error(e))
       .finally(() => setLoading(false));
@@ -230,6 +234,12 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
 
   const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
   const costoTotalAcc = lotes.reduce((s, l) => s + l.costo_total, 0);
+  const costoPorCabeza = totalAnimales > 0 ? costoTotalAcc / totalAnimales : null;
+  const costoPorCabezaDisplay = loading
+    ? '...'
+    : costoPorCabeza == null
+      ? '—'
+      : `Bs ${costoPorCabeza.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const actividades = lotes.map(l => ({
     icon: 'plus',
@@ -257,10 +267,10 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        <MetricCard label="Lotes activos"         value={loading ? '...' : lotes.length}      sub="en engorde"               icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
-        <MetricCard label="Animales en engorde"    value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
+        <MetricCard label="Lotes activos" labelExtra={<InfoTip text="Lotes con animales en curso. Un lote se cierra cuando lo liquidás desde la sección Liquidación." />} value={loading ? '...' : lotes.length} sub="en engorde" icon={<Icon name="cow" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Animales en engorde" labelExtra={<InfoTip text="Total de animales en todos los lotes activos, descontando bajas registradas en el diario de producción." />} value={loading ? '...' : totalAnimales} sub="cabezas totales" icon={<Icon name="layers" size={16} />} mono={false} />
         <MetricCard label="Costo total acumulado"  value={loading ? '...' : `Bs ${(costoTotalAcc/1000).toFixed(1)}k`} sub="todos los lotes" icon={<Icon name="dollarSign" size={16} />} mono={false} />
-        <MetricCard label="Mejor ICA del período"  value="—" sub="conversión alimenticia" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
+        <MetricCard label="Costo / cabeza promedio" value={costoPorCabezaDisplay} sub="todos los lotes activos" icon={<Icon name="trendingUp" size={16} />} accentColor={accentColor} mono={false} />
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -297,6 +307,53 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
           })
         )}
       </div>
+
+      {ultimoLiquidado && (() => {
+        const liq = ultimoLiquidado.liquidacion_jsonb;
+        const utilidad = parseFloat(liq.utilidad);
+        const margen = liq.margen != null ? parseFloat(liq.margen) : null;
+        const escanario_label = liq.escenario === 'pie' ? 'Venta en pie' : 'Venta gancho';
+        const fechaCierre = new Date(liq.liquidado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
+        return (
+          <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${accentColor}33`, borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${accentColor}22`, background: accentColor + '08', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Último lote cerrado</span>
+                <InfoTip text="Muestra el resultado del último lote que fue liquidado. Los datos vienen del escenario que elegiste al momento de liquidar." />
+              </div>
+              <Btn variant="ghost" size="sm" icon="arrowRight" onClick={() => onNavigate('lotes')}>Ver lotes</Btn>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono, monospace' }}>
+                    #{ultimoLiquidado.id}
+                  </span>
+                  <StatusBadge label={ultimoLiquidado.tipo} color={accentColor} />
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}33` }}>
+                    {escanario_label}
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                  Cerrado el {fechaCierre} · {liq.cabezas_venta} cab. · {liq.peso_prom_final} kg/cab promedio
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Ingreso total', val: `Bs ${parseFloat(liq.ingreso).toLocaleString('es-BO', { minimumFractionDigits: 0 })}`, color: 'var(--text-primary)' },
+                  { label: 'Utilidad neta', val: `${utilidad >= 0 ? '+' : ''}Bs ${utilidad.toLocaleString('es-BO', { minimumFractionDigits: 0 })}`, color: utilidad >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' },
+                  { label: 'Margen s/ ingreso', val: margen != null ? `${margen.toFixed(1)}%` : '—', color: margen != null && margen >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' },
+                ].map((m, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '16px', fontWeight: 600, color: m.color }}>{m.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <SectionCard title="Actividad reciente">
         {loading ? (
@@ -336,3 +393,4 @@ const Dashboard = ({ negocio, onNavigate }) => {
 };
 
 export default Dashboard;
+

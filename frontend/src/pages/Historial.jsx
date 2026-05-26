@@ -33,8 +33,8 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor, onNavigate }) => {
 
   const lote = Number(ficha.lote_cantidad || 0);
   const costoUnit = Number(ficha.costo_unitario_total || 0);
-  const pvp = Number(ficha.pvp_sugerido || costoUnit * 1.3);
-  const margen = Number(ficha.margen || 30);
+  const pvp = ficha.pvp_sugerido != null ? Number(ficha.pvp_sugerido) : null;
+  const margen = ficha.margen != null ? Number(ficha.margen) : null;
   const mpd = Number(ficha.mpd_unitario || 0) * lote;
   const mod = Number(ficha.mod_unitario || 0) * lote;
   const cif = Math.max(Number(ficha.costo_lote_total || 0) - mpd - mod, 0);
@@ -54,11 +54,15 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor, onNavigate }) => {
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}><Icon name="x" size={16} /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: pvp != null ? '1fr 1fr' : '1fr', gap: '10px' }}>
             <Section label="Costo unitario" value={costoUnit} sub="MPD + MOD + CIF" />
-            <Section label="Precio sugerido" value={pvp} sub={`con ${margen}% de margen`} big />
-            <Section label="Utilidad / unidad" value={pvp - costoUnit} sub="utilidad bruta" />
-            <Section label="Utilidad del lote" value={(pvp - costoUnit) * lote} sub={`${lote} unidades`} />
+            {pvp != null && (
+              <>
+                <Section label="PVP sugerido" value={pvp} sub={margen != null ? `con ${margen}% de margen` : 'desde backend'} big />
+                <Section label="Utilidad / unidad" value={pvp - costoUnit} sub="utilidad bruta" />
+                <Section label="Utilidad del lote" value={(pvp - costoUnit) * lote} sub={`${lote} unidades`} />
+              </>
+            )}
           </div>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '14px' }}>Distribución del costo</div>
@@ -102,9 +106,9 @@ const FichaReadonlyDrawer = ({ ficha, onClose, accentColor, onNavigate }) => {
   );
 };
 
-const Historial = ({ negocioId, onNavigate }) => {
-  const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
-  const isAgro = negocio.rubro === 'agro_ganadero';
+const Historial = ({ negocio, onNavigate }) => {
+  const negocioId = negocio?.id;
+  const isAgro = negocio?.rubro === 'agro_ganadero';
   const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   const [fichas, setFichas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,8 +131,6 @@ const Historial = ({ negocioId, onNavigate }) => {
           producto: f.producto_nombre,
           lote: Number(f.lote_cantidad || 0),
           costoUnit: Number(f.costo_unitario_total || 0),
-          pvp: Number(f.costo_unitario_total || 0) * 1.3,
-          margen: 30,
           fecha: new Date(f.calculado_en).toLocaleString('es-BO')
         }));
         setFichas(mapped);
@@ -185,9 +187,9 @@ const Historial = ({ negocioId, onNavigate }) => {
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 70px 120px 120px 80px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-          {['Fecha', 'Producto', 'Lote', 'Costo unit.', 'PVP', 'Margen', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em', textAlign: i >= 2 && i <= 5 ? 'right' : 'left' }}>{h}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 70px 120px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+          {['Fecha', 'Producto', 'Lote', 'Costo unit.', ''].map((h, i) => (
+            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em', textAlign: i >= 2 && i <= 3 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
         {loading && (
@@ -197,14 +199,14 @@ const Historial = ({ negocioId, onNavigate }) => {
         )}
         {!loading && filtered.map((f, i) => (
           <div key={f.id}
-            style={{ display: 'grid', gridTemplateColumns: '160px 1fr 70px 120px 120px 80px 80px', padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
+            style={{ display: 'grid', gridTemplateColumns: '160px 1fr 70px 120px 80px', padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             onClick={async () => {
               try {
                 setLoadingDetalle(true);
                 const detail = await apiFetch(`/api/negocios/${negocioId}/fichas/${f.id}`);
-                setSelected({ ...detail, pvp_sugerido: f.pvp, margen: f.margen });
+                setSelected(detail);
               } catch (e) {
                 setError(e?.error || 'No se pudo cargar el detalle de la ficha');
               } finally {
@@ -216,14 +218,12 @@ const Historial = ({ negocioId, onNavigate }) => {
             <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{f.producto}</div>
             <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>{f.lote} u</div>
             <div style={{ textAlign: 'right' }}><MoneyDisplay value={f.costoUnit} size="sm" /></div>
-            <div style={{ textAlign: 'right' }}><MoneyDisplay value={f.pvp} size="sm" color="green" /></div>
-            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--accent-success)' }}>{f.margen}%</div>
             <div style={{ textAlign: 'right' }}><Btn variant="ghost" size="sm" accentColor={accentColor} onClick={async e => {
               e.stopPropagation();
               try {
                 setLoadingDetalle(true);
                 const detail = await apiFetch(`/api/negocios/${negocioId}/fichas/${f.id}`);
-                setSelected({ ...detail, pvp_sugerido: f.pvp, margen: f.margen });
+                setSelected(detail);
               } catch (err) {
                 setError(err?.error || 'No se pudo cargar el detalle de la ficha');
               } finally {
@@ -244,3 +244,4 @@ const Historial = ({ negocioId, onNavigate }) => {
 };
 
 export default Historial;
+

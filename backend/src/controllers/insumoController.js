@@ -3,6 +3,11 @@ import { pool } from '../config/database.js';
 const INSUMO_SELECT = `
   SELECT
     i.*,
+    (
+      SELECT COALESCE(SUM(ci.cantidad_disponible), 0)
+      FROM compras_insumo ci
+      WHERE ci.insumo_id = i.id
+    ) AS stock_total,
     c.nombre AS categoria_nombre,
     c.color AS categoria_color,
     u.nombre AS unidad_nombre,
@@ -44,7 +49,11 @@ export async function getInsumos(req, res) {
   try {
     const params = [negocioId];
     let idx = 2;
-    let query = `${INSUMO_SELECT} WHERE i.negocio_id = $1`;
+    let query = `${INSUMO_SELECT} WHERE i.negocio_id = $1
+      AND i.id NOT IN (
+        SELECT insumo_generado_id FROM despiece_cortes
+        WHERE insumo_generado_id IS NOT NULL
+      )`;
 
     if (activo === 'false') {
       query += ` AND i.activo = false`;
@@ -110,7 +119,6 @@ export async function createInsumo(req, res) {
     codigo_sku,
     categoria_id,
     unidad_id,
-    precio_unitario,
     proveedor_id,
     es_variable,
     notas
@@ -130,11 +138,10 @@ export async function createInsumo(req, res) {
         codigo_sku,
         categoria_id,
         unidad_id,
-        precio_unitario,
         proveedor_id,
         es_variable,
         notas
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id`,
       [
         negocioId,
@@ -142,7 +149,6 @@ export async function createInsumo(req, res) {
         codigo_sku || null,
         categoria_id || null,
         unidad_id || null,
-        precio_unitario ?? 0,
         proveedor_id || null,
         es_variable ?? true,
         notas || null
@@ -181,7 +187,6 @@ export async function updateInsumo(req, res) {
     codigo_sku,
     categoria_id,
     unidad_id,
-    precio_unitario,
     proveedor_id,
     es_variable,
     notas
@@ -205,17 +210,15 @@ export async function updateInsumo(req, res) {
            codigo_sku = COALESCE($2, codigo_sku),
            categoria_id = COALESCE($3, categoria_id),
            unidad_id = COALESCE($4, unidad_id),
-           precio_unitario = COALESCE($5, precio_unitario),
-           proveedor_id = COALESCE($6, proveedor_id),
-           es_variable = COALESCE($7, es_variable),
-           notas = COALESCE($8, notas)
-       WHERE id = $9 AND negocio_id = $10`,
+           proveedor_id = COALESCE($5, proveedor_id),
+           es_variable = COALESCE($6, es_variable),
+           notas = COALESCE($7, notas)
+       WHERE id = $8 AND negocio_id = $9`,
       [
         nombre || null,
         codigo_sku || null,
         categoria_id || null,
         unidad_id || null,
-        precio_unitario ?? null,
         proveedor_id || null,
         es_variable ?? null,
         notas || null,
@@ -271,6 +274,30 @@ export async function archivarInsumo(req, res) {
     }
 
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * DELETE /api/negocios/:negocioId/insumos/:id
+ * Elimina permanentemente un insumo.
+ */
+export async function deleteInsumo(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM insumos WHERE id = $1 AND negocio_id = $2 RETURNING id',
+      [id, negocioId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Insumo no encontrado' });
+    }
+
+    res.json({ ok: true, id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

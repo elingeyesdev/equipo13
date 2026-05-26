@@ -15,8 +15,14 @@ import Unidades from './pages/Unidades.jsx';
 import Categorias from './pages/Categorias.jsx';
 import Configuracion from './pages/Configuracion.jsx';
 import Lotes from './pages/agro/Lotes.jsx';
-import Bitacora from './pages/agro/Bitacora.jsx';
+import DiarioProduccion from './pages/agro/Bitacora.jsx';
+import HojaVida from './pages/agro/HojaVida.jsx';
 import Liquidacion from './pages/agro/Liquidacion.jsx';
+import Despiece from './pages/agro/Despiece.jsx';
+import RegistroDia from './pages/agro/RegistroDia.jsx';
+import Compras from './pages/Compras.jsx';
+import DetalleProveedor from './pages/DetalleProveedor.jsx';
+import CatalogoServicios from './pages/agro/CatalogoServicios.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -31,7 +37,7 @@ const GastosCIFPlaceholder = ({ rubro }) => {
       </h1>
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '48px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
         <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={40} strokeWidth={1} /></div>
-        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el Sprint 2</div>
+        <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>Esta sección estará disponible en el próximo sprint</div>
         <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: '380px' }}>
           {isAgro
             ? 'Aquí podrás registrar gastos fijos del campo (alquiler de pasturas, agua, amortización de instalaciones) que se prorratearán entre los lotes activos.'
@@ -39,7 +45,7 @@ const GastosCIFPlaceholder = ({ rubro }) => {
         </div>
         <div style={{ padding: '10px 16px', background: accentColor + '10', border: `1px solid ${accentColor}22`, borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
           {isAgro
-            ? 'Por ahora podés registrar estos gastos manualmente en la bitácora de cada lote usando "Otro gasto".'
+            ? 'Por ahora podés registrar estos gastos manualmente en el diario de producción de cada lote usando "Otro gasto".'
             : 'Por ahora, en la ficha de costo podés usar el método simplificado de % sobre MPD+MOD.'}
         </div>
       </div>
@@ -54,6 +60,8 @@ const App = () => {
   const [page, setPage] = useState('dashboard');
   const [negocioId, setNegocioId] = useState(null);
   const [activeLote, setActiveLote] = useState(null);
+  const [activeProveedor, setActiveProveedor] = useState(null);
+  const [activeFecha, setActiveFecha] = useState(null);
   const [activeProductoId, setActiveProductoId] = useState(null);
 
   const loadNegocios = async () => {
@@ -107,6 +115,15 @@ const App = () => {
     setUser(null);
     setNegocios([]);
     setNegocioId(null);
+    setActiveLote(null);
+    setActiveProductoId(null);
+    setPage('dashboard');
+  };
+
+  const handleNegocioChange = (id) => {
+    setNegocioId(id);
+    setActiveLote(null);
+    setActiveProductoId(null);
     setPage('dashboard');
   };
 
@@ -128,15 +145,21 @@ const App = () => {
       case 'fichas':      return <FichaCosto negocio={negocio} productoId={activeProductoId} onNavigate={navigate} />;
       case 'productos':   return <Productos negocio={negocio} onNavigate={navigate} />;
       case 'insumos':     return <Insumos negocioId={negocioId} />;
-      case 'proveedores': return <Proveedores negocioId={negocioId} />;
-      case 'historial':   return <Historial negocioId={negocioId} onNavigate={navigate} />;
+      case 'proveedores':       return <Proveedores negocioId={negocioId} onNavigate={navigate} setActiveProveedor={setActiveProveedor} />;
+      case 'detalleproveedor':  return <DetalleProveedor negocioId={negocioId} activeProveedor={activeProveedor} onNavigate={navigate} />;
+      case 'historial':   return <Historial negocio={negocio} onNavigate={navigate} />;
       case 'gastos':      return <GastosCIFPlaceholder rubro={negocio?.rubro || 'industrial'} />;
       case 'unidades':    return <Unidades negocioId={negocioId} />;
       case 'categorias':  return <Categorias negocioId={negocioId} />;
       case 'config':      return <Configuracion negocioId={negocioId} onNavigate={navigate} user={user} negocios={negocios} loadNegocios={loadNegocios} />;
       case 'lotes':       return <Lotes negocioId={negocioId} onNavigate={navigate} setActiveLote={setActiveLote} />;
-      case 'bitacora':    return <Bitacora negocioId={negocioId} activeLote={activeLote} />;
-      case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} />;
+      case 'diario':      return <DiarioProduccion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
+      case 'hojavida':    return <HojaVida negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveFecha={setActiveFecha} />;
+      case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
+      case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;
+      case 'registrodia': return <RegistroDia negocioId={negocioId} activeLote={activeLote} fecha={activeFecha} onNavigate={navigate} />;
+      case 'compras':     return <Compras negocioId={negocioId} />;
+      case 'servicios':   return <CatalogoServicios negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
@@ -163,7 +186,7 @@ const App = () => {
       page={page}
       onNavigate={navigate}
       negocioId={negocioId}
-      onNegocioChange={id => { setNegocioId(id); navigate('dashboard'); }}
+      onNegocioChange={handleNegocioChange}
       negocios={negocios}
       user={user}
       onLogout={logout}

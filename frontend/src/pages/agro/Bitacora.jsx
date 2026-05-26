@@ -1,43 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { StatusBadge, RubroBadge, MoneyDisplay, Btn } from '../../components/ui.jsx';
+import { StatusBadge, RubroBadge, InfoBanner } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
-const TIPOS_FIJOS = ['Mano de obra', 'Baja (muerte/pérdida)', 'Otras pérdidas'];
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-const TIPO_ICON = {
-  'Mano de obra': { icon: 'user',           color: 'var(--text-tertiary)' },
-  'Baja':         { icon: 'alertTriangle',  color: 'var(--accent-warning)' },
-  'ENTRADA':      { icon: 'checkCircle',    color: 'var(--accent-agro)' },
-  'Otro gasto':   { icon: 'dollarSign',     color: 'var(--text-tertiary)' },
-  'Otras pérdidas': { icon: 'dollarSign',   color: 'var(--text-tertiary)' },
-};
-
-const Bitacora = ({ negocioId, activeLote }) => {
+const DiarioProduccion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const accentColor = 'var(--accent-agro)';
 
   const [lotes, setLotes] = useState([]);
   const [selectedLoteId, setSelectedLoteId] = useState(activeLote?._id || activeLote?.id || null);
 
   const [registros, setRegistros] = useState([]);
+  const [consumos, setConsumos] = useState([]);
   const [loadingRegistros, setLoadingRegistros] = useState(false);
   const [errorRegistros, setErrorRegistros] = useState(null);
   const [loteData, setLoteData] = useState(null);
 
-  const [categorias, setCategorias] = useState([]);
-  const [insumos, setInsumos] = useState([]);
-  const [tipo, setTipo] = useState(null);
-  const [selectedInsumoId, setSelectedInsumoId] = useState(null);
-  const [sacos, setSacos] = useState(10);
-  const [costoSaco, setCostoSaco] = useState(0);
-  const [bajas, setBajas] = useState(1);
-  const [pesoBaja, setPesoBaja] = useState(9.2);
-  const [causaBaja, setCausaBaja] = useState('');
-  const [monto, setMonto] = useState('');
-  const [notas, setNotas] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const totalAlim = (parseFloat(sacos) || 0) * (parseFloat(costoSaco) || 0);
   const loteRealId = selectedLoteId;
 
   useEffect(() => {
@@ -48,35 +27,8 @@ const Bitacora = ({ negocioId, activeLote }) => {
           setSelectedLoteId(data[0].id);
         }
       }).catch(console.error);
-
-      apiFetch(`/api/negocios/${negocioId}/insumos`).then(data => {
-        setInsumos(data);
-      }).catch(console.error);
-
-      apiFetch(`/api/negocios/${negocioId}/categorias`).then(data => {
-        setCategorias(data);
-      }).catch(console.error);
     }
   }, [negocioId]);
-
-  useEffect(() => {
-    if (tipo === null) {
-      setTipo(categorias.length > 0 ? categorias[0].nombre : 'Mano de obra');
-    }
-  }, [categorias]);
-
-  useEffect(() => {
-    const cat = categorias.find(c => c.nombre === tipo);
-    if (!cat) return;
-    const filtrados = insumos.filter(i => i.categoria_id === cat.id);
-    if (filtrados.length > 0) {
-      setSelectedInsumoId(filtrados[0].id);
-      setCostoSaco(parseFloat(filtrados[0].precio_unitario) || 0);
-    } else {
-      setSelectedInsumoId(null);
-      setCostoSaco(0);
-    }
-  }, [tipo, insumos]);
 
   useEffect(() => {
     if (activeLote) {
@@ -84,18 +36,26 @@ const Bitacora = ({ negocioId, activeLote }) => {
     }
   }, [activeLote]);
 
-  const fetchBitacora = async () => {
+  const fetchDiario = async () => {
     if (!negocioId || !loteRealId) return;
     setLoadingRegistros(true);
     setErrorRegistros(null);
     try {
-      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`);
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/diario`);
       setRegistros(data);
     } catch (e) {
-      setErrorRegistros(e?.error || 'Error al cargar la bitácora');
+      setErrorRegistros(e?.error || 'Error al cargar el diario de producción');
     } finally {
       setLoadingRegistros(false);
     }
+  };
+
+  const fetchConsumos = async () => {
+    if (!negocioId || !loteRealId) return;
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/consumos`);
+      setConsumos(data);
+    } catch {}
   };
 
   const fetchLote = async () => {
@@ -107,103 +67,84 @@ const Bitacora = ({ negocioId, activeLote }) => {
   };
 
   useEffect(() => {
-    fetchBitacora();
+    fetchDiario();
+    fetchConsumos();
     if (loteRealId) fetchLote();
   }, [negocioId, loteRealId]);
 
-  const handleInsumoChange = insumoId => {
-    const id = parseInt(insumoId);
-    setSelectedInsumoId(id);
-    const ins = insumos.find(i => i.id === id);
-    setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
-  };
-
-  const handleRegistrar = async () => {
-    if (!negocioId || !loteRealId) return;
-    setSaving(true);
-    try {
-      let detalle = '';
-      let montoFinal = null;
-      let esBaja = false;
-      let cabezasBaja = null;
-      let pesoBajaVal = null;
-      let causaVal = null;
-      let tipoApi = tipo;
-
-      const esCategoriaInsumo = !!categorias.find(c => c.nombre === tipo);
-      if (esCategoriaInsumo) {
-        const ins = insumos.find(i => i.id === selectedInsumoId);
-        const insumoNombre = ins ? ins.nombre : 'Insumo';
-        const unidad = ins?.unidad_simbolo || 'u';
-        detalle = `${sacos} ${unidad} ${insumoNombre}`;
-        montoFinal = totalAlim;
-      } else if (tipo === 'Baja (muerte/pérdida)') {
-        detalle = `${bajas} cabeza${bajas > 1 ? 's' : ''} · ${causaBaja || 'Sin causa'}`;
-        esBaja = true;
-        cabezasBaja = bajas;
-        pesoBajaVal = pesoBaja;
-        causaVal = causaBaja;
-        tipoApi = 'Baja';
-        montoFinal = null;
-      } else {
-        detalle = notas || tipo;
-        montoFinal = parseFloat(monto) || null;
-        tipoApi = tipo === 'Otras pérdidas' ? 'Otro gasto' : tipo;
-      }
-
-      const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/bitacora`, {
-        method: 'POST',
-        body: JSON.stringify({
-          fecha:        new Date().toISOString().split('T')[0],
-          tipo:         tipoApi,
-          detalle,
-          monto:        montoFinal,
-          es_baja:      esBaja,
-          cabezas_baja: cabezasBaja,
-          peso_baja:    pesoBajaVal,
-          causa:        causaVal,
-        }),
-      });
-
-      setRegistros(prev => [nuevo, ...prev]);
-      if (esBaja) await fetchLote();
-
-      setMonto(''); setNotas(''); setSacos(10); setCausaBaja(''); setBajas(1);
-      const ins = insumos.find(i => i.id === selectedInsumoId);
-      setCostoSaco(ins ? parseFloat(ins.precio_unitario) || 0 : 0);
-    } catch (e) {
-      alert(e?.error || 'Error al registrar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const iNum = (label, value, onChange, placeholder = '') => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} type="number" step="any" placeholder={placeholder}
-        style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
-        onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-      />
-    </div>
-  );
-
-  const costoAcumulado = (parseFloat(loteData?.costo_adquisicion) || 0) +
-    registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0);
+  const costoAcumulado = (parseFloat(loteData?.costo_adquisicion) || 0)
+    + registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0)
+    + consumos.reduce((s, c) => s + parseFloat(c.costo_total || 0), 0);
 
   const cabezasActivas = loteData?.cabezas_activas ?? '—';
 
+  const historial = [
+    ...registros.map(r => ({ ...r, _kind: 'diario', _sortDate: r.fecha || r.created_at })),
+    ...consumos.map(c => ({ ...c, _kind: 'consumo', _sortDate: c.fecha_consumo || c.created_at })),
+  ].sort((a, b) => {
+    const da = new Date(b._sortDate || 0) - new Date(a._sortDate || 0);
+    if (da !== 0) return da;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+
+  // Group by "YYYY-MM"
+  const porMes = {};
+  historial.forEach(item => {
+    const key = (item._sortDate || '').substring(0, 7);
+    if (!key || key.length < 7) return;
+    if (!porMes[key]) porMes[key] = [];
+    porMes[key].push(item);
+  });
+  const mesesOrdenados = Object.keys(porMes).sort((a, b) => b.localeCompare(a));
+
+  const [expandedMeses, setExpandedMeses] = useState(new Set());
+
+  const toggleMes = (key) => {
+    setExpandedMeses(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleVerDetalle = () => {
+    const loteApi = lotes.find(l => String(l.id) === String(selectedLoteId));
+    if (!loteApi || !onNavigate || !setActiveLote) return;
+    setActiveLote({
+      ...loteApi,
+      _id: loteApi.id,
+      id: loteApi.identificador || loteApi.id,
+      tipo: loteApi.tipo_animal,
+    });
+    onNavigate('hojavida');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <button
+        onClick={() => onNavigate?.('lotes')}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '4px 0', fontFamily: 'var(--font-sans)', alignSelf: 'flex-start' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+      >
+        <Icon name="chevronLeft" size={14} /> Lotes
+      </button>
+
+      <InfoBanner
+        storageKey="banner_diario_v2"
+        title="Diario de producción"
+        text="Resumen mensual de todos los gastos y eventos del lote. Hacé clic en 'Ver día a día' para acceder al registro detallado en la Hoja de Vida."
+        accentColor="var(--accent-agro)"
+      />
+
+      {/* Lote selector + costo acumulado */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>
-              Lote 
-            </span>
-            <select 
-              value={selectedLoteId || ''} 
-              onChange={e => setSelectedLoteId(parseInt(e.target.value) || e.target.value)}
+            <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Lote </span>
+            <select
+              value={selectedLoteId || ''}
+              onChange={e => setSelectedLoteId(e.target.value)}
               style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '4px 8px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
             >
               {lotes.map(l => (
@@ -222,155 +163,136 @@ const Bitacora = ({ negocioId, activeLote }) => {
         <RubroBadge rubro="agro_ganadero" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px', alignItems: 'flex-start' }}>
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Registrar gasto / evento</span>
-          </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {(() => {
-              const categoriaActiva = categorias.find(c => c.nombre === tipo);
-              const insumosFiltrados = categoriaActiva
-                ? insumos.filter(i => i.categoria_id === categoriaActiva.id)
-                : insumos;
-              return (
-            <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</label>
-              <select value={tipo || ''} onChange={e => setTipo(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
-                {categorias.length > 0 && (
-                  <optgroup label="Categorías de insumos">
-                    {categorias.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                  </optgroup>
-                )}
-                <optgroup label="Otros">
-                  {TIPOS_FIJOS.map(t => <option key={t}>{t}</option>)}
-                </optgroup>
-              </select>
-            </div>
-
-            {categoriaActiva && (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Insumo</label>
-                  {insumosFiltrados.length === 0 ? (
-                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', padding: '7px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
-                      Sin insumos en esta categoría — agregá uno en la sección Insumos
-                    </div>
-                  ) : (
-                    <select value={selectedInsumoId || ''} onChange={e => handleInsumoChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
-                      {insumosFiltrados.map(ins => (
-                        <option key={ins.id} value={ins.id}>
-                          {ins.nombre}{ins.unidad_simbolo ? ` (${ins.unidad_simbolo})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {iNum('Sacos', sacos, setSacos)}
-                  {iNum('Costo / saco (Bs)', costoSaco, setCostoSaco)}
-                </div>
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total</span>
-                  <MoneyDisplay value={totalAlim} size="md" color="green" />
-                </div>
-              </>
-            )}
-
-            {tipo === 'Baja (muerte/pérdida)' && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {iNum('Cantidad de bajas', bajas, setBajas)}
-                  {iNum('Peso estimado (kg)', pesoBaja, setPesoBaja)}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Causa (opcional)</label>
-                  <input value={causaBaja} onChange={e => setCausaBaja(e.target.value)} placeholder="Enfermedad respiratoria…"
-                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent-warning)'} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-                  />
-                </div>
-                <div style={{ background: 'var(--accent-warning)18', border: '1px solid var(--accent-warning)33', borderRadius: '6px', padding: '10px 12px', fontSize: '12px', color: 'var(--accent-warning)', lineHeight: 1.5 }}>
-                  <Icon name="alertTriangle" size={13} style={{ marginRight: '6px' }} />
-                  El costo de esta baja se redistribuirá entre los animales sobrevivientes del lote.
-                </div>
-              </>
-            )}
-
-            {!categoriaActiva && tipo !== 'Baja (muerte/pérdida)' && (
-              <>
-                {iNum('Monto (Bs)', monto, v => setMonto(v))}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Descripción</label>
-                  <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Detalle del gasto…"
-                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Sans, sans-serif' }}
-                    onFocus={e => e.target.style.borderColor = accentColor} onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-                  />
-                </div>
-              </>
-            )}
-
-            <button onClick={handleRegistrar} disabled={saving}
-              style={{ marginTop: '4px', padding: '10px', borderRadius: '6px', border: 'none', background: accentColor, color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontSize: '13px', fontWeight: 500, fontFamily: 'IBM Plex Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <Icon name="plus" size={14} /> {saving ? 'Registrando…' : 'Registrar →'}
-            </button>
-            </>
-              );
-            })()}
-          </div>
+      {/* Historial por mes */}
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Diario de producción</span>
         </div>
 
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Bitácora del lote</span>
-          </div>
+        {loadingRegistros && (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Cargando registros…</div>
+        )}
+        {errorRegistros && (
+          <div style={{ padding: '16px', color: 'var(--accent-warning)', fontSize: '13px' }}>{errorRegistros}</div>
+        )}
+        {!loadingRegistros && !errorRegistros && historial.length === 0 && (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Sin registros aún.</div>
+        )}
 
-          {loadingRegistros && (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Cargando registros…</div>
-          )}
-          {errorRegistros && (
-            <div style={{ padding: '16px', color: 'var(--accent-warning)', fontSize: '13px' }}>{errorRegistros}</div>
-          )}
-          {!loadingRegistros && !errorRegistros && registros.length === 0 && (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>Sin registros aún. Agregá el primero desde el panel de la izquierda.</div>
-          )}
+        {mesesOrdenados.map((mesKey, idx) => {
+          const items = porMes[mesKey];
+          const [anio, mesNum] = mesKey.split('-');
+          const mesNombre = MESES_ES[parseInt(mesNum) - 1];
+          const expanded = expandedMeses.has(mesKey);
 
-          {registros.length > 0 && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
-                {['Fecha', 'Tipo', 'Detalle', 'Monto'].map((h, i) => (
-                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
-                ))}
-              </div>
-              {registros.map((r, i) => {
-                const cfg = TIPO_ICON[r.tipo] || { icon: 'dollarSign', color: 'var(--text-tertiary)' };
-                const fechaStr = r.fecha
-                  ? new Date(r.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-                  : '—';
-                return (
-                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '90px 110px 1fr 100px', padding: '11px 16px', borderBottom: i < registros.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center', background: r.tipo === 'ENTRADA' ? accentColor + '08' : 'transparent' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{fechaStr}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Icon name={cfg.icon} size={12} style={{ color: cfg.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '12px', color: cfg.color, fontWeight: r.tipo === 'ENTRADA' ? 600 : 400 }}>{r.tipo}</span>
+          const totalMes = items.reduce((s, item) => {
+            if (item._kind === 'diario') return s + (item.monto != null && !item.es_baja ? parseFloat(item.monto) : 0);
+            if (item._kind === 'consumo') return s + parseFloat(item.costo_total || 0);
+            return s;
+          }, 0);
+
+          // Desglose por categoría: count + total Bs + cantidad
+          const desglose = {};
+          items.forEach(item => {
+            const t = item._kind === 'consumo' ? 'Consumo de insumo' : (item.tipo || 'Otro');
+            if (!desglose[t]) desglose[t] = { count: 0, total: 0 };
+            desglose[t].count += 1;
+            if (item._kind === 'diario') {
+              desglose[t].total += (item.monto != null && !item.es_baja ? parseFloat(item.monto) : 0);
+            } else {
+              desglose[t].total += parseFloat(item.costo_total || 0);
+            }
+          });
+
+          return (
+            <div
+              key={mesKey}
+              style={{ borderBottom: idx < mesesOrdenados.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+            >
+              {/* Fila principal */}
+              <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+
+                {/* Toggle chevron */}
+                <button
+                  onClick={() => toggleMes(mesKey)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = accentColor}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                  title={expanded ? 'Ocultar desglose' : 'Ver desglose'}
+                >
+                  <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={15} />
+                </button>
+
+                {/* Mes + año */}
+                <div style={{ minWidth: '100px', cursor: 'pointer' }} onClick={() => toggleMes(mesKey)}>
+                  <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>{mesNombre}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>{anio}</div>
+                </div>
+
+                {/* Chips de categorías */}
+                <div style={{ flex: 1, display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {Object.entries(desglose).map(([tipo, d]) => (
+                    <div key={tipo} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{tipo}</span>
+                      <span style={{ fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '1px 6px', color: 'var(--text-tertiary)' }}>{d.count}</span>
                     </div>
-                    <div>
-                      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{r.detalle}</span>
-                      {r.es_baja && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--accent-warning)', fontStyle: 'italic' }}>[costo redistribuido]</span>}
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {r.monto != null ? <MoneyDisplay value={parseFloat(r.monto)} size="sm" /> : <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
-                    </div>
+                  ))}
+                </div>
+
+                {/* Total del mes */}
+                <div style={{ textAlign: 'right', minWidth: '130px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total del mes</div>
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                    Bs {totalMes.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
                   </div>
-                );
-              })}
-            </>
-          )}
-        </div>
+                </div>
+
+                {/* Ver día a día */}
+                <button
+                  onClick={handleVerDetalle}
+                  style={{ background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '7px 14px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.color = accentColor; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  Ver día a día <Icon name="chevronRight" size={13} />
+                </button>
+              </div>
+
+              {/* Desglose expandible */}
+              {expanded && (
+                <div style={{ margin: '0 20px 16px 20px', border: '1px solid var(--border-subtle)', borderRadius: '7px', overflow: 'hidden' }}>
+                  {/* Encabezado */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 130px', padding: '7px 14px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-subtle)', gap: '8px' }}>
+                    {['Categoría', 'Registros', 'Total Bs'].map((h, i) => (
+                      <div key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                    ))}
+                  </div>
+                  {/* Filas */}
+                  {Object.entries(desglose).map(([tipo, d], i, arr) => (
+                    <div key={tipo} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 130px', padding: '9px 14px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{tipo}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace' }}>{d.count}</span>
+                      <span style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', color: d.total > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)', textAlign: 'right' }}>
+                        {d.total > 0 ? `Bs ${d.total.toLocaleString('es-BO', { minimumFractionDigits: 2 })}` : '—'}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Total */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 130px', padding: '9px 14px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-subtle)', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace' }}>{items.length}</span>
+                    <span style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: accentColor, textAlign: 'right' }}>
+                      Bs {totalMes.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-export default Bitacora;
+export default DiarioProduccion;

@@ -13,11 +13,21 @@ const NAV_INDUSTRIAL = [
 ];
 const NAV_AGRO = [
   { id: 'dashboard',  label: 'Dashboard',         icon: 'dashboard' },
-  { id: 'lotes',      label: 'Lotes activos',     icon: 'cow' },
-  { id: 'bitacora',   label: 'Bitácora',          icon: 'clipboardList' },
-  { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
-  { id: 'insumos',    label: 'Insumos (alimentos)',icon: 'layers' },
+  { 
+    id: 'lotes_group',  
+    label: 'Lotes activos',     
+    icon: 'cow',
+    subItems: [
+      { id: 'lotes',      label: 'Ver lotes',         icon: 'menu' },
+      { id: 'diario',     label: 'Diario de producción', icon: 'clipboardList' },
+      { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
+      { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
+    ]
+  },
+  { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
+  { id: 'compras',    label: 'Compras',           icon: 'shoppingCart' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
+  { id: 'servicios',  label: 'Servicios',         icon: 'wrench' },
 ];
 const NAV_BOTTOM = [
   { id: 'config',     label: 'Configuración',     icon: 'settings' },
@@ -57,30 +67,79 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
   const userEmail = user?.email || '';
 
   const NavItem = ({ item }) => {
-    const active = page === item.id;
+    const isChildActive = item.subItems && item.subItems.some(sub => sub.id === page);
+    const active = page === item.id || isChildActive;
     const [hov, setHov] = useState(false);
+    const hasSubItems = !!item.subItems;
+    const [expanded, setExpanded] = useState(isChildActive);
+
+    useEffect(() => {
+      if (isChildActive) setExpanded(true);
+    }, [page, isChildActive]);
+
+    const handleClick = () => {
+      if (hasSubItems) {
+        setExpanded(!expanded);
+      } else {
+        onNavigate(item.id);
+      }
+    };
+
     return (
-      <button
-        onClick={() => onNavigate(item.id)}
-        onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-        title={collapsed ? item.label : ''}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          padding: collapsed ? '10px 0' : '8px 12px',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          width: '100%', border: 'none',
-          background: active ? rubroColor + '18' : hov ? 'var(--bg-tertiary)' : 'transparent',
-          color: active ? rubroColor : hov ? 'var(--text-primary)' : 'var(--text-secondary)',
-          borderRadius: '6px', cursor: 'pointer',
-          fontSize: '13px', fontFamily: 'var(--font-sans)',
-          transition: 'background 0.15s, color 0.15s',
-          position: 'relative',
-        }}
-      >
-        {active && <span style={{ position: 'absolute', left: collapsed ? 0 : -12, top: '50%', transform: 'translateY(-50%)', width: 2, height: '60%', background: rubroColor, borderRadius: '0 2px 2px 0' }} />}
-        <Icon name={item.icon} size={16} style={{ flexShrink: 0 }} />
-        {!collapsed && <span style={{ fontWeight: active ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+        <button
+          onClick={handleClick}
+          onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+          title={collapsed ? item.label : ''}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: collapsed ? '10px 0' : '8px 12px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            width: '100%', border: 'none',
+            background: (page === item.id || (hasSubItems && isChildActive && collapsed)) ? rubroColor + '18' : hov ? 'var(--bg-tertiary)' : 'transparent',
+            color: (page === item.id || (hasSubItems && isChildActive)) ? rubroColor : hov ? 'var(--text-primary)' : 'var(--text-secondary)',
+            borderRadius: '6px', cursor: 'pointer',
+            fontSize: '13px', fontFamily: 'var(--font-sans)',
+            transition: 'background 0.15s, color 0.15s',
+            position: 'relative',
+          }}
+        >
+          {(page === item.id || (hasSubItems && isChildActive && collapsed)) && <span style={{ position: 'absolute', left: collapsed ? 0 : -12, top: '50%', transform: 'translateY(-50%)', width: 2, height: '60%', background: rubroColor, borderRadius: '0 2px 2px 0' }} />}
+          <Icon name={item.icon} size={16} style={{ flexShrink: 0 }} />
+          {!collapsed && <span style={{ fontWeight: (page === item.id || (hasSubItems && isChildActive)) ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{item.label}</span>}
+          {!collapsed && hasSubItems && (
+            <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={14} style={{ opacity: 0.6 }} />
+          )}
+        </button>
+        {!collapsed && hasSubItems && expanded && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '26px', marginTop: '2px' }}>
+            {item.subItems.map(sub => {
+              const subActive = page === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => onNavigate(sub.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '6px 10px', width: '100%', border: 'none',
+                    background: subActive ? rubroColor + '18' : 'transparent',
+                    color: subActive ? rubroColor : 'var(--text-secondary)',
+                    borderRadius: '6px', cursor: 'pointer',
+                    fontSize: '12.5px', fontFamily: 'var(--font-sans)',
+                    textAlign: 'left',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!subActive) { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+                  onMouseLeave={e => { if (!subActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
+                >
+                  <Icon name={sub.icon} size={14} style={{ opacity: subActive ? 1 : 0.7 }} />
+                  <span style={{ fontWeight: subActive ? 500 : 400 }}>{sub.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -138,7 +197,10 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
             <span>CosteoUniversal</span>
             <Icon name="chevronRight" size={12} />
             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-              {[...NAV_INDUSTRIAL, ...NAV_AGRO, ...NAV_BOTTOM].find(n => n.id === page)?.label || 'Dashboard'}
+              {(() => {
+                const allNavItems = [...NAV_INDUSTRIAL, ...NAV_AGRO, ...NAV_BOTTOM].flatMap(n => n.subItems ? [n, ...n.subItems] : [n]);
+                return allNavItems.find(n => n.id === page)?.label || 'Dashboard';
+              })()}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -148,9 +210,6 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
-            </button>
-            <button style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}>
-              <Icon name="bell" size={16} />
             </button>
             <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
             {/* Admin dropdown */}

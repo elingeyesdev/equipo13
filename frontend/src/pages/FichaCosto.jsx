@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RubroBadge, MoneyDisplay, Btn, CostTable } from '../components/ui.jsx';
+import { RubroBadge, MoneyDisplay, Btn, CostTable, InfoTip, InfoBanner } from '../components/ui.jsx';
 import { Icon } from '../icons.jsx';
 import { apiFetch } from '../config/api.js';
 
@@ -19,18 +19,21 @@ const MOD_COLS = [
   { key: 'total_lote', label: '/lote',     mono: true,  prefix: 'Bs ', sumable: true  },
 ];
 
-const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
-  const [local, setLocal] = useState(value);
-  useEffect(() => setLocal(value), [value]);
+const NumControl = ({ label, labelExtra, rawValue, onRawChange, min = 0, max = 10000, step = 1, prefix, suffix, showSlider = true, accentColor }) => {
+  const num = parseFloat(rawValue) || 0;
+  const sliderVal = Math.min(max, Math.max(min, num));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
-      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+        {labelExtra}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           {prefix && <span style={{ position: 'absolute', left: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{prefix}</span>}
           <input
-            type="number" value={local} min={min} max={max} step={step}
-            onChange={e => { const v = parseFloat(e.target.value) || 0; setLocal(v); onChange(v); }}
+            type="number" value={rawValue} min={min} max={max} step={step}
+            onChange={e => onRawChange(e.target.value)}
             style={{
               width: prefix ? '90px' : '80px', background: 'var(--bg-tertiary)',
               border: '1px solid var(--border-subtle)', borderRadius: '6px',
@@ -43,8 +46,8 @@ const NumControl = ({ label, value, onChange, min = 0, max = 10000, step = 1, pr
           {suffix && <span style={{ position: 'absolute', right: '8px', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>{suffix}</span>}
         </div>
         {showSlider && (
-          <input type="range" min={min} max={max} step={step} value={local}
-            onChange={e => { const v = parseFloat(e.target.value); setLocal(v); onChange(v); }}
+          <input type="range" min={min} max={max} step={step} value={sliderVal}
+            onChange={e => onRawChange(e.target.value)}
             style={{ flex: 1, accentColor }}
           />
         )}
@@ -60,7 +63,8 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
 
   const [productos, setProductos] = useState([]);
   const [selectedProductoId, setSelectedProductoId] = useState(productoId || '');
-  const [lote, setLote] = useState(100);
+  const [loteRaw, setLoteRaw] = useState('100');
+  const lote = parseFloat(loteRaw) || 0;
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [result, setResult] = useState(null);
@@ -105,8 +109,22 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <InfoBanner
+        storageKey="banner_fichacosto_v1"
+        title="Ficha de Costo"
+        text="La ficha de costo calcula el costo unitario de producir 1 unidad del producto. Los cortes del lote aparecen con su precio real derivado del costeo del lote."
+        accentColor={accentColor}
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
+          <button
+            onClick={() => onNavigate?.('productos')}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '4px 0', marginBottom: '6px', fontFamily: 'var(--font-sans)' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+          >
+            <Icon name="chevronLeft" size={14} /> Productos
+          </button>
           <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '5px' }}>
             Ficha de Costo
           </h1>
@@ -131,7 +149,11 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
             {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.codigo_sku ? `(${p.codigo_sku})` : ''}</option>)}
           </select>
         </div>
-        <NumControl label="Tamaño del lote" value={lote} min={1} max={10000} onChange={setLote} suffix="uds" accentColor={accentColor} />
+        <NumControl
+          label="Tamaño del lote"
+          labelExtra={<InfoTip text="Cantidad de unidades a producir en una corrida. Los costos fijos (MOD) se dividen entre este número para obtener el costo unitario." />}
+          rawValue={loteRaw} onRawChange={setLoteRaw} min={1} max={10000} suffix="uds" accentColor={accentColor}
+        />
         <Btn icon="calculator" accentColor={accentColor} onClick={handleCalc} disabled={calculating || !selectedProductoId}>
           {calculating ? 'Calculando...' : 'Calcular'}
         </Btn>
@@ -157,34 +179,19 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
         </div>
 
         {/* MPD Table */}
-        <CostTable title="MPD — Materia Prima Directa" rows={mpdRows} columns={MPD_COLS} accentColor={accentColor} type="variable" loteSize={lote} />
+        <CostTable
+          title="MPD — Materia Prima Directa"
+          titleExtra={<InfoTip text="Materiales Primos Directos: todo lo que entra físicamente al producto (carnes, condimentos, empaque)." />}
+          rows={mpdRows} columns={MPD_COLS} accentColor={accentColor} type="variable" loteSize={lote}
+        />
 
         {/* MOD Table */}
-        <CostTable title="MOD — Mano de Obra Directa" rows={modRows} columns={MOD_COLS} accentColor={accentColor} type="variable" loteSize={lote} />
+        <CostTable
+          title="MOD — Mano de Obra Directa"
+          titleExtra={<InfoTip text="Mano de Obra Directa: tiempo productivo por etapa × costo por hora." />}
+          rows={modRows} columns={MOD_COLS} accentColor={accentColor} type="variable" loteSize={lote}
+        />
 
-        {/* CIF Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>CIF — Costos Indirectos de Fabricación</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', maxWidth: '400px', lineHeight: 1.6 }}>
-            Aquí podrás registrar tus costos indirectos mensuales (electricidad, alquiler, mantenimiento) para que el sistema los prorratee automáticamente.
-          </div>
-        </div>
-
-        {/* Punto de Equilibrio Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Punto de Equilibrio</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-        </div>
-
-        {/* WIP Placeholder */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ color: 'var(--text-tertiary)' }}><Icon name="construction" size={28} strokeWidth={1} /></div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Costo acumulado por etapa (WIP)</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Disponible en Sprint 2</div>
-        </div>
       </>}
 
       {!result && !calculating && (
@@ -196,8 +203,13 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
           </div>
         </div>
       )}
+
+      <p style={{ margin: 0, padding: '12px 0 4px', fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.5 }}>
+        CIF, Punto de Equilibrio y WIP llegan en el próximo sprint.
+      </p>
     </div>
   );
 };
 
 export default FichaCosto;
+

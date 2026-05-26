@@ -18,13 +18,23 @@ import {
   createProveedor,
   updateProveedor,
   archivarProveedor,
+  deleteProveedor,
+  getComprasByProveedor,
 } from '../controllers/proveedorController.js';
+import {
+  getServicios,
+  createServicio,
+  updateServicio,
+  archivarServicio,
+  seedServiciosCerdos,
+} from '../controllers/servicioController.js';
 import {
   getInsumos,
   getInsumoById,
   createInsumo,
   updateInsumo,
   archivarInsumo,
+  deleteInsumo,
 } from '../controllers/insumoController.js';
 import {
   getProductos,
@@ -58,9 +68,37 @@ import {
   createLote,
   updateLote,
   cerrarLote,
-  getBitacora,
-  createBitacoraEntry,
+  liquidarLote,
+  getCostosDetalle,
+  getEscenarios,
+  getIca,
+  getDiario,
+  createDiarioEntry,
+  updateDiarioEntry,
+  deleteDiarioEntry,
+  consumirInsumo,
+  listarConsumos,
 } from '../controllers/loteController.js';
+import {
+  getDespiece,
+  createDespiece,
+  generarInsumos,
+  deleteCorte,
+} from '../controllers/despieceController.js';
+import {
+  listarCompras,
+  stockPorInsumo,
+  crearCompra,
+  eliminarCompra,
+  reporteConsumo,
+} from '../controllers/compraController.js';
+import {
+  getEstandarDelDia,
+  getVistaMensual,
+  getDetalleDia,
+  guardarRegistroDia,
+  confirmarDia,
+} from '../controllers/hojaVidaController.js';
 
 const router = Router();
 
@@ -81,6 +119,24 @@ router.get('/:negocioId/proveedores', authMiddleware, negocioOwner, getProveedor
 router.post('/:negocioId/proveedores', authMiddleware, negocioOwner, createProveedor);
 router.put('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, updateProveedor);
 router.patch('/:negocioId/proveedores/:id/archivar', authMiddleware, negocioOwner, archivarProveedor);
+router.delete('/:negocioId/proveedores/:id', authMiddleware, negocioOwner, deleteProveedor);
+router.get('/:negocioId/proveedores/:id/compras', authMiddleware, negocioOwner, getComprasByProveedor);
+
+// Catálogo de servicios
+router.get('/:negocioId/servicios', authMiddleware, negocioOwner, getServicios);
+router.post('/:negocioId/servicios', authMiddleware, negocioOwner, createServicio);
+router.post('/:negocioId/servicios/seed-cerdos', authMiddleware, negocioOwner, seedServiciosCerdos);
+router.put('/:negocioId/servicios/:id', authMiddleware, negocioOwner, updateServicio);
+router.patch('/:negocioId/servicios/:id/archivar', authMiddleware, negocioOwner, archivarServicio);
+
+// Compras de insumos (inventario FIFO)
+router.get('/:negocioId/compras', authMiddleware, negocioOwner, listarCompras);
+router.get('/:negocioId/compras/:insumoId/stock', authMiddleware, negocioOwner, stockPorInsumo);
+router.post('/:negocioId/compras', authMiddleware, negocioOwner, crearCompra);
+router.delete('/:negocioId/compras/:id', authMiddleware, negocioOwner, eliminarCompra);
+
+// Reporte de consumo por insumo — T6
+router.get('/:negocioId/catalogo/:insumoId/consumos', authMiddleware, negocioOwner, reporteConsumo);
 
 // Insumos — S-4
 router.get('/:negocioId/insumos', authMiddleware, negocioOwner, getInsumos);
@@ -88,6 +144,7 @@ router.get('/:negocioId/insumos/:id', authMiddleware, negocioOwner, getInsumoByI
 router.post('/:negocioId/insumos', authMiddleware, negocioOwner, createInsumo);
 router.put('/:negocioId/insumos/:id', authMiddleware, negocioOwner, updateInsumo);
 router.patch('/:negocioId/insumos/:id/archivar', authMiddleware, negocioOwner, archivarInsumo);
+router.delete('/:negocioId/insumos/:id', authMiddleware, negocioOwner, deleteInsumo);
 
 // Productos — D-1
 router.get('/:negocioId/productos', authMiddleware, negocioOwner, getProductos);
@@ -121,9 +178,32 @@ router.get('/:negocioId/lotes/:id', authMiddleware, negocioOwner, getLoteById);
 router.post('/:negocioId/lotes', authMiddleware, negocioOwner, createLote);
 router.put('/:negocioId/lotes/:id', authMiddleware, negocioOwner, updateLote);
 router.patch('/:negocioId/lotes/:id/cerrar', authMiddleware, negocioOwner, cerrarLote);
+router.post('/:negocioId/lotes/:id/liquidar', authMiddleware, negocioOwner, liquidarLote);
+router.get('/:negocioId/lotes/:id/costos-detalle', authMiddleware, negocioOwner, getCostosDetalle);
+router.post('/:negocioId/lotes/:id/escenarios', authMiddleware, negocioOwner, getEscenarios);
+router.get('/:negocioId/lotes/:id/ica', authMiddleware, negocioOwner, getIca);
 
-// Bitácora — L-3
-router.get('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, getBitacora);
-router.post('/:negocioId/lotes/:loteId/bitacora', authMiddleware, negocioOwner, createBitacoraEntry);
+// Despiece — J2 + J3
+router.get('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, getDespiece);
+router.post('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, createDespiece);
+router.post('/:negocioId/lotes/:id/despiece/generar-insumos', authMiddleware, negocioOwner, generarInsumos);
+router.delete('/:negocioId/lotes/:id/despiece/:corteId', authMiddleware, negocioOwner, deleteCorte);
+
+// Diario de producción — L-3
+router.get('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, getDiario);
+router.post('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, createDiarioEntry);
+router.put('/:negocioId/lotes/:loteId/diario/:id', authMiddleware, negocioOwner, updateDiarioEntry);
+router.delete('/:negocioId/lotes/:loteId/diario/:id', authMiddleware, negocioOwner, deleteDiarioEntry);
+
+// Consumo de insumos FIFO — T5
+router.post('/:negocioId/lotes/:loteId/consumir', authMiddleware, negocioOwner, consumirInsumo);
+router.get('/:negocioId/lotes/:loteId/consumos', authMiddleware, negocioOwner, listarConsumos);
+
+// Hoja de Vida del Lote
+router.get('/:negocioId/lotes/:loteId/estandar', authMiddleware, negocioOwner, getEstandarDelDia);
+router.get('/:negocioId/lotes/:loteId/hoja-de-vida', authMiddleware, negocioOwner, getVistaMensual);
+router.get('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, getDetalleDia);
+router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha/confirmar', authMiddleware, negocioOwner, confirmarDia);
+router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, guardarRegistroDia);
 
 export default router;

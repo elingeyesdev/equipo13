@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node --watch app.js",
-    "db:migrate": "node -e \"import('./src/config/database.js').then(m => m.runMigration())\""
+    "db:migrate": "node -e \"import('./src/config/database.js').then(m => m.runMigration())\"",
+    "test": "node --test tests/inventarioFIFO.test.js tests/estandaresAnimales.test.js"
   },
   "keywords": [],
   "author": "",

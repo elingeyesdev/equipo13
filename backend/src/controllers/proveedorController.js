@@ -116,3 +116,110 @@ export async function archivarProveedor(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * GET /api/negocios/:negocioId/proveedores/:id/compras
+ * Devuelve info del proveedor + historial de compras + stats agregadas.
+ */
+export async function getComprasByProveedor(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    // Verificar que el proveedor pertenece al negocio
+    const provRes = await pool.query(
+      `SELECT id, nombre, contacto, telefono, email, notas, activo
+       FROM proveedores
+       WHERE id = $1 AND negocio_id = $2`,
+      [id, negocioId]
+    );
+    if (provRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+
+    // Historial de compras
+    const comprasRes = await pool.query(
+      `SELECT
+         ci.id,
+         ci.fecha_compra,
+         ci.cantidad_comprada,
+         ci.cantidad_disponible,
+         ci.precio_unitario,
+         ROUND(ci.cantidad_comprada * ci.precio_unitario, 2) AS total,
+         ci.numero_factura,
+         ci.notas,
+         ci.created_at,
+         i.nombre   AS insumo_nombre,
+         um.simbolo AS unidad_simbolo
+       FROM compras_insumo ci
+       JOIN insumos i ON ci.insumo_id = i.id
+       LEFT JOIN unidades_medida um ON ci.unidad_id = um.id
+       WHERE ci.negocio_id = $1 AND ci.proveedor_id = $2
+       ORDER BY ci.fecha_compra DESC, ci.created_at DESC`,
+      [negocioId, id]
+    );
+
+    // Stats agregadas
+    const statsRes = await pool.query(
+      `SELECT
+         COUNT(*)                                               AS total_compras,
+         COALESCE(SUM(cantidad_comprada * precio_unitario), 0)  AS gasto_total,
+         MIN(fecha_compra)                                      AS primera_compra,
+         MAX(fecha_compra)                                      AS ultima_compra
+       FROM compras_insumo
+       WHERE negocio_id = $1 AND proveedor_id = $2`,
+      [negocioId, id]
+    );
+
+    // Insumo más comprado (por monto total)
+    const topRes = await pool.query(
+      `SELECT i.nombre, SUM(ci.cantidad_comprada * ci.precio_unitario) AS monto
+       FROM compras_insumo ci
+       JOIN insumos i ON ci.insumo_id = i.id
+       WHERE ci.negocio_id = $1 AND ci.proveedor_id = $2
+       GROUP BY i.id, i.nombre
+       ORDER BY monto DESC
+       LIMIT 1`,
+      [negocioId, id]
+    );
+
+    const s = statsRes.rows[0];
+    res.json({
+      proveedor: provRes.rows[0],
+      compras:   comprasRes.rows,
+      stats: {
+        total_compras:  parseInt(s?.total_compras  || 0),
+        gasto_total:    parseFloat(s?.gasto_total  || 0),
+        primera_compra: s?.primera_compra || null,
+        ultima_compra:  s?.ultima_compra  || null,
+        top_insumo:     topRes.rows[0]?.nombre || null,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * DELETE /api/negocios/:negocioId/proveedores/:id
+ * Elimina permanentemente un proveedor.
+ */
+export async function deleteProveedor(req, res) {
+  const { negocioId, id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM proveedores WHERE id = $1 AND negocio_id = $2 RETURNING id',
+      [id, negocioId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}

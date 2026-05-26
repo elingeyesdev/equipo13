@@ -134,7 +134,7 @@ git push -u origin develop
 **Commit:**
 ```bash
 git pull origin develop
-git add frontend/src/pages/Dashboard.jsx
+git add .
 git commit -m "fix(web): eliminar mocks y PVP inventado del Dashboard"
 git push origin develop
 ```

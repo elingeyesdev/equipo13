@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { MoneyDisplay, StatusBadge, Btn } from '../../components/ui.jsx';
+import { MoneyDisplay, StatusBadge, Btn, InfoBanner, InfoTip, FormulaHint } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
 export const LOTES_DATA = [];
@@ -11,12 +11,43 @@ const CAT_COLORS_AGRO = {
   alimento:    'var(--accent-industrial)',
   sanidad:     'var(--accent-warning)',
   moObra:      'var(--text-tertiary)',
+  otros:       'var(--text-secondary)',
 };
 const CAT_LABELS = {
   adquisicion: 'Adquisición',
   alimento:    'Alimento',
   sanidad:     'Sanidad',
   moObra:      'Mano de obra',
+  otros:       'Otros',
+};
+const COSTOS_ORDER = ['adquisicion', 'alimento', 'sanidad', 'moObra', 'otros'];
+
+const fetchCostosDetalle = async (negocioId, loteUuid) => {
+  if (!negocioId || !loteUuid) {
+    return { alimento: null, sanidad: null, mano_obra: null, otros: null, total: null };
+  }
+  try {
+    const d = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/costos-detalle`);
+    return {
+      adquisicion: Number(d.adquisicion) || 0,
+      alimento: Number(d.alimento) || 0,
+      sanidad: Number(d.sanidad) || 0,
+      mano_obra: Number(d.mano_obra) || 0,
+      otros: Number(d.otros) || 0,
+      total: Number(d.total) || 0,
+    };
+  } catch {
+    return { alimento: null, sanidad: null, mano_obra: null, otros: null, total: null };
+  }
+};
+
+const fetchIca = async (negocioId, loteUuid) => {
+  if (!negocioId || !loteUuid) return null;
+  try {
+    return await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/ica`);
+  } catch {
+    return null;
+  }
 };
 
 const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
@@ -24,8 +55,9 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     tipo: 'Cerdo',
     identificador: '',
     fecha_entrada: '',
-    cabezas_inicio: 50,
-    peso_inicial_prom: 8.5,
+    edad_promedio_dias: '0',
+    cabezas_inicio: '50',
+    peso_inicial_prom: '8.5',
     costo_unitario: '',
   });
   const [saving, setSaving] = useState(false);
@@ -38,9 +70,12 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
   const totalPeso = cabezas * pesoUnit;
   const costoTotal = cabezas * costoUnit;
 
-  const iField = (label, key, type = 'text', placeholder = '') => (
+  const iField = (label, key, type = 'text', placeholder = '', tip = null) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-      <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+        {tip && <InfoTip text={tip} />}
+      </div>
       <input value={form[key]} onChange={e => set(key, e.target.value)}
         type={type} placeholder={placeholder} step={type === 'number' ? 'any' : undefined}
         style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 11px', fontSize: '14px', outline: 'none', fontFamily: type === 'number' ? 'IBM Plex Mono, monospace' : 'IBM Plex Sans, sans-serif' }}
@@ -84,12 +119,25 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
           </div>
           {iField('Fecha de entrada', 'fecha_entrada', 'date')}
 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Edad promedio al ingreso (días)</label>
+            <input
+              value={form.edad_promedio_dias}
+              onChange={e => set('edad_promedio_dias', e.target.value)}
+              type="number" min="0" step="1" placeholder="Ej: 28"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 11px', fontSize: '14px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }}
+              onFocus={e => e.target.style.borderColor = accentColor}
+              onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
+            />
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Ej: lechones de 28 días → ingresar 28</span>
+          </div>
+
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor, marginBottom: '12px' }}>Animales de entrada</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {iField('Cantidad (cabezas)', 'cabezas_inicio', 'number')}
               {iField('Peso promedio (kg/cab)', 'peso_inicial_prom', 'number')}
-              {iField('Costo unitario (Bs/cab)', 'costo_unitario', 'number')}
+              {iField('Costo unitario (Bs/cab)', 'costo_unitario', 'number', '', 'Precio de compra por animal. El sistema multiplica por la cantidad de cabezas para obtener el costo total de adquisición del lote.')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'flex-end' }}>
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '8px 11px' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '3px' }}>Total adquisición</div>
@@ -116,9 +164,8 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
 };
 
 // Mapea el lote de la API al formato que usa LoteCard
-const mapLoteFromApi = (l) => ({
+const mapLoteFromApi = (l, costosDetalle, icaData) => ({
   ...l,
-  // compatibilidad con campos esperados por la card
   id: l.identificador || l.id,
   _id: l.id,
   tipo: l.tipo_animal,
@@ -129,32 +176,41 @@ const mapLoteFromApi = (l) => ({
   pesoInicialProm: parseFloat(l.peso_inicial_prom) || 0,
   pesoActualProm: parseFloat(l.peso_actual_prom) || 0,
   costos: {
-    adquisicion: parseFloat(l.costo_adquisicion) || 0,
-    alimento:    parseFloat(l.costo_total || 0) - parseFloat(l.costo_adquisicion || 0) - (parseFloat(l.costo_sanidad) || 0) - (parseFloat(l.costo_mo) || 0),
-    sanidad: parseFloat(l.costo_sanidad) || 0,
-    moObra: parseFloat(l.costo_mo) || 0,
+    adquisicion: costosDetalle?.adquisicion ?? parseFloat(l.costo_adquisicion) ?? 0,
+    alimento: costosDetalle?.alimento ?? null,
+    sanidad: costosDetalle?.sanidad ?? null,
+    moObra: costosDetalle?.mano_obra ?? null,
+    otros: costosDetalle?.otros ?? null,
   },
-  convAliment: 0,
+  costosTotal: costosDetalle?.total ?? null,
+  icaData: icaData ?? null,
 });
 
-const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
-  const totalCosto = Object.values(lote.costos).reduce((s, v) => s + v, 0);
+const ICA_COLOR = { verde: 'var(--accent-success)', ambar: 'var(--accent-warning)', rojo: 'var(--accent-danger)' };
+const ICA_LABEL = { verde: 'Eficiente', ambar: 'Aceptable', rojo: 'Revisar' };
+
+const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
+  const [desgloseOpen, setDesgloseOpen] = useState(false);
+  const totalCosto = lote.costosTotal != null
+    ? lote.costosTotal
+    : (parseFloat(lote.costo_total) || Object.values(lote.costos).reduce((s, v) => s + (v ?? 0), 0));
   const costoCabeza = lote.cabezasActivas > 0 ? totalCosto / lote.cabezasActivas : 0;
   const pesoGanado = lote.pesoActualProm - lote.pesoInicialProm;
   const refConv = lote.tipo === 'Cerdo' ? '2.5–3.0' : '6.0–8.0';
-  const convColor = lote.tipo === 'Cerdo'
-    ? (lote.convAliment <= 3.0 ? 'var(--accent-success)' : 'var(--accent-warning)')
-    : (lote.convAliment <= 8.0 ? 'var(--accent-success)' : 'var(--accent-warning)');
-
+  const icaColor = ICA_COLOR[lote.icaData?.estado] ?? 'var(--text-tertiary)';
   const CostBar = ({ key_, label, val }) => {
-    const pct = totalCosto > 0 ? (val / totalCosto) * 100 : 0;
+    const pct = totalCosto > 0 && val != null ? (val / totalCosto) * 100 : 0;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
           <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MoneyDisplay value={val} size="xs" />
-            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', width: '32px', textAlign: 'right' }}>{pct.toFixed(0)}%</span>
+            {val != null
+              ? <MoneyDisplay value={val} size="xs" />
+              : <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--text-tertiary)' }}>—</span>}
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', width: '32px', textAlign: 'right' }}>
+              {val != null ? `${pct.toFixed(0)}%` : '—'}
+            </span>
           </div>
         </div>
         <div style={{ height: '4px', background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
@@ -165,12 +221,17 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
   };
 
   return (
-    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px', opacity: isCerrado ? 0.65 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
             <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>Lote #{lote.id}</span>
             <StatusBadge label={lote.tipo} color={accentColor} />
+            {isCerrado && (
+              <span style={{ padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, background: 'var(--accent-danger)22', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)55', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Faenado
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{lote.dias} días en engorde · Entrada: {lote.entrada}</div>
         </div>
@@ -185,26 +246,62 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
         {[
-          { label: 'Activos',           val: `${lote.cabezasActivas} cabezas` },
-          { label: 'Bajas',             val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0 },
-          { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab` },
-          { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab` },
+          { label: 'Activos',            val: `${lote.cabezasActivas} cabezas` },
+          { label: 'Bajas',              val: lote.bajas === 0 ? '— sin bajas' : `${lote.bajas} baja${lote.bajas > 1 ? 's' : ''}`, warn: lote.bajas > 0,
+            tip: 'Animales muertos o perdidos. El sistema descuenta la cabeza del conteo y redistribuye su costo entre los sobrevivientes.' },
+          { label: 'Peso inicial prom.', val: `${lote.pesoInicialProm} kg/cab`,
+            tip: 'Peso promedio por cabeza al entrar al lote. Se usa para calcular la ganancia total de peso al cierre del ciclo.' },
+          { label: 'Peso actual est.',   val: `${lote.pesoActualProm} kg/cab`,
+            tip: 'Peso promedio estimado a hoy. Actualizá con un pesaje real en el diario de producción para mayor precisión.' },
         ].map((s, i) => (
           <div key={i} style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{s.label}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+              {s.label}
+              {s.tip && <InfoTip text={s.tip} />}
+            </div>
             <div style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', color: s.warn ? 'var(--accent-warning)' : 'var(--text-primary)', fontWeight: 500 }}>{s.val}</div>
           </div>
         ))}
       </div>
 
-      <div>
-        <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '12px' }}>Costo acumulado al día</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.entries(lote.costos).map(([key_, val]) => (
-            <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={val} />
-          ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)' }}>
+            ICa
+            <InfoTip text="Índice de Conversión Alimenticia: cuántos kg de alimento consumió el lote por cada kg de peso ganado. Menor valor = mayor eficiencia." />
+          </span>
+          {lote.icaData ? (
+            <>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', fontWeight: 600, color: icaColor }}>
+                {parseFloat(lote.icaData.ica).toFixed(2)} <span style={{ fontSize: '11px', fontWeight: 400 }}>kg/kg</span>
+              </span>
+              <span style={{ padding: '1px 7px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, color: icaColor, background: icaColor + '1A', border: `1px solid ${icaColor}33` }}>
+                {ICA_LABEL[lote.icaData.estado] ?? lote.icaData.estado}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                ref. {lote.icaData.referencia} · kg alimento / kg ganado
+                <InfoTip
+                  text={'Verde ≤ 3.0 · Ámbar 3.0–3.5 · Rojo > 3.5 (cerdos).\nPara bovinos el rango eficiente es 6.0–8.0.'}
+                  position="left"
+                />
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+              Sin datos de alimentación — registrá kg consumidos en el diario de producción
+            </span>
+          )}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+        {lote.icaData && (
+          <FormulaHint
+            formula="ICa = kg de alimento consumidos ÷ (cabezas × kg ganados por cabeza)"
+            ejemplo={`${(parseFloat(lote.icaData.ica) * lote.cabezasActivas * pesoGanado).toFixed(0)} kg ÷ (${lote.cabezasActivas} cab × ${pesoGanado.toFixed(1)} kg) = ${parseFloat(lote.icaData.ica).toFixed(2)}`}
+          />
+        )}
+      </div>
+
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Total lote</div>
             <MoneyDisplay value={totalCosto} size="lg" />
@@ -214,12 +311,37 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor }) => {
             <MoneyDisplay value={costoCabeza} size="md" />
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setDesgloseOpen(o => !o)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+            padding: '8px 0', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-subtle)',
+            cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)',
+          }}
+        >
+          Ver desglose de costos
+          <span style={{
+            display: 'inline-block',
+            fontSize: '10px',
+            lineHeight: 1,
+            transform: desgloseOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}>{desgloseOpen ? '▼' : '▶'}</span>
+        </button>
+        {desgloseOpen && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
+            {COSTOS_ORDER.map(key_ => (
+              <CostBar key={key_} key_={key_} label={CAT_LABELS[key_]} val={lote.costos[key_]} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
-        <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver bitácora</Btn>
-        <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>
-        <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>
+        <Btn variant="secondary" size="sm" icon="clipboardList" onClick={() => onBitacora(lote)}>Ver diario</Btn>
+        {!isCerrado && <Btn variant="secondary" size="sm" icon="plus" onClick={() => onBitacora(lote)}>Registrar gasto</Btn>}
+        {!isCerrado && <Btn size="sm" icon="scale" accentColor={accentColor} onClick={() => onLiquidar(lote)}>Liquidar lote</Btn>}
       </div>
     </div>
   );
@@ -231,6 +353,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showFaenados, setShowFaenados] = useState(false);
 
   const fetchLotes = async () => {
     if (!negocioId) return;
@@ -238,7 +361,16 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
     setError(null);
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes`);
-      setLotes(data.map(mapLoteFromApi));
+      const mapped = await Promise.all(
+        data.map(async (l) => {
+          const [detalle, ica] = await Promise.all([
+            fetchCostosDetalle(negocioId, l.id),
+            fetchIca(negocioId, l.id),
+          ]);
+          return mapLoteFromApi(l, detalle, ica);
+        })
+      );
+      setLotes(mapped);
     } catch (e) {
       setError(e?.error || 'Error al cargar lotes');
     } finally {
@@ -252,33 +384,45 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
     const nuevo = await apiFetch(`/api/negocios/${negocioId}/lotes`, {
       method: 'POST',
       body: JSON.stringify({
-        identificador:    form.identificador,
-        tipo_animal:      form.tipo,
-        fecha_entrada:    form.fecha_entrada || null,
-        cabezas_inicio:   form.cabezas_inicio,
+        identificador:     form.identificador,
+        tipo_animal:       form.tipo,
+        fecha_entrada:     form.fecha_entrada || null,
+        cabezas_inicio:    form.cabezas_inicio,
         peso_inicial_prom: form.peso_inicial_prom,
         costo_adquisicion: form.costo_adquisicion,
+        edad_promedio_dias: parseInt(form.edad_promedio_dias) || 0,
       }),
     });
-    setLotes(prev => [mapLoteFromApi(nuevo), ...prev]);
+    const [detalle, ica] = await Promise.all([
+      fetchCostosDetalle(negocioId, nuevo.id),
+      fetchIca(negocioId, nuevo.id),
+    ]);
+    setLotes(prev => [mapLoteFromApi(nuevo, detalle, ica), ...prev]);
   };
 
-  const totalAnimales = lotes.reduce((s, l) => s + l.cabezasActivas, 0);
+  const lotesActivos = lotes.filter(l => l.activo !== false);
+  const lotesFaenados = lotes.filter(l => l.activo === false);
+  const totalAnimales = lotesActivos.reduce((s, l) => s + l.cabezasActivas, 0);
 
-  const handleBitacora = lote => {
-    // Pasamos el lote con su _id real de la DB para que Bitácora pueda hacer fetch
+  const handleDiario = lote => {
     setActiveLote(lote);
-    onNavigate('bitacora');
+    onNavigate('diario');
   };
   const handleLiquidar = lote => { setActiveLote(lote); onNavigate('liquidacion'); };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <InfoBanner
+        storageKey="banner_lotes_v1"
+        title="Lotes de engorde"
+        text="Cada lote representa un ciclo de producción animal. Registrá el lote primero y después usá el Diario de producción para ir sumando gastos día a día. Al cerrar el ciclo, la Liquidación te muestra cuánto ganás según el escenario de venta."
+        accentColor="var(--accent-agro)"
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
             <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Lotes de engorde</h1>
-            <span style={{ background: 'var(--accent-agro)1A', color: 'var(--accent-agro)', border: '1px solid var(--accent-agro)33', borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}>{lotes.length} activos</span>
+            <span style={{ background: 'var(--accent-agro)1A', color: 'var(--accent-agro)', border: '1px solid var(--accent-agro)33', borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}>{lotesActivos.length} activos</span>
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{totalAnimales} animales en total</div>
         </div>
@@ -293,17 +437,42 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
           {error}
         </div>
       )}
-      {!loading && !error && lotes.length === 0 && (
+      {!loading && !error && lotesActivos.length === 0 && lotesFaenados.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)', fontSize: '14px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
           No hay lotes registrados. ¡Registrá el primero!
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {lotes.map(l => (
-          <LoteCard key={l._id} lote={l} onBitacora={handleBitacora} onLiquidar={handleLiquidar} accentColor={accentColor} />
+        {lotesActivos.map(l => (
+          <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} />
         ))}
       </div>
+
+      {lotesFaenados.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setShowFaenados(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'transparent', border: 'none', borderTop: '1px solid var(--border-subtle)',
+              paddingTop: '16px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-tertiary)',
+              fontFamily: 'var(--font-sans)', textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'inline-block', fontSize: '10px', lineHeight: 1, transform: showFaenados ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>▶</span>
+            {showFaenados ? 'Ocultar' : 'Mostrar'} {lotesFaenados.length} lote{lotesFaenados.length !== 1 ? 's' : ''} faenado{lotesFaenados.length !== 1 ? 's' : ''}
+          </button>
+          {showFaenados && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {lotesFaenados.map(l => (
+                <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} isCerrado />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={handleSaveLote} accentColor={accentColor} />}
     </div>
@@ -311,3 +480,4 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 };
 
 export default Lotes;
+

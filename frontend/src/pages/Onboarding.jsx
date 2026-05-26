@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { Btn, Input, ChipSelector, RubroBadge } from '../components/ui.jsx';
+import { Btn, Input, ChipSelector, RubroBadge, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
 const SUBRUBROS = {
@@ -9,7 +9,7 @@ const SUBRUBROS = {
     'Plásticos', 'Alimentaria', 'Química', 'Madera', 'Calzado', 'Otro',
   ],
   agro_ganadero: [
-    'Engorde bovino', 'Porcinos', 'Aves de corral',
+    'Engorde porcino', 'Aves de corral',
     'Ovinos', 'Apicultura', 'Caprinos', 'Otro',
   ],
 };
@@ -18,7 +18,8 @@ const TEMPLATES = [
   { id: 't1', rubro: 'industrial',    nombre: 'Industria láctea',       desc: 'Queso fresco, yogur, mantequilla', insumos: 9,  productos: 2, etapas: 7  },
   { id: 't2', rubro: 'industrial',    nombre: 'Panificación',            desc: 'Pan, galletas, bizcochos',         insumos: 12, productos: 4, etapas: 5  },
   { id: 't3', rubro: 'industrial',    nombre: 'Textilería',              desc: 'Telas, prendas, accesorios',       insumos: 8,  productos: 3, etapas: 6  },
-  { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde bovino',          desc: 'Novillos, toros, terneros',        insumos: 6,  productos: 1, etapas: 4  },
+  { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde porcino bajo confinamiento', desc: 'Cerdos en sistema intensivo, 4 fases', insumos: 10, productos: 0, etapas: 0, tip: 'Incluye un lote demo de 50 cerdos con 30 días de registros confirmados, inventario FIFO precargado y 16 servicios veterinarios.' },
+  { id: 't5', rubro: 'industrial',    nombre: 'Industria cárnica',       desc: 'Despiece, chorizo, morcilla',         insumos: 16, productos: 2, etapas: 5, tip: 'Procesamiento industrial de cortes en productos cárnicos (chorizo, morcilla). Pareja del rubro agro de engorde porcino.' },
   { id: 't6', rubro: 'industrial',    nombre: 'Metalmecánica',           desc: 'Piezas, estructuras, soldadura',   insumos: 11, productos: 5, etapas: 8  },
 ];
 
@@ -35,7 +36,8 @@ const TEMPLATE_PLANTILLA = {
   t1: 'industria_lactea',
   t2: 'panificacion',
   t3: 'textileria',
-  t4: 'engorde_bovino',
+  t4: 'engorde_porcino',
+  t5: 'industria_carnica',
   t6: 'metalmecanica',
   blank: null,
 };
@@ -210,7 +212,10 @@ const Onboarding = ({ onComplete }) => {
         {sel && <div style={{ position: 'absolute', top: 12, right: 12, color: col }}><Icon name="checkCircle" size={16} /></div>}
         <RubroBadge rubro={tmpl.rubro} />
         <div>
-          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '3px' }}>{tmpl.nombre}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{tmpl.nombre}</div>
+            {tmpl.tip && <InfoTip text={tmpl.tip} />}
+          </div>
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{tmpl.desc}</div>
         </div>
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -257,7 +262,11 @@ const Onboarding = ({ onComplete }) => {
                 <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>Datos del negocio</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>¿Cómo se llama tu empresa o emprendimiento?</div>
               </div>
-              <Input label="Nombre del negocio" value={nombre} onChange={setNombre} placeholder="Ej. Lácteos del Valle" onFocusColor={accentColor} />
+              <Input
+                label="Nombre del negocio"
+                labelExtra={<InfoTip text="Este nombre aparece en el selector de negocio y en los reportes. Podés cambiarlo después en Configuración." />}
+                value={nombre} onChange={setNombre} placeholder="Ej. Lácteos del Valle" onFocusColor={accentColor}
+              />
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>Sub-rubro (opcional)</div>
                 <ChipSelector options={SUBRUBROS[rubro] || []} selected={subrubros} onSelect={setSubrubros} multi accentColor={accentColor} />

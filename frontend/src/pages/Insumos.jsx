@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { StatusBadge, MoneyDisplay, Btn } from '../components/ui.jsx';
+import { StatusBadge, Btn, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
-const Field = ({ label, children }) => (
+const Field = ({ label, labelExtra, children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-    <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+      {labelExtra}
+    </div>
     {children}
   </div>
 );
@@ -28,18 +31,12 @@ const InsumoDrawer = ({
   proveedores
 }) => {
   const [form, setForm] = useState(() => {
-    if (insumo) {
-      return {
-        ...insumo,
-        precio_unitario: insumo.precio_unitario != null ? parseFloat(insumo.precio_unitario).toString() : ''
-      };
-    }
+    if (insumo) return { ...insumo };
     return {
       nombre: '',
       codigo_sku: '',
       categoria_id: '',
       unidad_id: '',
-      precio_unitario: '',
       proveedor_id: '',
       es_variable: true,
       notas: ''
@@ -92,16 +89,6 @@ const InsumoDrawer = ({
               </select>
             </Field>
           </div>
-          <Field label="Precio por unidad">
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>Bs</span>
-              <input value={form.precio_unitario} onChange={e => set('precio_unitario', e.target.value)} type="number" placeholder="0.00"
-                style={{ width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px 8px 30px', fontSize: '14px', fontFamily: 'var(--font-mono)', outline: 'none' }}
-                onFocus={e => e.target.style.borderColor = accentColor}
-                onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
-              />
-            </div>
-          </Field>
           <Field label="Proveedor">
             <select value={form.proveedor_id || ''} onChange={e => set('proveedor_id', e.target.value)}
               style={selectStyle(!!form.proveedor_id)}
@@ -112,7 +99,7 @@ const InsumoDrawer = ({
               {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </Field>
-          <Field label="Categoría">
+          <Field label="Categoría" labelExtra={<InfoTip text="La categoría 'Alimento / Balanceado' tiene comportamiento especial: el sistema la usa para identificar registros del diario que afectan el ICa." />}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {categorias.map(cat => (
                 <button key={cat.id} onClick={() => set('categoria_id', cat.id)} style={{
@@ -125,7 +112,7 @@ const InsumoDrawer = ({
               ))}
             </div>
           </Field>
-          <Field label="Tipo de costo">
+          <Field label="Tipo de costo" labelExtra={<InfoTip text="Marcá si el precio de este insumo cambia frecuentemente. Los insumos variables se destacan en la ficha de costo para que sepas cuáles revisar antes de cotizar." />}>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[{ v: true, l: 'Variable' }, { v: false, l: 'Fijo' }].map(t => (
                 <button key={t.l} onClick={() => set('es_variable', t.v)} style={{
@@ -218,7 +205,6 @@ const Insumos = ({ negocioId }) => {
         codigo_sku: form.codigo_sku || null,
         categoria_id: form.categoria_id || null,
         unidad_id: form.unidad_id || null,
-        precio_unitario: form.precio_unitario === '' ? 0 : Number(form.precio_unitario),
         proveedor_id: form.proveedor_id || null,
         es_variable: form.es_variable,
         notas: form.notas || null
@@ -245,7 +231,7 @@ const Insumos = ({ negocioId }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Insumos</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Catálogo de insumos</h1>
           <span style={{ background: accentColor + '1A', color: accentColor, border: `1px solid ${accentColor}33`, borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{activosAll.length}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -293,9 +279,9 @@ const Insumos = ({ negocioId }) => {
       </div>
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 180px 70px 120px 160px 80px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
-          {['Insumo', 'Categoría', 'Unidad', 'Precio/u', 'Proveedor', 'Tipo', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: i === 3 ? 'right' : 'left' }}>{h}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 70px 110px 180px 160px 80px 80px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
+          {['Insumo', 'Unidad', 'Stock disponible', 'Categoría', 'Proveedor', 'Tipo', ''].map((h, i) => (
+            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: 'left' }}>{h}</div>
           ))}
         </div>
 
@@ -315,9 +301,10 @@ const Insumos = ({ negocioId }) => {
           const isArchived = ins.activo === false;
           const catColor = ins.categoria_color || 'var(--text-tertiary)';
           const tipoLabel = ins.es_variable !== false ? 'variable' : 'fijo';
+          const stock = parseFloat(ins.stock_total ?? 0);
           return (
             <div key={ins.id}
-              style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 180px 70px 120px 160px 80px 80px', padding: '11px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: isArchived ? 0.5 : 1 }}
+              style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 70px 110px 180px 160px 80px 80px', padding: '11px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: isArchived ? 0.5 : 1 }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -325,9 +312,15 @@ const Insumos = ({ negocioId }) => {
                 <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px' }}>{ins.nombre}</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.codigo_sku || 'Sin SKU'}</div>
               </div>
-              <div><StatusBadge label={ins.categoria_nombre || 'Sin categoría'} color={catColor} /></div>
               <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{ins.unidad_simbolo || '-'}</div>
-              <div style={{ textAlign: 'right' }}><MoneyDisplay value={ins.precio_unitario} size="sm" /></div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+                {stock === 0 ? (
+                  <span style={{ color: 'var(--accent-warning)' }}>⚠ Sin stock</span>
+                ) : (
+                  <span style={{ color: 'var(--text-primary)' }}>{stock} {ins.unidad_simbolo || ''}</span>
+                )}
+              </div>
+              <div><StatusBadge label={ins.categoria_nombre || 'Sin categoría'} color={catColor} /></div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.proveedor_nombre || '—'}</div>
               <div><StatusBadge label={tipoLabel} color={ins.es_variable !== false ? accentColor : 'var(--text-tertiary)'} /></div>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -362,6 +355,20 @@ const Insumos = ({ negocioId }) => {
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
                   ><Icon name="archive" size={14} /></button>
                 )}
+                <button onClick={async () => {
+                  if (!confirm('¿Eliminar este insumo permanentemente?')) return;
+                  try {
+                    setError('');
+                    await apiFetch(`/api/negocios/${negocioId}/insumos/${ins.id}`, { method: 'DELETE' });
+                    await recargarInsumos();
+                  } catch (e) {
+                    setError(e?.error || 'No se pudo eliminar el insumo');
+                  }
+                }} title="Eliminar"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px', transition: 'color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-danger)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                ><Icon name="trash" size={14} /></button>
               </div>
             </div>
           );
