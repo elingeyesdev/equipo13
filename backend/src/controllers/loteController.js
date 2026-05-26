@@ -1,6 +1,7 @@
 import { pool } from '../config/database.js';
 import { calcularConsumoFIFO } from '../services/inventarioFIFO.js';
 import { prorratearCIF } from '../services/calculoCif.js';
+import { calcularPuntoEquilibrio } from '../services/puntoEquilibrio.js';
 
 // ──────────────────────────────────────────────
 // LOTES
@@ -927,5 +928,27 @@ export const deleteDiarioEntry = async (req, res) => {
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────
+// PUNTO DE EQUILIBRIO — Motor dinámico por lote
+// GET /api/negocios/:negocioId/lotes/:loteId/punto-equilibrio
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * Calcula el punto de equilibrio dinámico del lote.
+ * PE = costo_total (MPD + MOD + CIF prorrateado) / peso_neto_útil
+ * donde peso_neto_útil = peso_bruto - SUM(mermas de los 4 nodos)
+ */
+export const getPuntoEquilibrio = async (req, res) => {
+  const { negocioId, loteId } = req.params;
+  try {
+    const resultado = await calcularPuntoEquilibrio(pool, { negocioId, loteId });
+    res.json(resultado);
+  } catch (err) {
+    console.error(err);
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message });
   }
 };
