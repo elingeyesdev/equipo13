@@ -36,7 +36,7 @@ const TEMPLATE_PLANTILLA = {
   t1: 'industria_lactea',
   t2: 'panificacion',
   t3: 'textileria',
-  t4: 'engorde_bovino',
+  t4: 'engorde_porcino',
   t5: 'industria_carnica',
   t6: 'metalmecanica',
   blank: null,

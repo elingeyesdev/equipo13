@@ -9,7 +9,7 @@ const MONEDAS_OPTS = ['BOB', 'USD', 'ARS', 'PEN'];
 
 const PLANTILLAS_POR_RUBRO = {
   industrial:    [{ value: 'industria_lactea', label: 'Industria láctea' }],
-  agro_ganadero: [{ value: 'engorde_bovino',   label: 'Engorde bovino'  }],
+  agro_ganadero: [{ value: 'engorde_porcino', label: 'Engorde porcino bajo confinamiento' }],
 };
 
 const RUBRO_COLOR = {
