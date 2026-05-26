@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Icon } from '../../icons.jsx';
 import { Btn, StatusBadge } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
@@ -7,10 +6,10 @@ const AC = 'var(--accent-agro)';
 
 // ─── Colores por nodo ────────────────────────────────────────
 const NODO_CONFIG = {
-  AYUNO:    { label: 'Ayuno',    color: '#F59E0B', icon: 'clock',    desc: 'Merma por ayuno previo al sacrificio' },
-  FRIO:     { label: 'Frío',     color: '#60A5FA', icon: 'snowflake', desc: 'Merma en cámara frigorífica' },
-  DESPOSTE: { label: 'Desposte', color: '#A78BFA', icon: 'scissors', desc: 'Merma durante el desposte de la canal' },
-  HORNO:    { label: 'Horno',    color: '#F97316', icon: 'flame',     desc: 'Merma en proceso de cocción / horno' },
+  AYUNO: { label: 'Ayuno', color: '#F59E0B', desc: 'Merma por ayuno previo al sacrificio' },
+  FRIO: { label: 'Frío', color: '#60A5FA', desc: 'Merma en cámara frigorífica' },
+  DESPOSTE: { label: 'Desposte', color: '#A78BFA', desc: 'Merma durante el desposte de la canal' },
+  HORNO: { label: 'Horno', color: '#F97316', desc: 'Merma en proceso de cocción / horno' },
 };
 
 const TIPOS = Object.keys(NODO_CONFIG);
@@ -67,7 +66,7 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
     if (!loteId) {
       apiFetch(`/api/negocios/${negocioId}/lotes`)
         .then(data => setLotes(data.filter(l => l.activo)))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [negocioId, loteId]);
 
@@ -147,10 +146,10 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
                       transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     }}
                   >
-                    <Icon name={cfg.icon} size={20} />
-                    {cfg.label}
-                  </button>
-                );
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                      {cfg.label}
+                    </div>
+                  </button>);
               })}
             </div>
           </div>
@@ -250,7 +249,7 @@ const PesajeModal = ({ negocioId, loteId, onClose, onSaved }) => {
 
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-          <Btn accentColor={nodoColor} icon="scale" onClick={save} disabled={saving}>
+          <Btn accentColor={nodoColor} onClick={save} disabled={saving}>
             {saving ? 'Registrando…' : 'Registrar Pesaje'}
           </Btn>
         </div>
@@ -284,8 +283,7 @@ const NodoCard = ({ tipo, data, onClick }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
         <div>
-          <div style={{ marginBottom: 4, color: cfg.color }}><Icon name={cfg.icon} size={24} /></div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{cfg.desc}</div>
         </div>
 
@@ -341,7 +339,7 @@ const Mermas = ({ negocioId, activeLote }) => {
         setLotes(activos);
         if (!selectedLoteId && activos.length > 0) setSelectedLoteId(activos[0].id);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [negocioId]);
 
   // Cargar resumen y registros al cambiar lote
@@ -385,8 +383,8 @@ const Mermas = ({ negocioId, activeLote }) => {
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Icon name="scale" size={20} /> Control de Mermas
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+            Control de Mermas
           </h1>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             Registro y análisis de pérdidas en los 4 nodos productivos
@@ -409,7 +407,7 @@ const Mermas = ({ negocioId, activeLote }) => {
 
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0 }}>
-        {[{ id: 'dashboard', label: 'Resumen', icon: 'pieChart' }, { id: 'lista', label: 'Registros', icon: 'clipboardList' }].map(t => (
+        {[{ id: 'dashboard', label: 'Resumen' }, { id: 'lista', label: 'Registros' }].map(t => (
           <button
             key={t.id}
             onClick={() => setView(t.id)}
@@ -421,7 +419,6 @@ const Mermas = ({ negocioId, activeLote }) => {
               transition: 'all 0.15s', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '6px'
             }}
           >
-            {t.icon && <Icon name={t.icon} size={14} />}
             {t.label}
           </button>
         ))}
