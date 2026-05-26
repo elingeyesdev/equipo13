@@ -11,6 +11,42 @@ const fmt = (n, dec = 2) =>
     maximumFractionDigits: dec,
   });
 
+const ModalValorVentas = ({ isOpen, onClose, onSubmit, saving }) => {
+  const [costo, setCosto] = useState('');
+  const [canal, setCanal] = useState('minorista');
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', width: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px', fontWeight: 500 }}>Asignar por valor de ventas</h3>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}><Icon name="x" size={16} /></button>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Costo operativo de desposte (Bs)</label>
+          <input type="number" min="0" step="0.01" value={costo} onChange={e => setCosto(e.target.value)} placeholder="0.00" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '13px', outline: 'none', fontFamily: 'IBM Plex Mono, monospace' }} />
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Canal de precios</label>
+          <select value={canal} onChange={e => setCanal(e.target.value)} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '13px', outline: 'none' }}>
+            <option value="minorista">Minorista</option>
+            <option value="mayorista">Mayorista</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+          <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+          <Btn accentColor="var(--accent-agro)" disabled={!costo || saving} onClick={() => onSubmit(costo, canal)}>{saving ? 'Asignando...' : 'Asignar costos'}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Despiece = ({ negocioId, onNavigate }) => {
   const [lotes, setLotes] = useState([]);
   const [selectedLoteId, setSelectedLoteId] = useState(null);
@@ -23,6 +59,10 @@ const Despiece = ({ negocioId, onNavigate }) => {
   const [error, setError] = useState(null);
   const [genResult, setGenResult] = useState(null);
   const [costoTotalLote, setCostoTotalLote] = useState(0);
+
+  const [modalValorVentas, setModalValorVentas] = useState(false);
+  const [asignando, setAsignando] = useState(false);
+  const [costoVentasResult, setCostoVentasResult] = useState(null);
 
   // ── Carga lotes al montar ──────────────────────────────────
   useEffect(() => {
@@ -41,6 +81,7 @@ const Despiece = ({ negocioId, onNavigate }) => {
     const lote = lotes.find(l => l.id === selectedLoteId);
     setCostoTotalLote(parseFloat(lote?.costo_total) || 0);
     setGenResult(null);
+    setCostoVentasResult(null);
     setError(null);
 
     apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteId}/despiece`)
@@ -129,6 +170,30 @@ const Despiece = ({ negocioId, onNavigate }) => {
       setError(e?.error || 'Error al generar insumos');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleAsignarValorVentas = async (costoOp, canal) => {
+    if (!selectedLoteId) return;
+    setAsignando(true);
+    setError(null);
+    try {
+      const result = await apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteId}/despiece/asignar-costos-conjuntos`, {
+        method: 'POST',
+        body: JSON.stringify({ costo_operativo_desposte: parseFloat(costoOp), canal })
+      });
+      setCostoVentasResult(result.detalle);
+      setModalValorVentas(false);
+      
+      const updated = await apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteId}/despiece`);
+      const db = updated.cortes || [];
+      setCortesDB(db);
+      setLocalCortes(db.map(c => ({ ...c, _new: false })));
+    } catch (e) {
+      setError(e?.error || 'Error al asignar costos');
+      setModalValorVentas(false);
+    } finally {
+      setAsignando(false);
     }
   };
 
@@ -352,7 +417,7 @@ const Despiece = ({ negocioId, onNavigate }) => {
                     <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(peso, 1)}</div>
                     <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>{fmt(pct, 1)}%</div>
                     <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px', color: accentColor, textAlign: 'right' }}>
-                      {pesoTotal > 0 ? `Bs ${fmt(costoKgDerivado)}` : '—'}
+                      {pesoTotal > 0 ? `Bs ${fmt(c.costo_kg_derivado || costoKgDerivado)}` : '—'}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       {!isLinked ? (
@@ -417,6 +482,15 @@ const Despiece = ({ negocioId, onNavigate }) => {
                 {saving ? 'Guardando…' : 'Guardar cortes'}
               </Btn>
               <Btn
+                variant="secondary"
+                onClick={() => setModalValorVentas(true)}
+                icon="tag"
+                accentColor={accentColor}
+                disabled={localCortes.length === 0 || nuevosLocales.length > 0}
+              >
+                Asignar costos (Valor Ventas)
+              </Btn>
+              <Btn
                 variant={puedeGenerarInsumos ? 'primary' : 'secondary'}
                 onClick={handleGenerarInsumos}
                 icon="arrowRight"
@@ -458,8 +532,43 @@ const Despiece = ({ negocioId, onNavigate }) => {
               </div>
             </div>
           )}
+
+          {/* Resultado de valor de ventas */}
+          {costoVentasResult && (
+            <div style={{ background: 'var(--accent-info)0D', border: '1px solid var(--accent-info)44', borderRadius: '8px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Icon name="tag" size={16} style={{ color: 'var(--accent-info)' }} />
+                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                  Costos asignados por valor de ventas
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 100px', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px', fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div>Corte</div>
+                <div style={{ textAlign: 'right' }}>Valor Mkt</div>
+                <div style={{ textAlign: 'right' }}>Costo Asig</div>
+                <div style={{ textAlign: 'right' }}>Nuevo Costo/Kg</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {costoVentasResult.map((item, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 100px', gap: '8px', padding: '6px 0', fontSize: '13px', borderBottom: i < costoVentasResult.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <span style={{ color: 'var(--text-primary)' }}>{item.nombre}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {fmt(item.valor_mercado)}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-secondary)', textAlign: 'right' }}>Bs {fmt(item.costo_asignado)}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--accent-info)', textAlign: 'right', fontWeight: 500 }}>Bs {fmt(item.costo_kg)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      <ModalValorVentas 
+        isOpen={modalValorVentas} 
+        onClose={() => setModalValorVentas(false)} 
+        onSubmit={handleAsignarValorVentas}
+        saving={asignando}
+      />
     </div>
   );
 };
