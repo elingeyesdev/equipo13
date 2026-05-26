@@ -84,7 +84,14 @@ import {
   createDespiece,
   generarInsumos,
   deleteCorte,
+  asignarCostosConjuntosValorVentas,
 } from '../controllers/despieceController.js';
+import {
+  getPreciosMercado,
+  createPrecioMercado,
+  updatePrecioMercado,
+  deletePrecioMercado,
+} from '../controllers/precioMercadoController.js';
 import {
   listarCompras,
   stockPorInsumo,
@@ -195,7 +202,14 @@ router.get('/:negocioId/lotes/:id/ica', authMiddleware, negocioOwner, getIca);
 router.get('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, getDespiece);
 router.post('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, createDespiece);
 router.post('/:negocioId/lotes/:id/despiece/generar-insumos', authMiddleware, negocioOwner, generarInsumos);
+router.post('/:negocioId/lotes/:id/despiece/asignar-costos-conjuntos', authMiddleware, negocioOwner, asignarCostosConjuntosValorVentas);
 router.delete('/:negocioId/lotes/:id/despiece/:corteId', authMiddleware, negocioOwner, deleteCorte);
+
+// Precios de Mercado
+router.get('/:negocioId/precios-mercado', authMiddleware, negocioOwner, getPreciosMercado);
+router.post('/:negocioId/precios-mercado', authMiddleware, negocioOwner, createPrecioMercado);
+router.put('/:negocioId/precios-mercado/:id', authMiddleware, negocioOwner, updatePrecioMercado);
+router.delete('/:negocioId/precios-mercado/:id', authMiddleware, negocioOwner, deletePrecioMercado);
 
 // Diario de producción — L-3
 router.get('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, getDiario);

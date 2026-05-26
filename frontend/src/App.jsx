@@ -24,6 +24,7 @@ import Compras from './pages/Compras.jsx';
 import DetalleProveedor from './pages/DetalleProveedor.jsx';
 import CatalogoServicios from './pages/agro/CatalogoServicios.jsx';
 import GastosCIF from './pages/GastosCIF.jsx';
+import PreciosMercado from './pages/PreciosMercado.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -135,6 +136,7 @@ const App = () => {
       case 'registrodia': return <RegistroDia negocioId={negocioId} activeLote={activeLote} fecha={activeFecha} onNavigate={navigate} />;
       case 'compras':     return <Compras negocioId={negocioId} />;
       case 'servicios':   return <CatalogoServicios negocioId={negocioId} />;
+      case 'precios':     return <PreciosMercado negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
