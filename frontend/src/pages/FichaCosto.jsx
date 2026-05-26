@@ -163,15 +163,16 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
 
       {result && <>
         {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
           {[
             { label: 'MPD unitario',       value: result.mpd.unitario, sub: 'Materia Prima Directa', color: 'default' },
             { label: 'MOD unitario',       value: result.mod.unitario, sub: 'Mano de Obra Directa',  color: 'default' },
-            { label: 'Costo unitario total',value: result.costo_unitario_total, sub: 'MPD + MOD',     color: 'default' },
-            { label: 'Costo total del lote',value: result.costo_lote_total, sub: `${result.lote_cantidad} unidades`, color: 'green' },
+            { label: 'Costo unit total',   value: result.costo_unitario_total, sub: 'MPD + MOD',     color: 'default' },
+            { label: 'Costo total lote',   value: result.costo_lote_total, sub: `${result.lote_cantidad} uds`, color: 'default' },
+            { label: 'Punto de Equilibrio',value: result.costo_unitario_total, sub: 'Real / Neto útil', color: 'green', highlight: true },
           ].map((c, i) => (
-            <div key={i} style={{ background: 'var(--bg-secondary)', border: `1px solid ${i === 3 ? 'var(--accent-success)22' : 'var(--border-subtle)'}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '10px' }}>{c.label}</div>
+            <div key={i} style={{ background: c.highlight ? 'var(--accent-success)11' : 'var(--bg-secondary)', border: `1px solid ${c.highlight ? 'var(--accent-success)44' : 'var(--border-subtle)'}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <div style={{ fontSize: '11px', color: c.highlight ? 'var(--accent-success)' : 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 600, marginBottom: '10px' }}>{c.label}</div>
               <MoneyDisplay value={c.value} size="xl" color={c.color} />
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '8px' }}>{c.sub}</div>
             </div>
@@ -205,7 +206,7 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
       )}
 
       <p style={{ margin: 0, padding: '12px 0 4px', fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.5 }}>
-        CIF, Punto de Equilibrio y WIP llegan en el próximo sprint.
+        CIF y WIP llegan en el próximo sprint.
       </p>
     </div>
   );

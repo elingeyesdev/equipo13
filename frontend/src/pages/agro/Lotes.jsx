@@ -50,6 +50,15 @@ const fetchIca = async (negocioId, loteUuid) => {
   }
 };
 
+const fetchPuntoEquilibrio = async (negocioId, loteUuid) => {
+  if (!negocioId || !loteUuid) return null;
+  try {
+    return await apiFetch(`/api/negocios/${negocioId}/lotes/${loteUuid}/punto-equilibrio`);
+  } catch {
+    return null;
+  }
+};
+
 const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
   const [form, setForm] = useState({
     tipo: 'Cerdo',
@@ -164,7 +173,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
 };
 
 // Mapea el lote de la API al formato que usa LoteCard
-const mapLoteFromApi = (l, costosDetalle, icaData) => ({
+const mapLoteFromApi = (l, costosDetalle, icaData, peData) => ({
   ...l,
   id: l.identificador || l.id,
   _id: l.id,
@@ -184,6 +193,7 @@ const mapLoteFromApi = (l, costosDetalle, icaData) => ({
   },
   costosTotal: costosDetalle?.total ?? null,
   icaData: icaData ?? null,
+  peData: peData ?? null,
 });
 
 const ICA_COLOR = { verde: 'var(--accent-success)', ambar: 'var(--accent-warning)', rojo: 'var(--accent-danger)' };
@@ -300,6 +310,33 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
         )}
       </div>
 
+      {/* ── Widget Punto de Equilibrio ── */}
+      {lote.peData && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            PE
+            <InfoTip text="Punto de Equilibrio real por kg útil: precio mínimo de venta para cubrir todos los costos (MPD + MOD + CIF prorrateado), descontando mermas registradas." />
+          </span>
+          {lote.peData.punto_equilibrio_bs_por_kg != null ? (
+            <>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', fontWeight: 600, color: accentColor }}>
+                Bs {parseFloat(lote.peData.punto_equilibrio_bs_por_kg).toFixed(4)}
+                <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-tertiary)' }}> / kg útil</span>
+              </span>
+              {lote.peData.pesos?.merma_total_kg > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--accent-warning)', marginLeft: 'auto' }}>
+                  ⚠ {parseFloat(lote.peData.pesos.merma_total_kg).toFixed(2)} kg merma
+                </span>
+              )}
+            </>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+              Sin peso neto útil — registrá mermas o ajustá el peso del lote
+            </span>
+          )}
+        </div>
+      )}
+
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div>
@@ -363,11 +400,12 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes`);
       const mapped = await Promise.all(
         data.map(async (l) => {
-          const [detalle, ica] = await Promise.all([
+          const [detalle, ica, pe] = await Promise.all([
             fetchCostosDetalle(negocioId, l.id),
             fetchIca(negocioId, l.id),
+            fetchPuntoEquilibrio(negocioId, l.id),
           ]);
-          return mapLoteFromApi(l, detalle, ica);
+          return mapLoteFromApi(l, detalle, ica, pe);
         })
       );
       setLotes(mapped);
@@ -393,11 +431,12 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
         edad_promedio_dias: parseInt(form.edad_promedio_dias) || 0,
       }),
     });
-    const [detalle, ica] = await Promise.all([
+    const [detalle, ica, pe] = await Promise.all([
       fetchCostosDetalle(negocioId, nuevo.id),
       fetchIca(negocioId, nuevo.id),
+      fetchPuntoEquilibrio(negocioId, nuevo.id),
     ]);
-    setLotes(prev => [mapLoteFromApi(nuevo, detalle, ica), ...prev]);
+    setLotes(prev => [mapLoteFromApi(nuevo, detalle, ica, pe), ...prev]);
   };
 
   const lotesActivos = lotes.filter(l => l.activo !== false);
