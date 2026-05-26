@@ -1,5 +1,6 @@
 import { pool } from '../config/database.js';
 import { calcularConsumoFIFO } from '../services/inventarioFIFO.js';
+import { prorratearCIF } from '../services/calculoCif.js';
 
 // ──────────────────────────────────────────────
 // LOTES
@@ -318,8 +319,38 @@ export const getCostosDetalle = async (req, res) => {
         detalle.otros += Number(row.total);
       }
     }
-    const total = costo_adquisicion + detalle.alimento + detalle.sanidad + detalle.mano_obra + detalle.otros;
-    res.json({ adquisicion: costo_adquisicion, ...detalle, total });
+
+    // CIF prorrateado (Sprint 2 Entregable 1): suma los gastos indirectos
+    // mensuales del negocio prorrateados según el método configurado.
+    const { rows: gastos } = await pool.query(
+      'SELECT * FROM gastos_cif WHERE negocio_id = $1 AND activo = true',
+      [negocioId],
+    );
+    let cif = 0;
+    let cif_detalle = [];
+    if (gastos.length) {
+      const { rows: loteRows } = await pool.query(
+        'SELECT cabezas_activas, peso_actual_prom FROM lotes WHERE id = $1',
+        [id],
+      );
+      const loteKilos = (Number(loteRows[0]?.cabezas_activas) || 0) * (Number(loteRows[0]?.peso_actual_prom) || 0);
+      const { rows: totRows } = await pool.query(
+        `SELECT COALESCE(SUM(cabezas_activas * peso_actual_prom), 0) AS total_kilos, COUNT(*) AS lotes_activos
+           FROM lotes WHERE negocio_id = $1 AND activo = true`,
+        [negocioId],
+      );
+      const prorrateo = prorratearCIF({
+        gastos,
+        loteKilos,
+        totalKilosNegocio: Number(totRows[0].total_kilos) || 0,
+        lotesActivosNegocio: Number(totRows[0].lotes_activos) || 1,
+      });
+      cif = prorrateo.cif_total_prorrateado;
+      cif_detalle = prorrateo.detalle;
+    }
+
+    const total = costo_adquisicion + detalle.alimento + detalle.sanidad + detalle.mano_obra + detalle.otros + cif;
+    res.json({ adquisicion: costo_adquisicion, ...detalle, cif, cif_detalle, total });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
