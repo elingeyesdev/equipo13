@@ -20,6 +20,7 @@ const NAV_AGRO = [
     subItems: [
       { id: 'lotes',      label: 'Ver lotes',         icon: 'menu' },
       { id: 'diario',     label: 'Diario de producción', icon: 'clipboardList' },
+      { id: 'mermas',     label: 'Mermas',            icon: 'scale' },
       { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
       { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
     ]

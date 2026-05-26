@@ -114,6 +114,14 @@ import {
   deleteGastoCIF,
   getProrrateoCIF,
 } from '../controllers/cifController.js';
+import {
+  getMermas,
+  getMermaById,
+  registrarPesaje,
+  updateMerma,
+  deleteMerma,
+  getResumenMermas,
+} from '../controllers/mermaController.js';
 
 const router = Router();
 
@@ -236,5 +244,17 @@ router.get   ('/:negocioId/cif/prorrateo/:loteId', authMiddleware, negocioOwner,
 router.put   ('/:negocioId/cif/:id',               authMiddleware, negocioOwner, updateGastoCIF);
 router.patch ('/:negocioId/cif/:id/archivar',      authMiddleware, negocioOwner, archivarGastoCIF);
 router.delete('/:negocioId/cif/:id',               authMiddleware, negocioOwner, deleteGastoCIF);
+
+// Mermas — 4 Nodos (AYUNO, FRIO, DESPOSTE, HORNO)
+// Rutas de lista/detalle general
+router.get   ('/:negocioId/mermas',                           authMiddleware, negocioOwner, getMermas);
+router.get   ('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, getMermaById);
+router.put   ('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, updateMerma);
+router.delete('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, deleteMerma);
+
+// Rutas anidadas en lote (registro de pesaje + resumen)
+router.post  ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, registrarPesaje);
+router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, getMermas);
+router.get   ('/:negocioId/lotes/:loteId/mermas/resumen',     authMiddleware, negocioOwner, getResumenMermas);
 
 export default router;
