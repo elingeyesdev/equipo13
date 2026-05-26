@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
-import { StatusBadge, RubroBadge, InfoBanner } from '../../components/ui.jsx';
+import { StatusBadge, RubroBadge, InfoBanner, Btn } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
 
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -161,6 +161,17 @@ const DiarioProduccion = ({ negocioId, activeLote, onNavigate, setActiveLote }) 
           </div>
         </div>
         <RubroBadge rubro="agro_ganadero" />
+      </div>
+
+      {/* Acción rápida: Nueva Producción */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Btn
+          accentColor="var(--accent-agro)"
+          icon="plus"
+          onClick={handleVerDetalle}
+        >
+          Nueva producción
+        </Btn>
       </div>
 
       {/* Historial por mes */}

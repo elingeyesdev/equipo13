@@ -356,7 +356,7 @@ const Compras = ({ negocioId }) => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Compras de insumos</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Inventario</h1>
           <span style={{ background: ACCENT + '1A', color: ACCENT, border: `1px solid ${ACCENT}33`, borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{compras.length}</span>
         </div>
         <Btn icon="plus" accentColor={ACCENT} onClick={() => setDrawer(true)}>Registrar compra</Btn>
@@ -412,7 +412,7 @@ const Compras = ({ negocioId }) => {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                {new Date(c.fecha_compra + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {c.fecha_compra ? new Date(c.fecha_compra + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
               </div>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{c.insumo_nombre}</div>
