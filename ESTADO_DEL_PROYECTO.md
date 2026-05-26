@@ -222,13 +222,13 @@ Tras el despiece, los cortes generados (lomo, costilla, paleta…) aparecen como
 
 | Item | Estado | Sprint planeado |
 |---|---|---|
-| **CIF (Costos Indirectos de Fabricación)** | ❌ Solo placeholder en frontend (`GastosCIFPlaceholder`). Sin tabla, sin motor, sin UI funcional. | Sprint 3 — pendiente |
-| **Punto de equilibrio, WIP** | ❌ No implementado. | Sprint 3 — pendiente |
+| **CIF (Costos Indirectos de Fabricación)** | ✅ Implementado (prorrateo por kilos/horas/partes iguales). | Sprint 2 (Entregable 1) |
+| **Punto de equilibrio, WIP** | ✅ PE dinámico por lote implementado (WIP pendiente). | Sprint 2 (Entregable 4) |
 | **Inventario completo con valuación promedio ponderado** | ⚠️ Hay FIFO de compras→consumos, pero no página "Inventario" con stock global ni alertas. | Sprint 4 — parcial |
 | **Ventas + Clientes** | ❌ No existen módulos. Sin esto no hay margen real medido. | Sprint 6 — pendiente |
 | **Motor de decisión de venta** (vivo vs gancho vs cortes vs esperar con precios de mercado vivos) | ⚠️ Existe comparador estático, no consulta precios externos. | Sprint 7 — pendiente |
 | **Precios de mercado con historial** | ❌ No hay tabla ni CRUD. | Sprint 7 — pendiente |
-| **Mermas reales en producción** | ❌ No hay lote de producción ni medición de merma. | Sprint 6 — pendiente |
+| **Mermas reales en producción** | ✅ Implementado registro de 4 nodos (Ayuno, Frío, Desposte, Horno) para peso neto. | Sprint 2 (Entregable 3) |
 | **Asignación de costos conjuntos (joint costing) formal** | ⚠️ Hay despiece manual pero no método configurable (peso vs valor de mercado). | Sprint 5 — parcial |
 | **Reportes exportables (PDF/Excel)** | ❌ No existen. | Sprint 8+ |
 
@@ -262,6 +262,10 @@ Basado en las migraciones y los planes encontrados:
 4. **Inventario FIFO v2.1:** Compras de insumo con capas FIFO, consumos con `FOR UPDATE` y desempate por `created_at`, redondeo a 4 decimales.
 5. **Hoja de Vida del lote:** Estándares por especie/fase, registro diario con confirmación, integración con FIFO al confirmar día.
 6. **Dockerización (recién hecho hoy, 25/05):** docker-compose con db + backend + frontend, migraciones automáticas, hot-reload, `.env.docker.example`. Probado y funcionando.
+7. **Sprint 2 (Costos & Rendimientos):**
+   - CIF (Costos Indirectos de Fabricación) con prorrateo automático (kilos, horas, partes).
+   - Mermas (4 nodos) para seguimiento de pérdida de peso.
+   - Motor Dinámico de Punto de Equilibrio (PE = costo_total / peso_neto_util).
 
 ---
 
@@ -328,6 +332,6 @@ npm test
 ## 13. Resumen ultra-corto
 
 - **Stack:** Node + Express + PostgreSQL + React + Vite. Dockerizado y corriendo.
-- **Implementado (~60-70% del MVP soñado):** Auth, multi-tenant, onboarding, CRUDs base, BOM + etapas, ficha de costo (MPD+MOD), inventario FIFO, lotes ganaderos + bitácora, hoja de vida, despiece, comparador de escenarios, puente agro→industrial.
-- **Pendiente:** CIF, ventas + clientes, mermas reales, motor de decisión con precios de mercado, reportes, React Router, herramienta de migraciones, más tests.
+- **Implementado (~75% del MVP soñado):** Auth, multi-tenant, onboarding, CRUDs base, BOM + etapas, ficha de costo (MPD+MOD), inventario FIFO, lotes ganaderos + bitácora, hoja de vida, despiece, comparador de escenarios, puente agro→industrial, CIF prorrateado, registro de mermas, y cálculo dinámico de Punto de Equilibrio.
+- **Pendiente:** Ventas + clientes, WIP, motor de decisión con precios de mercado, reportes, React Router, herramienta de migraciones, más tests.
 - **Próxima decisión clave:** elegir entre cerrar deuda del motor de costos (Sprint 3) o avanzar al ciclo end-to-end con ventas (saltar a Sprint 6).
