@@ -412,7 +412,7 @@ const Compras = ({ negocioId }) => {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                {c.fecha_compra ? new Date(c.fecha_compra + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                {c.fecha_compra ? new Date(c.fecha_compra.substring(0, 10) + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
               </div>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{c.insumo_nombre}</div>
