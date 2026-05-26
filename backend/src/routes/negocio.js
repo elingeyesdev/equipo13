@@ -99,6 +99,14 @@ import {
   guardarRegistroDia,
   confirmarDia,
 } from '../controllers/hojaVidaController.js';
+import {
+  getGastosCIF,
+  createGastoCIF,
+  updateGastoCIF,
+  archivarGastoCIF,
+  deleteGastoCIF,
+  getProrrateoCIF,
+} from '../controllers/cifController.js';
 
 const router = Router();
 
@@ -205,5 +213,14 @@ router.get('/:negocioId/lotes/:loteId/hoja-de-vida', authMiddleware, negocioOwne
 router.get('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, getDetalleDia);
 router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha/confirmar', authMiddleware, negocioOwner, confirmarDia);
 router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, guardarRegistroDia);
+
+// CIF — Sprint 2 Entregable 1
+// La ruta de prorrateo va antes que /cif/:id para que Express no la trate como un id.
+router.get   ('/:negocioId/cif',                   authMiddleware, negocioOwner, getGastosCIF);
+router.post  ('/:negocioId/cif',                   authMiddleware, negocioOwner, createGastoCIF);
+router.get   ('/:negocioId/cif/prorrateo/:loteId', authMiddleware, negocioOwner, getProrrateoCIF);
+router.put   ('/:negocioId/cif/:id',               authMiddleware, negocioOwner, updateGastoCIF);
+router.patch ('/:negocioId/cif/:id/archivar',      authMiddleware, negocioOwner, archivarGastoCIF);
+router.delete('/:negocioId/cif/:id',               authMiddleware, negocioOwner, deleteGastoCIF);
 
 export default router;
