@@ -13,11 +13,7 @@ const UNIDADES_INIT = [
   { id: 'u7', nombre: 'Caja',       simbolo: 'caja',tipo: 'Cantidad' },
   { id: 'u8', nombre: 'Metro',      simbolo: 'm',   tipo: 'Longitud' },
 ];
-const EQUIV_INIT = [
-  { id: 'e1', de: 'kg',  a: 'g',  factor: 1000, ejemplo: '1 kg = 1,000 g'  },
-  { id: 'e2', de: 'L',   a: 'ml', factor: 1000, ejemplo: '1 L = 1,000 ml' },
-  { id: 'e3', de: 'doc', a: 'u',  factor: 12,   ejemplo: '1 doc = 12 u'    },
-];
+
 
 const TIPOS = ['Peso', 'Volumen', 'Cantidad', 'Longitud', 'Otro'];
 const TIPO_COLORS = { Peso: 'var(--accent-industrial)', Volumen: 'var(--accent-agro)', Cantidad: 'var(--accent-warning)', Longitud: '#8B5CF6', Otro: 'var(--text-tertiary)' };
@@ -26,7 +22,6 @@ const Unidades = ({ negocioId }) => {
   const negocio = { id: negocioId, nombre: 'Mi negocio', rubro: 'industrial' };
   const accentColor = negocio.rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   const [unidades, setUnidades] = useState([]);
-  const [equiv, setEquiv] = useState(EQUIV_INIT);
   const [newU, setNewU] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -153,35 +148,7 @@ const Unidades = ({ negocioId }) => {
         )}
       </div>
 
-      {/* Equivalencias */}
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Equivalencias y conversiones</span>
-          <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => {}}>Nueva equivalencia</Btn>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '80px 16px 80px 120px 1fr 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
-          {['De', '', 'A', 'Factor', 'Ejemplo', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em' }}>{h}</div>
-          ))}
-        </div>
-        {equiv.map((e, i) => (
-          <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '80px 16px 80px 120px 1fr 80px', padding: '11px 20px', borderBottom: i < equiv.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s' }}
-            onMouseEnter={el => el.currentTarget.style.background = 'var(--bg-tertiary)'}
-            onMouseLeave={el => el.currentTarget.style.background = 'transparent'}
-          >
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>1 {e.de}</span>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>=</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: accentColor }}>{e.factor.toLocaleString()} {e.a}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-tertiary)' }}>× {e.factor.toLocaleString()}</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{e.ejemplo}</span>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button onClick={() => setEquiv(p => p.filter(x => x.id !== e.id))} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
-                onMouseEnter={el => el.currentTarget.style.color = 'var(--accent-danger)'} onMouseLeave={el => el.currentTarget.style.color = 'var(--text-tertiary)'}
-              ><Icon name="trash" size={14} /></button>
-            </div>
-          </div>
-        ))}
-      </div>
+
     </div>
   );
 };
