@@ -7,6 +7,7 @@ const NAV_INDUSTRIAL = [
   { id: 'fichas',     label: 'Fichas de costo',  icon: 'calculator' },
   { id: 'productos',  label: 'Productos',         icon: 'package' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
+  { id: 'compras',    label: 'Inventario',        icon: 'archive' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
   { id: 'gastos',     label: 'Gastos CIF',        icon: 'dollarSign' },
   { id: 'historial',  label: 'Historial fichas',  icon: 'history' },
@@ -26,7 +27,7 @@ const NAV_AGRO = [
     ]
   },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
-  { id: 'compras',    label: 'Compras',           icon: 'shoppingCart' },
+  { id: 'compras',    label: 'Inventario',        icon: 'archive' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
   { id: 'servicios',  label: 'Servicios',         icon: 'wrench' },
   { id: 'precios',    label: 'Precios Mercado',   icon: 'tag' },

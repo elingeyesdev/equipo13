@@ -15,12 +15,8 @@ const SUBRUBROS = {
 };
 
 const TEMPLATES = [
-  { id: 't1', rubro: 'industrial',    nombre: 'Industria láctea',       desc: 'Queso fresco, yogur, mantequilla', insumos: 9,  productos: 2, etapas: 7  },
-  { id: 't2', rubro: 'industrial',    nombre: 'Panificación',            desc: 'Pan, galletas, bizcochos',         insumos: 12, productos: 4, etapas: 5  },
-  { id: 't3', rubro: 'industrial',    nombre: 'Textilería',              desc: 'Telas, prendas, accesorios',       insumos: 8,  productos: 3, etapas: 6  },
   { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde porcino bajo confinamiento', desc: 'Cerdos en sistema intensivo, 4 fases', insumos: 10, productos: 0, etapas: 0, tip: 'Incluye un lote demo de 50 cerdos con 30 días de registros confirmados, inventario FIFO precargado y 16 servicios veterinarios.' },
   { id: 't5', rubro: 'industrial',    nombre: 'Industria cárnica',       desc: 'Despiece, chorizo, morcilla',         insumos: 16, productos: 2, etapas: 5, tip: 'Procesamiento industrial de cortes en productos cárnicos (chorizo, morcilla). Pareja del rubro agro de engorde porcino.' },
-  { id: 't6', rubro: 'industrial',    nombre: 'Metalmecánica',           desc: 'Piezas, estructuras, soldadura',   insumos: 11, productos: 5, etapas: 8  },
 ];
 
 const LOADING_STEPS = [
@@ -33,12 +29,8 @@ const LOADING_STEPS = [
 ];
 
 const TEMPLATE_PLANTILLA = {
-  t1: 'industria_lactea',
-  t2: 'panificacion',
-  t3: 'textileria',
   t4: 'engorde_porcino',
   t5: 'industria_carnica',
-  t6: 'metalmecanica',
   blank: null,
 };
 

@@ -8,7 +8,7 @@ const MONEDAS = ['BOB (Bs)', 'USD ($)', 'ARS ($)', 'PEN (S/)'];
 const MONEDAS_OPTS = ['BOB', 'USD', 'ARS', 'PEN'];
 
 const PLANTILLAS_POR_RUBRO = {
-  industrial:    [{ value: 'industria_lactea', label: 'Industria láctea' }],
+  industrial:    [{ value: 'industria_carnica', label: 'Industria cárnica' }],
   agro_ganadero: [{ value: 'engorde_porcino', label: 'Engorde porcino bajo confinamiento' }],
 };
 
