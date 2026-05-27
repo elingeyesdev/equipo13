@@ -7,9 +7,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:5173', 'http://localhost:5174'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: corsOrigin,
+  credentials: true,
 }));
+
+// Middleware de seguridad centralizado para enmascarar errores 500 en producción
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function (body) {
+    if (res.statusCode === 500 && body && body.error) {
+      // Imprimir el error original en los logs del servidor para depuración
+      console.error('Error 500 en servidor:', body.error);
+      if (process.env.NODE_ENV === 'production') {
+        body.error = 'Ocurrió un error interno en el servidor';
+      }
+    }
+    return originalJson.call(this, body);
+  };
+  next();
+});
+
 app.use(express.json());
 
 // Rutas

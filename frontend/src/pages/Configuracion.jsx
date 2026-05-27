@@ -526,12 +526,14 @@ const Configuracion = ({ negocioId, onNavigate, user, negocios = [], loadNegocio
   const accentColor = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   const [subPage, setSubPage] = useState('negocios');
   const [theme, toggleTheme] = useTheme();
+  const [prevNombre, setPrevNombre] = useState(negocio.nombre);
   const [nombre, setNombre] = useState(negocio.nombre);
   const [moneda, setMoneda] = useState('BOB (Bs)');
 
-  useEffect(() => {
+  if (negocio.nombre !== prevNombre) {
+    setPrevNombre(negocio.nombre);
     setNombre(negocio.nombre);
-  }, [negocio.nombre]);
+  }
 
   const SUB_MENU = [
     { id: 'negocios',   label: 'Mis negocios',      icon: 'building'    },

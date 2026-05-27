@@ -42,15 +42,6 @@ export async function calcularPuntoEquilibrio(pool, { negocioId, loteId }) {
   const costoAdq  = r4(Number(lote.costo_adquisicion) || 0);
 
   // ── 2. costo_mpd = adquisición + Balanceado/Alimentación de bitácora ─
-  const bitMpdRes = await pool.query(
-    `SELECT COALESCE(SUM(monto), 0)::float AS total
-     FROM bitacora_lote
-     WHERE lote_id = $1
-       AND es_baja = false
-       AND monto IS NOT NULL
-       AND tipo ILIKE '%aliment%' OR tipo ILIKE '%balanceado%' OR tipo ILIKE '%insumo%'`,
-    [loteId]
-  );
   // Traemos también TODOS los costos no-baja para manejar el desglose fino
   const bitDetalleRes = await pool.query(
     `SELECT tipo, COALESCE(SUM(monto), 0)::float AS total

@@ -7,11 +7,11 @@ const DetalleProveedor = ({ negocioId, activeProveedor, onNavigate }) => {
   const accentColor = 'var(--accent-agro)';
 
   const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!(negocioId && activeProveedor?.id));
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    if (!negocioId || !activeProveedor?.id) { setLoading(false); return; }
+    if (!negocioId || !activeProveedor?.id) return;
     setLoading(true);
     setError(null);
     apiFetch(`/api/negocios/${negocioId}/proveedores/${activeProveedor.id}/compras`)

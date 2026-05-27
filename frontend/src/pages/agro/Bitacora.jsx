@@ -36,7 +36,7 @@ const DiarioProduccion = ({ negocioId, activeLote, onNavigate, setActiveLote }) 
     }
   }, [activeLote]);
 
-  const fetchDiario = async () => {
+  const fetchDiario = React.useCallback(async () => {
     if (!negocioId || !loteRealId) return;
     setLoadingRegistros(true);
     setErrorRegistros(null);
@@ -48,29 +48,33 @@ const DiarioProduccion = ({ negocioId, activeLote, onNavigate, setActiveLote }) 
     } finally {
       setLoadingRegistros(false);
     }
-  };
+  }, [negocioId, loteRealId]);
 
-  const fetchConsumos = async () => {
+  const fetchConsumos = React.useCallback(async () => {
     if (!negocioId || !loteRealId) return;
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}/consumos`);
       setConsumos(data);
-    } catch {}
-  };
+    } catch (e) {
+      setErrorRegistros(e?.error || 'Error al cargar los consumos del lote');
+    }
+  }, [negocioId, loteRealId]);
 
-  const fetchLote = async () => {
+  const fetchLote = React.useCallback(async () => {
     if (!negocioId || !loteRealId) return;
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/lotes/${loteRealId}`);
       setLoteData(data);
-    } catch {}
-  };
+    } catch (e) {
+      setErrorRegistros(e?.error || 'Error al cargar los datos del lote');
+    }
+  }, [negocioId, loteRealId]);
 
   useEffect(() => {
     fetchDiario();
     fetchConsumos();
     if (loteRealId) fetchLote();
-  }, [negocioId, loteRealId]);
+  }, [negocioId, loteRealId, fetchDiario, fetchConsumos, fetchLote]);
 
   const costoAcumulado = (parseFloat(loteData?.costo_adquisicion) || 0)
     + registros.filter(r => !r.es_baja && r.monto != null).reduce((s, r) => s + parseFloat(r.monto), 0)

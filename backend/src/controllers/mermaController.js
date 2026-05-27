@@ -164,27 +164,44 @@ export const updateMerma = async (req, res) => {
   }
 
   try {
+    // 1. Obtener registro previo
+    const orig = await pool.query(
+      `SELECT * FROM registro_mermas WHERE id = $1 AND negocio_id = $2 AND activo = TRUE`,
+      [id, negocioId]
+    );
+    if (!orig.rows.length) {
+      return res.status(404).json({ error: 'Registro de merma no encontrado' });
+    }
+    const prev = orig.rows[0];
+
+    // 2. Hacer merge (se mantiene el anterior si no viene en el body; si viene se usa, permitiendo vaciar notas/operario)
+    const nuevoPesoInicial = peso_inicial !== undefined ? r4(parseFloat(peso_inicial)) : prev.peso_inicial;
+    const nuevoPesoFinal   = peso_final !== undefined ? r4(parseFloat(peso_final)) : prev.peso_final;
+    const nuevaFecha       = fecha !== undefined ? fecha : prev.fecha;
+    const nuevoOperario    = operario !== undefined ? operario : prev.operario;
+    const nuevasNotas      = notas !== undefined ? notas : prev.notas;
+
+    // 3. Ejecutar UPDATE
     const { rows } = await pool.query(
       `UPDATE registro_mermas
        SET
-         peso_inicial = COALESCE($1, peso_inicial),
-         peso_final   = COALESCE($2, peso_final),
-         fecha        = COALESCE($3, fecha),
-         operario     = COALESCE($4, operario),
-         notas        = COALESCE($5, notas)
+         peso_inicial = $1,
+         peso_final   = $2,
+         fecha        = $3,
+         operario     = $4,
+         notas        = $5
        WHERE id = $6 AND negocio_id = $7 AND activo = TRUE
        RETURNING *`,
       [
-        peso_inicial !== undefined ? r4(parseFloat(peso_inicial)) : null,
-        peso_final !== undefined ? r4(parseFloat(peso_final)) : null,
-        fecha || null,
-        operario || null,
-        notas || null,
+        nuevoPesoInicial,
+        nuevoPesoFinal,
+        nuevaFecha,
+        nuevoOperario,
+        nuevasNotas,
         id,
         negocioId,
       ]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Registro de merma no encontrado' });
     res.json(rows[0]);
   } catch (err) {
     console.error(err);

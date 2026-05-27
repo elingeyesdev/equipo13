@@ -273,7 +273,7 @@ const Compras = ({ negocioId }) => {
   const [errorReporte, setErrorReporte] = useState('');
   const [expandedReporteIds, setExpandedReporteIds] = useState(new Set());
 
-  const cargarBase = async () => {
+  const cargarBase = React.useCallback(async () => {
     try {
       const [ins, provs] = await Promise.all([
         apiFetch(`/api/negocios/${negocioId}/insumos`),
@@ -281,10 +281,12 @@ const Compras = ({ negocioId }) => {
       ]);
       setInsumos(ins);
       setProveedores(provs.filter(p => p.activo));
-    } catch {}
-  };
+    } catch (e) {
+      setError(e?.error || 'No se pudieron cargar los datos base del inventario');
+    }
+  }, [negocioId]);
 
-  const cargarCompras = async () => {
+  const cargarCompras = React.useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -299,13 +301,13 @@ const Compras = ({ negocioId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [negocioId, filtroInsumo, filtroDesde, filtroHasta]);
 
   useEffect(() => {
     if (!negocioId) return;
     cargarBase();
     cargarCompras();
-  }, [negocioId]);
+  }, [negocioId, cargarBase, cargarCompras]);
 
   const handleEliminar = async (compra) => {
     if (!confirm(`¿Eliminar la compra de ${compra.insumo_nombre}?`)) return;

@@ -69,17 +69,21 @@ import {
   updateLote,
   cerrarLote,
   liquidarLote,
-  getCostosDetalle,
-  getEscenarios,
-  getIca,
+} from '../controllers/loteController.js';
+import {
   getDiario,
   createDiarioEntry,
   updateDiarioEntry,
   deleteDiarioEntry,
   consumirInsumo,
   listarConsumos,
+} from '../controllers/diarioController.js';
+import {
+  getCostosDetalle,
+  getEscenarios,
+  getIca,
   getPuntoEquilibrio,
-} from '../controllers/loteController.js';
+} from '../controllers/analisisController.js';
 import {
   getDespiece,
   createDespiece,
@@ -258,7 +262,7 @@ router.delete('/:negocioId/mermas/:id',                       authMiddleware, ne
 
 // Rutas anidadas en lote (registro de pesaje + resumen)
 router.post  ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, registrarPesaje);
-router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, getMermas);
 router.get   ('/:negocioId/lotes/:loteId/mermas/resumen',     authMiddleware, negocioOwner, getResumenMermas);
+router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, getMermas);
 
 export default router;

@@ -49,7 +49,9 @@ const App = () => {
         if (data.find(n => n.id === prev)) return prev;
         return data[0]?.id ?? null;
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error al cargar negocios:', e);
+    }
   };
 
   useEffect(() => {

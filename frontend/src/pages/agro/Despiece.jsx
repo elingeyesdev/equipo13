@@ -477,7 +477,7 @@ const Despiece = ({ negocioId, onNavigate }) => {
                 onClick={handleSave}
                 icon="save"
                 accentColor={accentColor}
-                disabled={saving || localCortes.filter(c => !c.insumo_generado_id).length === 0}
+                disabled={saving || !puedeGuardar}
               >
                 {saving ? 'Guardando…' : 'Guardar cortes'}
               </Btn>

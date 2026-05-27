@@ -19,6 +19,8 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
     actividad: []
   });
 
+  const currentMonthText = React.useMemo(() => new Date().toLocaleDateString('es-BO', { month: 'long', year: 'numeric' }), []);
+
   React.useEffect(() => {
     Promise.all([
       apiFetch(`/api/negocios/${negocioId}/productos`),
@@ -180,7 +182,7 @@ const DashboardIndustrial = ({ negocio, onNavigate }) => {
         <MetricCard
           label="Fichas calculadas este mes"
           value={metricas.fichasEsteMes}
-          sub={new Date().toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })}
+          sub={currentMonthText}
           icon={<Icon name="calculator" size={16} />}
           accentColor={accentColor}
           mono={false}
@@ -241,17 +243,20 @@ const DashboardAgro = ({ negocio, onNavigate }) => {
       ? '—'
       : `Bs ${costoPorCabeza.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const actividades = lotes.map(l => ({
-    icon: 'plus',
-    text: `Nuevo lote registrado: ${l.id} · ${l.cabezas_inicio} ${l.tipo === 'Cerdo' ? 'cerdos' : l.tipo === 'Bovino' ? 'bovinos' : 'animales'}`,
-    time: timeAgo(l.created_at),
-    date: new Date(l.created_at),
-    color: 'var(--accent-success)'
-  })).sort((a, b) => b.date - a.date).slice(0, 4);
+  const actividades = React.useMemo(() => {
+    const list = lotes.map(l => ({
+      icon: 'plus',
+      text: `Nuevo lote registrado: ${l.id} · ${l.cabezas_inicio} ${l.tipo === 'Cerdo' ? 'cerdos' : l.tipo === 'Bovino' ? 'bovinos' : 'animales'}`,
+      time: timeAgo(l.created_at),
+      date: new Date(l.created_at),
+      color: 'var(--accent-success)'
+    })).sort((a, b) => b.date - a.date).slice(0, 4);
 
-  if (actividades.length === 0) {
-    actividades.push({ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' });
-  }
+    if (list.length === 0) {
+      return [{ icon: 'info', text: 'No hay actividad reciente', time: '', color: 'var(--text-tertiary)' }];
+    }
+    return list;
+  }, [lotes]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

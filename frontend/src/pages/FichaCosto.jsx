@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RubroBadge, MoneyDisplay, Btn, CostTable, InfoTip, InfoBanner } from '../components/ui.jsx';
 import { Icon } from '../icons.jsx';
 import { apiFetch } from '../config/api.js';
@@ -65,7 +65,6 @@ const FichaCosto = ({ negocio, productoId, onNavigate }) => {
   const [selectedProductoId, setSelectedProductoId] = useState(productoId || '');
   const [loteRaw, setLoteRaw] = useState('100');
   const lote = parseFloat(loteRaw) || 0;
-  const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');

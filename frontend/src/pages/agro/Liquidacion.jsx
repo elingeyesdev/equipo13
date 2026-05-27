@@ -149,7 +149,6 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   }, 0);
   const utilCortes = ingresoCortes - costoTotalLote - gastosGanchoTotal;
   const tieneAlgunPrecioCorte = cortesDespiece.some(c => parseFloat(preciosCortes[c.id]) > 0);
-  const cortesEsMejor = tieneAlgunPrecioCorte && utilCortes > Math.max(utilPie, utilGancho);
 
   const handleCalcularEscenarios = async () => {
     if (!negocioId || !selectedLoteUuid) return;
@@ -195,8 +194,6 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       {hint && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>{hint}</span>}
     </div>
   );
-
-  const fmtSafe = (val) => val == null ? '—' : val;
 
   const ResultCol = ({ titulo, recomendado, pesoTotal, pesoLabel, costoKg, ingreso, gastosVenta, utilidad, utilCabeza, utilKg, margen, accentColor }) => (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0', background: recomendado ? accentColor + '08' : 'transparent', borderRadius: '8px', border: `1px solid ${recomendado ? accentColor + '44' : 'var(--border-subtle)'}`, overflow: 'hidden', minWidth: 0 }}>

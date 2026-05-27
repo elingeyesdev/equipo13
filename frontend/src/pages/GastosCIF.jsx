@@ -16,6 +16,13 @@ const METODOS = [
   { value: 'partes_iguales', label: 'Partes iguales entre lotes activos' },
 ];
 
+const Field = ({ label, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
+    {children}
+  </div>
+);
+
 const Drawer = ({ gasto, onClose, onSave, accentColor }) => {
   const [form, setForm] = useState(gasto || {
     concepto: '', categoria: 'servicios', monto_mensual: '', metodo_prorrateo: 'kilos', notas: '',
@@ -29,12 +36,6 @@ const Drawer = ({ gasto, onClose, onSave, accentColor }) => {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const Field = ({ label, children }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <label style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</label>
-      {children}
-    </div>
-  );
   const inputStyle = { background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '13px', outline: 'none', fontFamily: 'var(--font-sans)' };
 
   return (

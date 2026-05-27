@@ -28,7 +28,6 @@ const Unidades = ({ negocioId }) => {
   const [unidades, setUnidades] = useState([]);
   const [equiv, setEquiv] = useState(EQUIV_INIT);
   const [newU, setNewU] = useState(null);
-  const [newE, setNewE] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -158,7 +157,7 @@ const Unidades = ({ negocioId }) => {
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
           <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: accentColor }}>Equivalencias y conversiones</span>
-          <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => setNewE({ de: 'kg', a: 'g', factor: 1 })}>Nueva equivalencia</Btn>
+          <Btn variant="ghost" size="sm" icon="plus" accentColor={accentColor} onClick={() => {}}>Nueva equivalencia</Btn>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '80px 16px 80px 120px 1fr 80px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
           {['De', '', 'A', 'Factor', 'Ejemplo', ''].map((h, i) => (

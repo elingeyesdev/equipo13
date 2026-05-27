@@ -244,14 +244,14 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
   const [anio, setAnio] = useState(now.getFullYear());
   const [mes, setMes]   = useState(now.getMonth() + 1);
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const loteId = activeLote?._id;
+
+  const [loading, setLoading] = useState(!!(negocioId && loteId));
   const [error, setError]     = useState(null);
   const [vista, setVista]     = useState('calendario'); // 'calendario' | 'lista'
 
-  const loteId = activeLote?._id;
-
   useEffect(() => {
-    if (!negocioId || !loteId) { setLoading(false); return; }
+    if (!negocioId || !loteId) return;
     setLoading(true);
     setError(null);
     apiFetch(`/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida?anio=${anio}&mes=${mes}`)
