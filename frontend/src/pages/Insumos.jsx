@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, Btn, InfoTip } from '../components/ui.jsx';
-import { apiFetch } from '../config/api.js';
+import { apiFetch, fmtQty } from '../config/api.js';
 
 const Field = ({ label, labelExtra, children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -317,7 +317,7 @@ const Insumos = ({ negocioId }) => {
                 {stock === 0 ? (
                   <span style={{ color: 'var(--accent-warning)' }}>⚠ Sin stock</span>
                 ) : (
-                  <span style={{ color: 'var(--text-primary)' }}>{stock} {ins.unidad_simbolo || ''}</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{fmtQty(stock)} {ins.unidad_simbolo || ''}</span>
                 )}
               </div>
               <div><StatusBadge label={ins.categoria_nombre || 'Sin categoría'} color={catColor} /></div>

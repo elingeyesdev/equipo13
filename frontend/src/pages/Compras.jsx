@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
 import { Btn } from '../components/ui.jsx';
-import { apiFetch } from '../config/api.js';
+import { apiFetch, fmtQty } from '../config/api.js';
 
 const ACCENT = 'var(--accent-agro)';
 
@@ -122,7 +122,7 @@ const CompraDrawer = ({ onClose, onSaved, negocioId, insumos, proveedores }) => 
             {loadingStock && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Cargando stock…</div>}
             {stockInfo && !loadingStock && (
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                Stock actual: <strong>{parseFloat(stockInfo.stock_total).toFixed(2)} {stockInfo.insumo?.unidad_simbolo || ''}</strong>
+                Stock actual: <strong>{fmtQty(stockInfo.stock_total)} {stockInfo.insumo?.unidad_simbolo || ''}</strong>
               </div>
             )}
           </Field>
@@ -479,8 +479,8 @@ const Compras = ({ negocioId }) => {
             {/* Cards de resumen */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {[
-                { label: 'Stock actual', value: `${parseFloat(reporte.stock_actual || 0).toFixed(2)} ${reporte.insumo?.unidad_simbolo || ''}` },
-                { label: 'Total consumido', value: `${parseFloat(reporte.resumen_periodo?.total_cantidad || 0).toFixed(2)} ${reporte.insumo?.unidad_simbolo || ''}` },
+                { label: 'Stock actual', value: `${fmtQty(reporte.stock_actual || 0)} ${reporte.insumo?.unidad_simbolo || ''}` },
+                { label: 'Total consumido', value: `${fmtQty(reporte.resumen_periodo?.total_cantidad || 0)} ${reporte.insumo?.unidad_simbolo || ''}` },
                 { label: 'Total gastado', value: `Bs ${parseFloat(reporte.resumen_periodo?.total_costo || 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}` },
               ].map(card => (
                 <div key={card.label} style={{ flex: '1 1 160px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>

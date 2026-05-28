@@ -1,18 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../icons.jsx';
-import { Btn, Input, ChipSelector, RubroBadge, InfoTip } from '../components/ui.jsx';
+import { Btn, Input, RubroBadge, InfoTip } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
 
-const SUBRUBROS = {
-  industrial: [
-    'Lácteos', 'Panificación', 'Textil', 'Metalmecánica',
-    'Plásticos', 'Alimentaria', 'Química', 'Madera', 'Calzado', 'Otro',
-  ],
-  agro_ganadero: [
-    'Engorde porcino', 'Aves de corral',
-    'Ovinos', 'Apicultura', 'Caprinos', 'Otro',
-  ],
-};
 
 const TEMPLATES = [
   { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde porcino bajo confinamiento', desc: 'Cerdos en sistema intensivo, 4 fases', insumos: 10, productos: 0, etapas: 0, tip: 'Incluye un lote demo de 50 cerdos con 30 días de registros confirmados, inventario FIFO precargado y 16 servicios veterinarios.' },
@@ -87,7 +77,6 @@ const Onboarding = ({ onComplete }) => {
   const [step, setStep] = useState(0);
   const [rubro, setRubro] = useState(null);
   const [nombre, setNombre] = useState('');
-  const [subrubros, setSubrubros] = useState([]);
   const [template, setTemplate] = useState(null);
   const [loadingStep, setLoadingStep] = useState(-1);
   const [done, setDone] = useState(false);
@@ -134,7 +123,7 @@ const Onboarding = ({ onComplete }) => {
         negocios: [{
           nombre,
           rubro,
-          sub_rubro: subrubros[0] || null,
+          sub_rubro: null,
           plantilla: TEMPLATE_PLANTILLA[template] || null,
         }],
       }),
@@ -259,10 +248,6 @@ const Onboarding = ({ onComplete }) => {
                 labelExtra={<InfoTip text="Este nombre aparece en el selector de negocio y en los reportes. Podés cambiarlo después en Configuración." />}
                 value={nombre} onChange={setNombre} placeholder="Ej. Lácteos del Valle" onFocusColor={accentColor}
               />
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>Sub-rubro (opcional)</div>
-                <ChipSelector options={SUBRUBROS[rubro] || []} selected={subrubros} onSelect={setSubrubros} multi accentColor={accentColor} />
-              </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Btn variant="secondary" onClick={() => setStep(0)}>← Atrás</Btn>
                 <Btn disabled={!nombre.trim()} onClick={() => setStep(2)} accentColor={accentColor} size="lg">

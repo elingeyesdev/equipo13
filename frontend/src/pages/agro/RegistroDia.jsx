@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { Btn, MoneyDisplay } from '../../components/ui.jsx';
-import { apiFetch } from '../../config/api.js';
+import { apiFetch, fmtQty } from '../../config/api.js';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -420,7 +420,7 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
                               {it.insumo_nombre}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
-                              {it.cantidad} {it.unidad_simbolo}
+                              {fmtQty(it.cantidad)} {it.unidad_simbolo}
                             </div>
                           </>
                         ) : (
@@ -515,7 +515,7 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
                             {loadingStock
                               ? 'Cargando stock…'
                               : stockInfo != null
-                                ? `Stock disponible: ${parseFloat(stockInfo.stock_total).toFixed(2)} ${stockInfo.insumo?.unidad_simbolo || ''}`
+                                ? `Stock disponible: ${fmtQty(stockInfo.stock_total)} ${stockInfo.insumo?.unidad_simbolo || ''}`
                                 : ''}
                           </div>
                         )}

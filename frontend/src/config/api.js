@@ -1,5 +1,11 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+export const fmtQty = (val) => {
+  const n = parseFloat(val);
+  if (isNaN(n)) return val ?? '';
+  return parseFloat(n.toFixed(3)).toString();
+};
+
 export const apiFetch = async (path, options = {}) => {
   const token = localStorage.getItem('cu_token');
   const res = await fetch(API_BASE + path, {
