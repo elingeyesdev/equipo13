@@ -117,12 +117,20 @@ export const getEscenarios = async (req, res) => {
     gastos_faena,
     rendimiento_canal,
     precios_cortes,
+    merma_ayuno,
+    merma_frio,
+    merma_desposte,
   } = req.body;
 
   const pvpVivo = Number(pvp_vivo);
   const pvpGancho = Number(pvp_gancho);
   const gastosFaena = gastos_faena == null ? 0 : Number(gastos_faena);
   const rendCanalParam = rendimiento_canal == null ? 75 : Number(rendimiento_canal);
+
+  // Porcentajes de merma con valores estándar por defecto
+  const pctAyuno    = merma_ayuno    == null ? 5   : Math.max(0, Math.min(100, Number(merma_ayuno)));
+  const pctFrio     = merma_frio     == null ? 1.5 : Math.max(0, Math.min(100, Number(merma_frio)));
+  const pctDesposte = merma_desposte == null ? 4   : Math.max(0, Math.min(100, Number(merma_desposte)));
 
   if (!Number.isFinite(pvpVivo) || pvpVivo < 0) {
     return res.status(400).json({ error: 'pvp_vivo es requerido y debe ser >= 0' });
@@ -149,35 +157,47 @@ export const getEscenarios = async (req, res) => {
     const lote = loteRows[0];
     const costo_base = Number(lote.costo_base);
 
-    // Pesos: usar liquidacion_jsonb si el lote ya fue liquidado, sino estimar con datos actuales
-    let peso_total_pie, peso_total_gancho, rendCanalUsado;
+    // Peso base: usar liquidacion_jsonb si el lote ya fue liquidado
+    let pv_granja, rendCanalUsado;
     const liq = lote.liquidacion_jsonb;
     if (liq && liq.peso_total_pie) {
-      peso_total_pie = Number(liq.peso_total_pie);
-      peso_total_gancho = Number(liq.peso_total_gancho);
+      pv_granja = Number(liq.peso_total_pie);
       rendCanalUsado = Number(liq.rendimiento_canal);
     } else {
       const cabezas = Number(lote.cabezas_activas) || 0;
       const pesoProm = Number(lote.peso_actual_prom) || 0;
-      peso_total_pie = cabezas * pesoProm;
+      pv_granja = cabezas * pesoProm;
       rendCanalUsado = rendCanalParam;
-      peso_total_gancho = peso_total_pie * rendCanalUsado / 100;
     }
 
-    // Gastos de faena solo aplican a venta canal/cortes, no a venta en vivo
+    // ── Cascada secuencial de mermas ──────────────────────────
+    // E1: Venta en Pie — descuenta merma de ayuno/transporte
+    const pv_ayunado   = pv_granja * (1 - pctAyuno / 100);
+    const kg_merma_ayuno = pv_granja - pv_ayunado;
+
+    // E2: Venta en Gancho — descuenta merma por deshidratación en frío (sobre PCC)
+    const pcc          = pv_ayunado * rendCanalUsado / 100; // peso canal caliente
+    const pcf          = pcc * (1 - pctFrio / 100);         // peso canal fría
+    const kg_merma_frio = pcc - pcf;
+
+    // E3: Despiece Industrial — descuenta merma de desposte (sobre PCF)
+    const peso_util_industrial = pcf * (1 - pctDesposte / 100);
+    const kg_merma_desposte    = pcf - peso_util_industrial;
+    // ──────────────────────────────────────────────────────────
+
     const costo_con_faena = costo_base + gastosFaena;
 
-    // Escenario 1 — Vivo
-    const ingreso_vivo = peso_total_pie * pvpVivo;
+    // Escenario 1 — Vivo (ingreso sobre peso ayunado)
+    const ingreso_vivo  = pv_ayunado * pvpVivo;
     const utilidad_vivo = ingreso_vivo - costo_base;
-    const margen_vivo = ingreso_vivo > 0 ? (utilidad_vivo / ingreso_vivo) * 100 : null;
+    const margen_vivo   = ingreso_vivo > 0 ? (utilidad_vivo / ingreso_vivo) * 100 : null;
 
-    // Escenario 2 — Gancho
-    const ingreso_gancho = peso_total_gancho * pvpGancho;
+    // Escenario 2 — Gancho (ingreso sobre PCF)
+    const ingreso_gancho  = pcf * pvpGancho;
     const utilidad_gancho = ingreso_gancho - costo_con_faena;
-    const margen_gancho = ingreso_gancho > 0 ? (utilidad_gancho / ingreso_gancho) * 100 : null;
+    const margen_gancho   = ingreso_gancho > 0 ? (utilidad_gancho / ingreso_gancho) * 100 : null;
 
-    // Escenario 3 — Por cortes (opcional, solo si vienen precios)
+    // Escenario 3 — Por cortes (precio por corte × peso real del corte)
     let escenario_cortes = null;
     const cortesInput = Array.isArray(precios_cortes) ? precios_cortes : [];
     if (cortesInput.length > 0) {
@@ -200,19 +220,19 @@ export const getEscenarios = async (req, res) => {
       }
 
       const utilidad_cortes = ingreso_cortes - costo_con_faena;
-      const margen_cortes = ingreso_cortes > 0 ? (utilidad_cortes / ingreso_cortes) * 100 : null;
+      const margen_cortes   = ingreso_cortes > 0 ? (utilidad_cortes / ingreso_cortes) * 100 : null;
       escenario_cortes = {
         ingreso: ingreso_cortes,
         costo: costo_con_faena,
         utilidad: utilidad_cortes,
         margen: margen_cortes,
         desglose,
+        peso_util_industrial,
       };
     }
 
-    // Recomendación: escenario con mayor utilidad
     const opciones = [
-      { key: 'vivo', utilidad: utilidad_vivo },
+      { key: 'vivo',   utilidad: utilidad_vivo },
       { key: 'gancho', utilidad: utilidad_gancho },
     ];
     if (escenario_cortes !== null) {
@@ -225,9 +245,18 @@ export const getEscenarios = async (req, res) => {
       gancho: { ingreso: ingreso_gancho, costo: costo_con_faena,  utilidad: utilidad_gancho, margen: margen_gancho },
       cortes: escenario_cortes,
       recomendacion: ganador.key,
+      mermas: {
+        pct_ayuno: pctAyuno, pct_frio: pctFrio, pct_desposte: pctDesposte,
+        pv_granja, pv_ayunado, kg_merma_ayuno,
+        pcc, pcf, kg_merma_frio,
+        peso_util_industrial, kg_merma_desposte,
+      },
       desglose: {
-        peso_total_pie,
-        peso_total_gancho,
+        pv_granja,
+        pv_ayunado,
+        pcc,
+        pcf,
+        peso_util_industrial,
         rendimiento_canal: rendCanalUsado,
         costo_base,
         gastos_faena: gastosFaena,

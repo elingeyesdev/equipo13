@@ -25,7 +25,6 @@ import DetalleProveedor from './pages/DetalleProveedor.jsx';
 import CatalogoServicios from './pages/agro/CatalogoServicios.jsx';
 import GastosCIF from './pages/GastosCIF.jsx';
 import PreciosMercado from './pages/PreciosMercado.jsx';
-import Mermas from './pages/agro/Mermas.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -140,7 +139,6 @@ const App = () => {
       case 'compras':     return <Compras negocioId={negocioId} />;
       case 'servicios':   return <CatalogoServicios negocioId={negocioId} />;
       case 'precios':     return <PreciosMercado negocioId={negocioId} />;
-      case 'mermas':      return <Mermas negocioId={negocioId} activeLote={activeLote} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>

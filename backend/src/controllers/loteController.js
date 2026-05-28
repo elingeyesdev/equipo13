@@ -157,6 +157,10 @@ export const liquidarLote = async (req, res) => {
     escenario,
     pvp_kg,
     gastos_finales,
+    merma_ayuno,
+    merma_frio,
+    merma_desposte,
+    mix_produccion,
   } = req.body;
 
   const cabezas = Number(cabezas_venta);
@@ -164,6 +168,9 @@ export const liquidarLote = async (req, res) => {
   const rend = Number(rendimiento_canal);
   const pvp = Number(pvp_kg);
   const gastos = gastos_finales == null ? 0 : Number(gastos_finales);
+  const pctAyuno    = merma_ayuno    == null ? 5   : Math.max(0, Math.min(100, Number(merma_ayuno)));
+  const pctFrio     = merma_frio     == null ? 1.5 : Math.max(0, Math.min(100, Number(merma_frio)));
+  const pctDesposte = merma_desposte == null ? 4   : Math.max(0, Math.min(100, Number(merma_desposte)));
 
   if (
     !Number.isFinite(cabezas) || cabezas <= 0 ||
@@ -176,8 +183,8 @@ export const liquidarLote = async (req, res) => {
       error: 'cabezas_venta, peso_prom_final, rendimiento_canal y pvp_kg son requeridos y deben ser > 0; gastos_finales debe ser >= 0',
     });
   }
-  if (escenario !== 'pie' && escenario !== 'gancho') {
-    return res.status(400).json({ error: 'escenario debe ser "pie" o "gancho"' });
+  if (!['pie', 'gancho', 'despiece'].includes(escenario)) {
+    return res.status(400).json({ error: 'escenario debe ser "pie", "gancho" o "despiece"' });
   }
 
   const client = await pool.connect();
@@ -208,15 +215,25 @@ export const liquidarLote = async (req, res) => {
       [id]
     );
 
-    const peso_total_pie = cabezas * pesoProm;
-    const peso_total_gancho = peso_total_pie * rend / 100;
-    const costo_total = Number(costoAdq.rows[0].adq) + Number(costoBitacora.rows[0].total) + gastos;
-    const costo_kg_vivo = peso_total_pie > 0 ? costo_total / peso_total_pie : null;
-    const costo_kg_canal = peso_total_gancho > 0 ? costo_total / peso_total_gancho : null;
-    const peso_venta = escenario === 'pie' ? peso_total_pie : peso_total_gancho;
-    const ingreso = pvp * peso_venta;
-    const utilidad = ingreso - costo_total;
-    const margen = ingreso > 0 ? (utilidad / ingreso) * 100 : null;
+    const pv_granja = cabezas * pesoProm;
+    // Cascada de mermas secuencial
+    const pv_ayunado          = pv_granja * (1 - pctAyuno / 100);
+    const pcc                 = pv_ayunado * rend / 100;
+    const pcf                 = pcc * (1 - pctFrio / 100);
+    const peso_util_industrial = pcf * (1 - pctDesposte / 100);
+
+    // Peso para cada escenario
+    const peso_venta =
+      escenario === 'pie'     ? pv_ayunado :
+      escenario === 'gancho'  ? pcf :
+                                peso_util_industrial;
+
+    const costo_total  = Number(costoAdq.rows[0].adq) + Number(costoBitacora.rows[0].total) + gastos;
+    const ingreso      = pvp * peso_venta;
+    const utilidad     = ingreso - costo_total;
+    const margen       = ingreso > 0 ? (utilidad / ingreso) * 100 : null;
+    const costo_kg_vivo  = pv_ayunado > 0 ? costo_total / pv_ayunado : null;
+    const costo_kg_canal = pcf > 0 ? costo_total / pcf : null;
 
     const liquidacion = {
       cabezas_venta: cabezas,
@@ -225,8 +242,21 @@ export const liquidarLote = async (req, res) => {
       escenario,
       pvp_kg: pvp,
       gastos_finales: gastos,
-      peso_total_pie,
-      peso_total_gancho,
+      // Pesos por etapa
+      pv_granja,
+      pv_ayunado,
+      pcc,
+      pcf,
+      peso_util_industrial,
+      peso_venta,
+      // Mermas registradas
+      merma_ayuno: pctAyuno,
+      merma_frio: pctFrio,
+      merma_desposte: pctDesposte,
+      kg_merma_ayuno: pv_granja - pv_ayunado,
+      kg_merma_frio: pcc - pcf,
+      kg_merma_desposte: pcf - peso_util_industrial,
+      // Financieros
       costo_total,
       costo_kg_vivo,
       costo_kg_canal,
@@ -234,6 +264,8 @@ export const liquidarLote = async (req, res) => {
       utilidad,
       margen,
       liquidado_en: new Date().toISOString(),
+      // Mix de producción industrial (solo cuando escenario = 'despiece')
+      ...(mix_produccion ? { mix_produccion } : {}),
     };
 
     const { rows } = await client.query(

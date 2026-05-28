@@ -235,7 +235,6 @@ const Insumos = ({ negocioId }) => {
           <span style={{ background: accentColor + '1A', color: accentColor, border: `1px solid ${accentColor}33`, borderRadius: '5px', padding: '2px 10px', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{activosAll.length}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Btn variant="secondary" icon="upload" size="sm">Importar CSV</Btn>
           <Btn icon="plus" accentColor={accentColor} onClick={() => setDrawer('new')}>Nuevo insumo</Btn>
         </div>
       </div>
