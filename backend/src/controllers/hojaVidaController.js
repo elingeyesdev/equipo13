@@ -426,10 +426,11 @@ export async function confirmarDia(req, res) {
       [registro.id]
     );
 
-    // Devolver registro confirmado con items y costos reales
-    const itemsFinales = await loadItemsConDetalle(registro.id);
-
     await client.query('COMMIT');
+
+    // Cargar items DESPUÉS del COMMIT: loadItemsConDetalle usa el pool (fuera de
+    // la transacción), así que leerlo antes devolvía costo_real sin el UPDATE.
+    const itemsFinales = await loadItemsConDetalle(registro.id);
     res.json({ ...confirmResult.rows[0], items: itemsFinales });
   } catch (err) {
     await client.query('ROLLBACK');

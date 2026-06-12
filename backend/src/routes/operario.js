@@ -9,18 +9,22 @@ import {
 
 const router = Router();
 
-// Todas las rutas exigen token de operario; injectNegocio fija :negocioId.
-router.use(authMiddleware, injectNegocio);
+// Todas las rutas exigen token de operario.
+router.use(authMiddleware);
 
-router.get('/perfil',  miPerfil);
-router.get('/lotes',   misLotes);
-router.get('/insumos', listarInsumosOperario);
+// injectNegocio fija :negocioId desde el token. Debe aplicarse POR RUTA (no en
+// un router.use aparte): Express reescribe req.params con los params de la ruta
+// concreta al despachar el handler, así que el negocioId solo sobrevive si se
+// inyecta dentro de la misma cadena de middleware de la ruta.
+router.get('/perfil',  injectNegocio, miPerfil);
+router.get('/lotes',   injectNegocio, misLotes);
+router.get('/insumos', injectNegocio, listarInsumosOperario);
 
 // Hoja de vida (reusa controllers existentes; guard de asignación por lote)
-router.get('/lotes/:loteId/estandar',                requireLoteAsignado, getEstandarDelDia);
-router.get('/lotes/:loteId/hoja-de-vida',            requireLoteAsignado, getVistaMensual);
-router.get('/lotes/:loteId/hoja-de-vida/:fecha',     requireLoteAsignado, getDetalleDia);
+router.get('/lotes/:loteId/estandar',                injectNegocio, requireLoteAsignado, getEstandarDelDia);
+router.get('/lotes/:loteId/hoja-de-vida',            injectNegocio, requireLoteAsignado, getVistaMensual);
+router.get('/lotes/:loteId/hoja-de-vida/:fecha',     injectNegocio, requireLoteAsignado, getDetalleDia);
 // Guardar BORRADOR (no confirma; el admin confirma desde la web)
-router.post('/lotes/:loteId/hoja-de-vida/:fecha',    requireLoteAsignado, guardarRegistroDia);
+router.post('/lotes/:loteId/hoja-de-vida/:fecha',    injectNegocio, requireLoteAsignado, guardarRegistroDia);
 
 export default router;
