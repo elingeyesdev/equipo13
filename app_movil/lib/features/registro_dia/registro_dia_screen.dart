@@ -46,12 +46,19 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
   }
 
   Future<void> _guardar() async {
-    await ref.read(registroRepoProvider).guardarBorrador(
-      widget.lote.id, widget.fecha, notas: _notas.text, items: _items);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Borrador guardado. El administrador lo confirmará.')));
-      Navigator.of(context).pop();
+    try {
+      await ref.read(registroRepoProvider).guardarBorrador(
+        widget.lote.id, widget.fecha, notas: _notas.text, items: _items);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Borrador guardado. El administrador lo confirmará.')));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo guardar: $e')));
+      }
     }
   }
 

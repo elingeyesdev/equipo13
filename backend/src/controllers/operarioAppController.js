@@ -3,7 +3,6 @@ import { pool } from '../config/database.js';
 // GET /api/operario/lotes
 export async function misLotes(req, res) {
   const negocioId = req.user.negocio_id;
-  const hoy = new Date().toISOString().split('T')[0];
   try {
     const { rows } = await pool.query(
       `SELECT l.id, l.identificador, l.tipo_animal, l.cabezas_activas,
