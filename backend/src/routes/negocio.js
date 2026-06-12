@@ -4,6 +4,10 @@ import { negocioOwner } from '../middleware/negocioOwner.js';
 import { requireMembership } from '../middleware/membership.js';
 import { listarRegistrosPendientes } from '../controllers/aprobacionController.js';
 import {
+  listarOperarios, crearOperario, resetPin,
+  setActivoOperario, asignarLote, desasignarLote,
+} from '../controllers/operarioAdminController.js';
+import {
   getUnidades,
   createUnidad,
   updateUnidad,
@@ -269,5 +273,13 @@ router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, ne
 
 // Bandeja de pendientes para el admin
 router.get('/:negocioId/pendientes/registros', authMiddleware, requireMembership('admin'), listarRegistrosPendientes);
+
+// Gestión de operarios (todas exigen rol admin)
+router.get   ('/:negocioId/operarios',                            authMiddleware, requireMembership('admin'), listarOperarios);
+router.post  ('/:negocioId/operarios',                            authMiddleware, requireMembership('admin'), crearOperario);
+router.post  ('/:negocioId/operarios/:operarioId/reset-pin',      authMiddleware, requireMembership('admin'), resetPin);
+router.patch ('/:negocioId/operarios/:operarioId',               authMiddleware, requireMembership('admin'), setActivoOperario);
+router.post  ('/:negocioId/operarios/:operarioId/lotes',          authMiddleware, requireMembership('admin'), asignarLote);
+router.delete('/:negocioId/operarios/:operarioId/lotes/:loteId', authMiddleware, requireMembership('admin'), desasignarLote);
 
 export default router;

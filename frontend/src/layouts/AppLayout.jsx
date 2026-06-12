@@ -26,6 +26,7 @@ const NAV_AGRO = [
       { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
     ]
   },
+  { id: 'operarios',  label: 'Operarios',         icon: 'user' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
   { id: 'compras',    label: 'Inventario',        icon: 'archive' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
