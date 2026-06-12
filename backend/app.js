@@ -39,11 +39,13 @@ import authRoutes from './src/routes/auth.js';
 import negociosRoutes from './src/routes/negocios.js';
 import onboardingRoutes from './src/routes/onboarding.js';
 import negocioRoutes from './src/routes/negocio.js';
+import operarioRoutes from './src/routes/operario.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/negocios', negociosRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/negocios', negocioRoutes);
+app.use('/api/operario', operarioRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
