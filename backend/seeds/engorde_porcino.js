@@ -4,8 +4,8 @@
 //   - Catalogos base (unidades, categorias, proveedores, insumos, servicios)
 //   - Compras historicas que pueblan el inventario FIFO
 //   - DOS lotes demo:
-//       LOTE-CERD-001 → 50 cerdos (lote real para metricas)
-//       LOTE-MINI-001 →  1 cerdo  (lote tutorial para verificar numeros a mano)
+//       LOTE-CERD-001 → 50 cerdos (lote principal)
+//       LOTE-CERD-002 → 10 cerdos (lote chico)
 //   - 30 dias de registros diarios confirmados en cada lote
 //   - bitacora_lote en paralelo (modulo viejo) para que la tarjeta del lote,
 //     el ICA y la pagina "Diario de produccion" muestren datos consistentes
@@ -104,10 +104,15 @@ export async function seedEngordePorcino(negocioId, db) {
   };
 
   // ───────── 6. Compras historicas (poblan inventario FIFO) ─────────
-  // Cantidades dimensionadas para 51 cerdos × 30 dias de iniciacion + colchon.
+  // Cantidades dimensionadas para 60 cerdos × 30 dias de iniciacion + colchon.
+  // Consumo proyectado de balanceado iniciador en 30 dias:
+  //   dia  1-10: 0.5 kg × 60 cab × 10 dias = 300 kg
+  //   dia 11-20: 0.9 kg × 60 cab × 10 dias = 540 kg
+  //   dia 21-30: 1.3 kg × 60 cab × 10 dias = 780 kg
+  //   Total: 1620 kg → se compran 1750 kg (margen ~8%).
   const comprasData = [
     { insumo: 'bal_inicio',   cantidad: 1000, precio: 8.50, dias_antes: 35, proveedor: 'nutricion',   factura: 'GN-001' },
-    { insumo: 'bal_inicio',   cantidad:  600, precio: 8.70, dias_antes: 15, proveedor: 'nutricion',   factura: 'GN-014' },
+    { insumo: 'bal_inicio',   cantidad:  750, precio: 8.70, dias_antes: 15, proveedor: 'nutricion',   factura: 'GN-014' },
     { insumo: 'bal_crecim',   cantidad:  600, precio: 7.80, dias_antes:  5, proveedor: 'nutricion',   factura: 'GN-019' },
     { insumo: 'vac_myco',     cantidad:  150, precio:12.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
     { insumo: 'vac_peste',    cantidad:   60, precio:15.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
@@ -329,7 +334,7 @@ export async function seedEngordePorcino(negocioId, db) {
   }
 
   // ───────── 10. Crear los dos lotes ─────────
-  // Lote real: 50 cerdos.
+  // Lote principal: 50 cerdos.
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
@@ -338,13 +343,13 @@ export async function seedEngordePorcino(negocioId, db) {
     costoAdq:    17500, // 50 × 350 Bs/cabeza
   });
 
-  // Lote tutorial: 1 cerdo. Numeros faciles de verificar a mano.
+  // Lote chico: 10 cerdos (mismo manejo, escala menor).
   await createLoteConRegistros({
-    identificador: 'LOTE-MINI-001',
-    cabezas: 1,
+    identificador: 'LOTE-CERD-002',
+    cabezas: 10,
     pesoInicial: 8.5,
     pesoActual:  25.0,
-    costoAdq:    350, // 1 × 350 Bs/cabeza
+    costoAdq:    3500, // 10 × 350 Bs/cabeza
   });
 
   // ───────── 11. Sincronizar cantidad_disponible final del FIFO ─────────

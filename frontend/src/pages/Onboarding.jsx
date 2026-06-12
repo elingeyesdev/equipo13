@@ -5,8 +5,28 @@ import { apiFetch } from '../config/api.js';
 
 
 const TEMPLATES = [
-  { id: 't4', rubro: 'agro_ganadero', nombre: 'Engorde porcino bajo confinamiento', desc: 'Cerdos en sistema intensivo, 4 fases', insumos: 10, productos: 0, etapas: 0, tip: 'Incluye un lote demo de 50 cerdos con 30 días de registros confirmados, inventario FIFO precargado y 16 servicios veterinarios.' },
-  { id: 't5', rubro: 'industrial',    nombre: 'Industria cárnica',       desc: 'Despiece, chorizo, morcilla',         insumos: 16, productos: 2, etapas: 5, tip: 'Procesamiento industrial de cortes en productos cárnicos (chorizo, morcilla). Pareja del rubro agro de engorde porcino.' },
+  {
+    id: 't4', rubro: 'agro_ganadero',
+    nombre: 'Engorde porcino bajo confinamiento',
+    desc: 'Cerdos en sistema intensivo, 4 fases',
+    bullets: [
+      '10 insumos (balanceados + sanidad)',
+      '16 servicios veterinarios y operativos',
+      '2 lotes con 30 días de registros',
+    ],
+    tip: 'Incluye dos lotes demo (50 + 10 cerdos) con 30 días de registros confirmados, inventario FIFO precargado y catálogo de 16 servicios veterinarios.',
+  },
+  {
+    id: 't5', rubro: 'industrial',
+    nombre: 'Industria cárnica',
+    desc: 'Despiece, chorizo, morcilla',
+    bullets: [
+      '16 insumos de ejemplo',
+      '2 productos con receta',
+      '5 etapas de producción',
+    ],
+    tip: 'Procesamiento industrial de cortes en productos cárnicos (chorizo, morcilla). Pareja del rubro agro de engorde porcino.',
+  },
 ];
 
 const LOADING_STEPS = [
@@ -26,7 +46,9 @@ const TEMPLATE_PLANTILLA = {
 
 const LeftPanel = ({ rubro }) => {
   const isAgro = rubro === 'agro_ganadero';
-  const color = isAgro ? '#166534' : '#1e3a5f';
+  const isAmbos = rubro === 'ambos';
+  // Para "ambos" usamos un degradado de los dos colores de marca.
+  const color = isAmbos ? 'linear-gradient(135deg, #1e3a5f 0%, #166534 100%)' : (isAgro ? '#166534' : '#1e3a5f');
   const accent = isAgro ? 'var(--accent-agro)' : 'var(--accent-industrial)';
   return (
     <div style={{
@@ -40,8 +62,15 @@ const LeftPanel = ({ rubro }) => {
       transition: 'background 0.5s ease',
     }}>
       <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'linear-gradient(var(--border-mid) 1px, transparent 1px), linear-gradient(90deg, var(--border-mid) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', opacity: 0.08 }}>
-        <Icon name={isAgro ? 'cow' : 'building'} size={240} style={{ color: '#fff' }} />
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', opacity: 0.08, display: 'flex', gap: '12px' }}>
+        {isAmbos ? (
+          <>
+            <Icon name="building" size={170} style={{ color: '#fff' }} />
+            <Icon name="cow"      size={170} style={{ color: '#fff' }} />
+          </>
+        ) : (
+          <Icon name={isAgro ? 'cow' : 'building'} size={240} style={{ color: '#fff' }} />
+        )}
       </div>
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ width: 36, height: 36, background: accent, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', fontSize: '15px', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>CU</div>
@@ -73,34 +102,53 @@ const StepDots = ({ step, total, accentColor }) => (
   </div>
 );
 
+const RUBRO_META = {
+  industrial:    { label: 'Industrial',    icon: 'building', accent: 'var(--accent-industrial)' },
+  agro_ganadero: { label: 'Agro-ganadero', icon: 'cow',      accent: 'var(--accent-agro)' },
+};
+
 const Onboarding = ({ onComplete }) => {
   const [step, setStep] = useState(0);
-  const [rubro, setRubro] = useState(null);
-  const [nombre, setNombre] = useState('');
-  const [template, setTemplate] = useState(null);
+  const [rubro, setRubro] = useState(null); // 'industrial' | 'agro_ganadero' | 'ambos'
+  const [datos, setDatos] = useState({
+    industrial:    { nombre: '', template: null },
+    agro_ganadero: { nombre: '', template: null },
+  });
   const [loadingStep, setLoadingStep] = useState(-1);
   const [done, setDone] = useState(false);
 
-  const [createdNegocioId, setCreatedNegocioId] = useState(null);
+  const [createdNegocioIds, setCreatedNegocioIds] = useState([]);
   const [apiError, setApiError] = useState(null);
 
-  const accentColor = rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
+  // Rubros que el wizard va a crear (1 si single, 2 si "ambos")
+  const rubrosActivos = rubro === 'ambos'
+    ? ['industrial', 'agro_ganadero']
+    : (rubro ? [rubro] : []);
+
+  const accentColor = rubro === 'agro_ganadero'
+    ? 'var(--accent-agro)'
+    : 'var(--accent-industrial)';
+
+  const setDato = (r, patch) => setDatos(prev => ({ ...prev, [r]: { ...prev[r], ...patch } }));
+
+  const todosLosNombresOk = rubrosActivos.every(r => datos[r].nombre.trim().length > 0);
+  const todasLasPlantillasOk = rubrosActivos.every(r => datos[r].template != null);
 
   useEffect(() => {
     if (step !== 3) return;
 
     setApiError(null);
     setDone(false);
-    setCreatedNegocioId(null);
+    setCreatedNegocioIds([]);
 
     let i = 0;
     let animDone = false;
     let apiDone = false;
-    let resolvedNegocioId = null;
+    let resolvedIds = [];
 
     const tryComplete = () => {
       if (animDone && apiDone) {
-        setCreatedNegocioId(resolvedNegocioId);
+        setCreatedNegocioIds(resolvedIds);
         setDone(true);
       }
     };
@@ -117,20 +165,19 @@ const Onboarding = ({ onComplete }) => {
       }
     }, 600);
 
-    apiFetch('/api/onboarding/completar', {
-      method: 'POST',
-      body: JSON.stringify({
-        negocios: [{
-          nombre,
-          rubro,
-          sub_rubro: null,
-          plantilla: TEMPLATE_PLANTILLA[template] || null,
-        }],
-      }),
-    })
+    const payload = {
+      negocios: rubrosActivos.map(r => ({
+        nombre:    datos[r].nombre,
+        rubro:     r,
+        sub_rubro: null,
+        plantilla: TEMPLATE_PLANTILLA[datos[r].template] || null,
+      })),
+    };
+
+    apiFetch('/api/onboarding/completar', { method: 'POST', body: JSON.stringify(payload) })
       .then(data => {
         apiDone = true;
-        resolvedNegocioId = data.negocios[0];
+        resolvedIds = data.negocios || [];
         tryComplete();
       })
       .catch(err => {
@@ -171,15 +218,13 @@ const Onboarding = ({ onComplete }) => {
     );
   };
 
-  const TemplateCard = ({ tmpl }) => {
-    const sel = template === tmpl.id;
+  const TemplateCard = ({ tmpl, targetRubro }) => {
+    const sel = datos[targetRubro]?.template === tmpl.id;
     const col = tmpl.rubro === 'agro_ganadero' ? 'var(--accent-agro)' : 'var(--accent-industrial)';
     const [hov, setHov] = useState(false);
-    const show = rubro === 'ambos' || tmpl.rubro === rubro;
-    if (!show) return null;
     return (
       <button
-        onClick={() => setTemplate(tmpl.id)}
+        onClick={() => setDato(targetRubro, { template: tmpl.id })}
         onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
         style={{
           padding: '18px', borderRadius: '8px', cursor: 'pointer',
@@ -200,11 +245,7 @@ const Onboarding = ({ onComplete }) => {
           <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{tmpl.desc}</div>
         </div>
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {[
-            `${tmpl.insumos} insumos de ejemplo`,
-            `${tmpl.productos} productos con receta`,
-            `${tmpl.etapas} etapas de producción`,
-          ].map((item, i) => (
+          {tmpl.bullets.map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
               <Icon name="check" size={11} style={{ color: col, flexShrink: 0 }} /> {item}
             </div>
@@ -227,9 +268,14 @@ const Onboarding = ({ onComplete }) => {
                 <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>¿En qué rubro producís?</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>El sistema se adapta a tu tipo de producción.</div>
               </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <RubroCard id="industrial"    icon="building" title="Industrial"    desc="Fábricas, talleres, manufactura" />
-                <RubroCard id="agro_ganadero" icon="cow"      title="Agro-ganadero" desc="Fincas, ganadería, producción animal" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <RubroCard id="industrial"    icon="building" title="Industrial"    desc="Fábricas, talleres, manufactura" />
+                  <RubroCard id="agro_ganadero" icon="cow"      title="Agro-ganadero" desc="Fincas, ganadería, producción animal" />
+                </div>
+                <div style={{ display: 'flex' }}>
+                  <RubroCard id="ambos" icon="layers" title="Ambos rubros" desc="Creá dos negocios — uno industrial y uno agro-ganadero — en un solo paso" />
+                </div>
               </div>
               <Btn disabled={!rubro} onClick={() => setStep(1)} accentColor={accentColor} size="lg">
                 Continuar <Icon name="arrowRight" size={15} />
@@ -240,17 +286,40 @@ const Onboarding = ({ onComplete }) => {
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease' }}>
               <div>
-                <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>Datos del negocio</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>¿Cómo se llama tu empresa o emprendimiento?</div>
+                <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+                  {rubro === 'ambos' ? 'Datos de tus negocios' : 'Datos del negocio'}
+                </div>
+                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  {rubro === 'ambos'
+                    ? 'Cada rubro será un negocio independiente con sus propios catálogos, lotes y reportes.'
+                    : '¿Cómo se llama tu empresa o emprendimiento?'}
+                </div>
               </div>
-              <Input
-                label="Nombre del negocio"
-                labelExtra={<InfoTip text="Este nombre aparece en el selector de negocio y en los reportes. Podés cambiarlo después en Configuración." />}
-                value={nombre} onChange={setNombre} placeholder="Ej. Lácteos del Valle" onFocusColor={accentColor}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {rubrosActivos.map(r => {
+                  const meta = RUBRO_META[r];
+                  return (
+                    <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {rubro === 'ambos' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: meta.accent, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                          <Icon name={meta.icon} size={14} /> Negocio {meta.label.toLowerCase()}
+                        </div>
+                      )}
+                      <Input
+                        label="Nombre del negocio"
+                        labelExtra={<InfoTip text="Este nombre aparece en el selector de negocio y en los reportes. Podés cambiarlo después en Configuración." />}
+                        value={datos[r].nombre}
+                        onChange={v => setDato(r, { nombre: v })}
+                        placeholder={r === 'agro_ganadero' ? 'Ej. Granja Don Pedro' : 'Ej. Lácteos del Valle'}
+                        onFocusColor={meta.accent}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Btn variant="secondary" onClick={() => setStep(0)}>← Atrás</Btn>
-                <Btn disabled={!nombre.trim()} onClick={() => setStep(2)} accentColor={accentColor} size="lg">
+                <Btn disabled={!todosLosNombresOk} onClick={() => setStep(2)} accentColor={accentColor} size="lg">
                   Continuar <Icon name="arrowRight" size={15} />
                 </Btn>
               </div>
@@ -260,30 +329,49 @@ const Onboarding = ({ onComplete }) => {
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease' }}>
               <div>
-                <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>Elegí una plantilla</div>
+                <div style={{ fontSize: '24px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+                  {rubro === 'ambos' ? 'Elegí una plantilla para cada negocio' : 'Elegí una plantilla'}
+                </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Empezá con datos de ejemplo de tu industria. Podés modificarlos después.</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                {TEMPLATES.map(t => <TemplateCard key={t.id} tmpl={t} />)}
-                <button
-                  onClick={() => setTemplate('blank')}
-                  style={{
-                    padding: '18px', borderRadius: '8px', cursor: 'pointer',
-                    border: `2px solid ${template === 'blank' ? 'var(--border-mid)' : 'var(--border-subtle)'}`,
-                    background: 'transparent', color: 'var(--text-tertiary)',
-                    fontSize: '13px', fontFamily: 'var(--font-sans)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    gridColumn: '1 / -1', height: '64px', transition: 'all 0.15s',
-                  }}
-                >
-                  <Icon name="plus" size={16} />
-                  Empezar desde cero
-                </button>
-              </div>
+
+              {rubrosActivos.map(r => {
+                const meta = RUBRO_META[r];
+                const templatesDelRubro = TEMPLATES.filter(t => t.rubro === r);
+                const sel = datos[r].template;
+                return (
+                  <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {rubro === 'ambos' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: meta.accent, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                        <Icon name={meta.icon} size={14} /> {datos[r].nombre || meta.label}
+                      </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: rubro === 'ambos' ? '1fr' : '1fr 1fr', gap: '10px' }}>
+                      {templatesDelRubro.map(t => <TemplateCard key={t.id} tmpl={t} targetRubro={r} />)}
+                      <button
+                        onClick={() => setDato(r, { template: 'blank' })}
+                        style={{
+                          padding: '14px', borderRadius: '8px', cursor: 'pointer',
+                          border: `2px solid ${sel === 'blank' ? meta.accent : 'var(--border-subtle)'}`,
+                          background: sel === 'blank' ? meta.accent + '08' : 'transparent',
+                          color: sel === 'blank' ? meta.accent : 'var(--text-tertiary)',
+                          fontSize: '13px', fontFamily: 'var(--font-sans)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          gridColumn: rubro === 'ambos' ? 'auto' : '1 / -1', minHeight: '56px', transition: 'all 0.15s',
+                        }}
+                      >
+                        <Icon name="plus" size={14} />
+                        Empezar desde cero
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Btn variant="secondary" onClick={() => setStep(1)}>← Atrás</Btn>
-                <Btn disabled={!template} onClick={() => setStep(3)} accentColor={accentColor} size="lg">
-                  Crear mi negocio <Icon name="arrowRight" size={15} />
+                <Btn disabled={!todasLasPlantillasOk} onClick={() => setStep(3)} accentColor={accentColor} size="lg">
+                  {rubrosActivos.length > 1 ? 'Crear mis negocios' : 'Crear mi negocio'} <Icon name="arrowRight" size={15} />
                 </Btn>
               </div>
             </div>
@@ -296,7 +384,11 @@ const Onboarding = ({ onComplete }) => {
                   {done ? '¡Todo listo!' : 'Preparando tu cuenta…'}
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  {done ? `${nombre} está listo para calcular costos.` : 'Esto toma solo unos segundos.'}
+                  {done
+                    ? (rubrosActivos.length > 1
+                        ? `${rubrosActivos.map(r => datos[r].nombre).join(' y ')} están listos para calcular costos.`
+                        : `${datos[rubrosActivos[0]].nombre} está listo para calcular costos.`)
+                    : 'Esto toma solo unos segundos.'}
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -333,7 +425,7 @@ const Onboarding = ({ onComplete }) => {
                 </div>
               )}
               {done && !apiError && (
-                <Btn onClick={() => onComplete(createdNegocioId)} accentColor={accentColor} size="lg">
+                <Btn onClick={() => onComplete(createdNegocioIds[0])} accentColor={accentColor} size="lg">
                   Entrar al dashboard <Icon name="arrowRight" size={15} />
                 </Btn>
               )}
