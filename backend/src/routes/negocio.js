@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { negocioOwner } from '../middleware/negocioOwner.js';
+import { requireMembership } from '../middleware/membership.js';
+import { listarRegistrosPendientes } from '../controllers/aprobacionController.js';
 import {
   getUnidades,
   createUnidad,
@@ -264,5 +266,8 @@ router.delete('/:negocioId/mermas/:id',                       authMiddleware, ne
 router.post  ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, registrarPesaje);
 router.get   ('/:negocioId/lotes/:loteId/mermas/resumen',     authMiddleware, negocioOwner, getResumenMermas);
 router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, getMermas);
+
+// Bandeja de pendientes para el admin
+router.get('/:negocioId/pendientes/registros', authMiddleware, requireMembership('admin'), listarRegistrosPendientes);
 
 export default router;
