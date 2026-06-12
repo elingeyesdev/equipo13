@@ -141,11 +141,11 @@ export async function asignarLote(req, res) {
 
 // DELETE /api/negocios/:negocioId/operarios/:operarioId/lotes/:loteId
 export async function desasignarLote(req, res) {
-  const { operarioId, loteId } = req.params;
+  const { negocioId, operarioId, loteId } = req.params;
   try {
     await pool.query(
-      'UPDATE operario_lote SET activo = false WHERE operario_user_id = $1 AND lote_id = $2',
-      [operarioId, loteId]
+      'UPDATE operario_lote SET activo = false WHERE operario_user_id = $1 AND lote_id = $2 AND negocio_id = $3',
+      [operarioId, loteId, negocioId]
     );
     res.json({ ok: true });
   } catch (err) {

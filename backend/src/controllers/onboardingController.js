@@ -1,5 +1,6 @@
 import { pool } from '../config/database.js';
 import { aplicarPlantilla } from '../services/seedPlantilla.js';
+import { provisionarNegocioNuevo } from '../services/provisionNegocio.js';
 
 export async function status(req, res) {
   try {
@@ -35,6 +36,8 @@ export async function completar(req, res) {
       );
       const negocioId = result.rows[0].id;
       negociosCreados.push(negocioId);
+
+      await provisionarNegocioNuevo(client, { userId: req.user.id, negocioId });
 
       if (plantilla) {
         await aplicarPlantilla(plantilla, negocioId, client);

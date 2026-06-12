@@ -1,5 +1,6 @@
 import { pool } from '../config/database.js';
 import { aplicarPlantilla } from '../services/seedPlantilla.js';
+import { provisionarNegocioNuevo } from '../services/provisionNegocio.js';
 
 export async function getAll(req, res) {
   const includeInactivos = req.query.includeInactivos === 'true';
@@ -29,9 +30,12 @@ export async function create(req, res) {
       [req.user.id, nombre, rubro ?? null, sub_rubro ?? null, plantilla ?? null, moneda ?? 'BOB']
     );
     const negocio = result.rows[0];
+    await provisionarNegocioNuevo(client, { userId: req.user.id, negocioId: negocio.id });
     if (plantilla) await aplicarPlantilla(plantilla, negocio.id, client);
     await client.query('COMMIT');
-    res.status(201).json(negocio);
+    // Releer para incluir el codigo recién asignado en la respuesta.
+    const { rows } = await pool.query('SELECT * FROM negocios WHERE id = $1', [negocio.id]);
+    res.status(201).json(rows[0] || negocio);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
