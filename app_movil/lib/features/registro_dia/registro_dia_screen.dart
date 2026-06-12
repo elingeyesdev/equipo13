@@ -32,7 +32,30 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
     _detalle = await repo.detalleDia(widget.lote.id, widget.fecha);
     final reg = _detalle?['registro'];
     _confirmado = reg?['confirmado'] == true;
+    // Precargar los ítems del borrador existente: si no, abrir un día ya
+    // registrado mostraría el formulario vacío y al guardar borraría todo.
+    final existentes = reg?['items'];
+    if (existentes is List) {
+      for (final raw in existentes) {
+        final it = raw as Map<String, dynamic>;
+        _items.add(ItemRegistro(
+          tipo: (it['tipo'] as String?) ?? 'insumo',
+          insumoId: it['insumo_id'] as String?,
+          cantidad: _toDouble(it['cantidad']),
+          unidadId: it['unidad_id'] as String?,
+          servicioNombre: it['servicio_nombre'] as String?,
+          costoServicio: _toDouble(it['costo_servicio']),
+          realizadoPor: it['realizado_por'] as String?,
+        ));
+      }
+    }
     setState(() => _cargando = false);
+  }
+
+  double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   void _agregarItem() {

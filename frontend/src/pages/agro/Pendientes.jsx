@@ -1,27 +1,31 @@
 import { useState, useEffect } from 'react';
-import { API_URL } from '../../config/api';
+import { apiFetch } from '../../config/api.js';
 
 export default function Pendientes({ negocioId }) {
   const [registros, setRegistros] = useState([]);
   const [msg, setMsg] = useState(null);
-  const token = localStorage.getItem('cu_token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   async function cargar() {
-    const res = await fetch(`${API_URL}/api/negocios/${negocioId}/pendientes/registros`, { headers });
-    setRegistros(await res.json());
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/pendientes/registros`);
+      setRegistros(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setMsg({ tipo: 'error', texto: e.error || 'No se pudieron cargar los pendientes' });
+    }
   }
   useEffect(() => { if (negocioId) cargar(); }, [negocioId]);
 
   async function confirmar(loteId, fecha) {
     setMsg(null);
-    const res = await fetch(`${API_URL}/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida/${fecha}/confirmar`, {
-      method: 'POST', headers,
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-    setMsg({ tipo: 'ok', texto: 'Día confirmado y costos aplicados (FIFO).' });
-    cargar();
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida/${fecha}/confirmar`, {
+        method: 'POST',
+      });
+      setMsg({ tipo: 'ok', texto: 'Día confirmado y costos aplicados (FIFO).' });
+      cargar();
+    } catch (e) {
+      setMsg({ tipo: 'error', texto: e.error || 'No se pudo confirmar el registro' });
+    }
   }
 
   return (
