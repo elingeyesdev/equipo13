@@ -4,7 +4,7 @@ import { pool } from '../config/database.js';
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email },
+    { id: user.id, email: user.email, rol: 'admin' },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
