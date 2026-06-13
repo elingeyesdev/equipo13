@@ -55,6 +55,62 @@ export default function RecomendacionesVenta({ negocioId }) {
             </tr>))}</tbody>
         </table>
       )}
+      {negocioId && <AlertasPrecio negocioId={negocioId} />}
+    </div>
+  );
+}
+
+function AlertasPrecio({ negocioId }) {
+  const [alertas, setAlertas] = useState([]);
+  const [expandido, setExpandido] = useState(false);
+
+  useEffect(() => {
+    apiFetch(`/api/negocios/${negocioId}/alertas-precio`)
+      .then(d => setAlertas(d.alertas || []))
+      .catch(() => {});
+  }, [negocioId]);
+
+  if (alertas.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 24, border: '1px solid #f59e0b', borderRadius: 8, padding: 16, background: '#fffbeb' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+        onClick={() => setExpandido(e => !e)}
+        id="alertas-precio-toggle"
+      >
+        <span style={{
+          background: '#ef4444', color: '#fff', borderRadius: 999,
+          padding: '2px 10px', fontWeight: 700, fontSize: 14,
+        }}>{alertas.length}</span>
+        <strong>⚠️ Alertas de cambio de precio</strong>
+        <span style={{ marginLeft: 'auto', fontSize: 12 }}>{expandido ? '▲ ocultar' : '▼ ver'}</span>
+      </div>
+      {expandido && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
+          <thead><tr style={{ background: '#fef3c7' }}>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>Corte</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>Canal</th>
+            <th style={{ textAlign: 'right', padding: '4px 8px' }}>Precio nuevo</th>
+            <th style={{ textAlign: 'right', padding: '4px 8px' }}>Promedio ant.</th>
+            <th style={{ textAlign: 'right', padding: '4px 8px' }}>Variación %</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>Fecha</th>
+          </tr></thead>
+          <tbody>{alertas.map((a, i) => (
+            <tr key={i} style={{ borderTop: '1px solid #fde68a' }}>
+              <td style={{ padding: '4px 8px' }}>{a.corte_canonico}</td>
+              <td style={{ padding: '4px 8px' }}>{a.canal}</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px' }}>{Number(a.precio_nuevo).toFixed(2)}</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px' }}>{Number(a.precio_promedio).toFixed(2)}</td>
+              <td style={{
+                textAlign: 'right', padding: '4px 8px',
+                color: a.variacion_pct > 0 ? '#16a34a' : '#dc2626', fontWeight: 600,
+              }}>{a.variacion_pct > 0 ? '+' : ''}{Number(a.variacion_pct).toFixed(2)}%</td>
+              <td style={{ padding: '4px 8px', fontSize: 12 }}>{a.created_at?.slice(0, 16) || '—'}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
     </div>
   );
 }

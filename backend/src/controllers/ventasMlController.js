@@ -1,4 +1,4 @@
-import { mlPost } from '../services/mlClient.js';
+import { mlPost, mlGet } from '../services/mlClient.js';
 import { pool } from '../config/database.js';
 
 // POST /api/negocios/:negocioId/scraping/run
@@ -125,6 +125,18 @@ export async function getRecomendaciones(req, res) {
     res.json(data);
   } catch (err) {
     console.error('getRecomendaciones error:', err);
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
+
+// GET /api/negocios/:negocioId/alertas-precio
+export async function getAlertasPrecios(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const data = await mlGet(`/alertas/precios?negocio_id=${req.params.negocioId}&limit=${limit}`);
+    res.json(data);
+  } catch (err) {
+    console.error('getAlertasPrecios error:', err);
     res.status(err.statusCode || 500).json({ error: err.message });
   }
 }

@@ -3,6 +3,8 @@ from app.db import fetch_all
 from scraping.repo import cargar_fuentes, cargar_alias, persistir_filas, guardar_scrape_run
 from scraping.runner import correr_fuentes
 from scraping.registry import get_adapter
+from ml.repo import cargar_precios_recientes
+from ml.alertas import detectar_alertas_precio, guardar_alertas
 
 
 def listar_negocios_con_fuentes() -> list[str]:
@@ -20,6 +22,15 @@ def ejecutar_scraping_negocio(negocio_id: str) -> None:
     )
     for r in runs:
         guardar_scrape_run(negocio_id, r)
+    # Detectar alertas de precio tras el scraping
+    try:
+        precios = cargar_precios_recientes(negocio_id)
+        alertas = detectar_alertas_precio(precios)
+        guardar_alertas(negocio_id, alertas)
+        if alertas:
+            print(f"[scheduler] {len(alertas)} alerta(s) de precio para negocio {negocio_id}")
+    except Exception as e:
+        print(f"[scheduler] error generando alertas para {negocio_id}: {e}")
 
 
 def scrapear_todos() -> None:

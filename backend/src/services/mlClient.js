@@ -16,3 +16,17 @@ export async function mlPost(path, body) {
   }
   return data;
 }
+
+export async function mlGet(path) {
+  const res = await fetch(`${BASE()}${path}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${TOKEN()}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.detail || data.error || 'Error en el servicio de ML');
+    err.statusCode = res.status;
+    throw err;
+  }
+  return data;
+}

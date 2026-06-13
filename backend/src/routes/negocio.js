@@ -144,7 +144,8 @@ import {
 } from '../controllers/mermaController.js';
 import {
   ejecutarScraping, listarFuentes, crearFuente, actualizarFuente, eliminarFuente,
-  listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns, getRecomendaciones
+  listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns, getRecomendaciones,
+  getAlertasPrecios
 } from '../controllers/ventasMlController.js';
 
 const router = Router();
@@ -320,5 +321,6 @@ router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembers
 router.get('/:negocioId/precios-historico',       authMiddleware, requireMembership('admin'), listarHistorico);
 router.get('/:negocioId/scrape-runs',             authMiddleware, requireMembership('admin'), listarScrapeRuns);
 router.get('/:negocioId/recomendaciones',         authMiddleware, requireMembership('admin'), getRecomendaciones);
+router.get('/:negocioId/alertas-precio',          authMiddleware, requireMembership('admin'), getAlertasPrecios);
 
 export default router;

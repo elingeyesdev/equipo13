@@ -13,6 +13,7 @@ from ml.recommend import recomendar_heuristico, enriquecer_con_forecast
 from ml.features import construir_series
 from ml.forecast import pronosticar
 from ml.optimize import asignar_volumenes_con_topes
+from ml.alertas import cargar_alertas_recientes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,5 +93,13 @@ def generar_recomendaciones(payload: dict):
         return {"id": rec_id, "modo": modo, "items": items_optimizados,
                 "resumen": {"ingreso_total": sum(i["ingreso_estimado"] for i in items_optimizados),
                             "margen_total": sum(i.get("margen_total", 0) for i in items_optimizados)}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/alertas/precios", dependencies=[Depends(auth_dependency)])
+def get_alertas_precios(negocio_id: str, limit: int = 20):
+    try:
+        alertas = cargar_alertas_recientes(negocio_id, limit=limit)
+        return {"alertas": alertas, "total": len(alertas)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
