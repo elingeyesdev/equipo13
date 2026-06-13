@@ -114,3 +114,17 @@ export async function listarScrapeRuns(req, res) {
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 }
+
+// GET /api/negocios/:negocioId/recomendaciones
+export async function getRecomendaciones(req, res) {
+  try {
+    const data = await mlPost('/recomendaciones/generar', {
+      negocio_id: req.params.negocioId,
+      horizonte_dias: parseInt(req.query.horizonte) || 7,
+    });
+    res.json(data);
+  } catch (err) {
+    console.error('getRecomendaciones error:', err);
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
