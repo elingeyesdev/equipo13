@@ -27,6 +27,7 @@ const NAV_AGRO = [
     ]
   },
   { id: 'operarios',  label: 'Operarios',         icon: 'user' },
+  { id: 'rutinas',    label: 'Rutinas y Tareas',  icon: 'calendar' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
   { id: 'compras',    label: 'Inventario',        icon: 'archive' },
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },

@@ -27,6 +27,7 @@ import GastosCIF from './pages/GastosCIF.jsx';
 import PreciosMercado from './pages/PreciosMercado.jsx';
 import Pendientes from './pages/agro/Pendientes.jsx';
 import Operarios from './pages/Operarios.jsx';
+import Rutinas from './pages/agro/Rutinas.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -143,6 +144,7 @@ const App = () => {
       case 'precios':     return <PreciosMercado negocioId={negocioId} />;
       case 'pendientes':  return <Pendientes negocioId={negocioId} />;
       case 'operarios':   return <Operarios negocioId={negocioId} />;
+      case 'rutinas':     return <Rutinas negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
