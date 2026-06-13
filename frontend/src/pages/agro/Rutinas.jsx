@@ -77,7 +77,7 @@ const TareasPuntuales = ({ negocioId, lotes, operarios }) => {
             <Label>Operario asignado</Label>
             <select value={form.asignado_a} onChange={e => setForm({...form, asignado_a: e.target.value})} style={inputStyle}>
               <option value="">— Seleccionar —</option>
-              {operarios.map(o => <option key={o.user_id} value={o.user_id}>{o.nombre}</option>)}
+              {operarios.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
           </div>
           <div>
@@ -222,7 +222,7 @@ const RutinasPlantillas = ({ negocioId, lotes, operarios }) => {
                       const nu = [...asignaciones]; nu[idx].operario_user_id = e.target.value; setAsignaciones(nu);
                     }} style={{...inputStyle, flex: 1}}>
                       <option value="">— Operario —</option>
-                      {operarios.map(o => <option key={o.user_id} value={o.user_id}>{o.nombre}</option>)}
+                      {operarios.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
                     </select>
                     {asignaciones.length > 1 && (
                       <button type="button" onClick={() => setAsignaciones(asignaciones.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', color: 'var(--accent-error)', cursor: 'pointer' }}>×</button>
@@ -265,7 +265,7 @@ const RutinasPlantillas = ({ negocioId, lotes, operarios }) => {
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {(p.asignaciones || []).map((a, i) => {
                   const lote = lotes.find(l => l.id === a.lote_id)?.identificador || a.lote_id;
-                  const op = operarios.find(o => o.user_id === a.operario_user_id)?.nombre || a.operario_user_id;
+                  const op = operarios.find(o => o.id === a.operario_user_id)?.nombre || a.operario_user_id;
                   return <span key={i} style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 4 }}>{lote} ({op})</span>;
                 })}
               </div>

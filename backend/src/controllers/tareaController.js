@@ -20,7 +20,7 @@ export async function getChecklistDia(req, res) {
          JOIN tarea_plantilla tp        ON tp.id = tpa.plantilla_id AND tp.activo = true
          JOIN tarea_plantilla_item tpi  ON tpi.plantilla_id = tp.id
         WHERE tpa.lote_id = $1 AND tpa.operario_user_id = $2
-       ON CONFLICT (plantilla_item_id, lote_id, fecha) DO NOTHING`,
+       ON CONFLICT (plantilla_item_id, lote_id, operario_user_id, fecha) DO NOTHING`,
       [loteId, userId, fecha]
     );
     const { rows } = await client.query(
@@ -101,7 +101,22 @@ export async function completarTarea(req, res) {
 export async function crearTarea(req, res) {
   const { negocioId } = req.params;
   const { titulo, descripcion, lote_id, fecha_objetivo, asignado_a } = req.body;
+  if (!titulo || !titulo.trim()) {
+    return res.status(400).json({ error: 'El título es requerido' });
+  }
   try {
+    // El operario asignado debe ser miembro del negocio; el lote (si se indica) también.
+    if (asignado_a) {
+      const m = await pool.query(
+        `SELECT 1 FROM membresias WHERE user_id = $1 AND negocio_id = $2 AND rol = 'operario'`,
+        [asignado_a, negocioId]
+      );
+      if (!m.rows.length) return res.status(404).json({ error: 'Operario no encontrado' });
+    }
+    if (lote_id) {
+      const l = await pool.query('SELECT 1 FROM lotes WHERE id = $1 AND negocio_id = $2', [lote_id, negocioId]);
+      if (!l.rows.length) return res.status(404).json({ error: 'Lote no encontrado' });
+    }
     const { rows } = await pool.query(
       `INSERT INTO tareas (negocio_id, lote_id, titulo, descripcion, fecha_objetivo, asignado_a, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -140,6 +155,9 @@ export async function listarTareas(req, res) {
 export async function crearPlantilla(req, res) {
   const { negocioId } = req.params;
   const { nombre, items, asignaciones } = req.body;
+  if (!nombre || !nombre.trim()) {
+    return res.status(400).json({ error: 'El nombre es requerido' });
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -160,6 +178,16 @@ export async function crearPlantilla(req, res) {
 
     if (asignaciones && asignaciones.length > 0) {
       for (const asig of asignaciones) {
+        // El lote y el operario de cada asignación deben pertenecer al negocio.
+        const lote = await client.query('SELECT 1 FROM lotes WHERE id = $1 AND negocio_id = $2', [asig.lote_id, negocioId]);
+        const memb = await client.query(
+          `SELECT 1 FROM membresias WHERE user_id = $1 AND negocio_id = $2 AND rol = 'operario'`,
+          [asig.operario_user_id, negocioId]
+        );
+        if (!lote.rows.length || !memb.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Lote u operario de la asignación no pertenece al negocio' });
+        }
         await client.query(
           `INSERT INTO tarea_plantilla_asignacion (plantilla_id, lote_id, operario_user_id) VALUES ($1, $2, $3)`,
           [plantillaId, asig.lote_id, asig.operario_user_id]
@@ -199,11 +227,11 @@ export async function listarPlantillas(req, res) {
 }
 
 export async function togglePlantillaActiva(req, res) {
-  const { id } = req.params;
+  const { negocioId, id } = req.params;
   try {
     const { rows } = await pool.query(
-      `UPDATE tarea_plantilla SET activo = NOT activo WHERE id = $1 RETURNING *`,
-      [id]
+      `UPDATE tarea_plantilla SET activo = NOT activo WHERE id = $1 AND negocio_id = $2 RETURNING *`,
+      [id, negocioId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Plantilla no encontrada' });
     res.json(rows[0]);
