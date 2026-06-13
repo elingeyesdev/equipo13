@@ -8,8 +8,10 @@ from .auth import auth_dependency
 from scraping.repo import cargar_fuentes, cargar_alias, persistir_filas, guardar_scrape_run
 from scraping.runner import correr_fuentes
 from scraping.registry import get_adapter
-from ml.repo import cargar_cortes_disponibles, cargar_precios_recientes, guardar_recomendacion
-from ml.recommend import recomendar_heuristico
+from ml.repo import cargar_cortes_disponibles, cargar_precios_recientes, guardar_recomendacion, guardar_modelo_meta
+from ml.recommend import recomendar_heuristico, enriquecer_con_forecast
+from ml.features import construir_series
+from ml.forecast import pronosticar
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,8 +65,22 @@ def generar_recomendaciones(payload: dict):
         cortes = cargar_cortes_disponibles(negocio_id)
         precios = cargar_precios_recientes(negocio_id)
         items = recomendar_heuristico(cortes, precios)
-        rec_id = guardar_recomendacion(negocio_id, items, "heuristico", horizonte)
-        return {"id": rec_id, "modo": "heuristico", "items": items,
+        
+        series = construir_series(precios)
+        forecasts = {}
+        hay_forecast = False
+        for (corte, canal), serie in series.items():
+            f = pronosticar(serie, horizonte=horizonte)
+            forecasts[(corte, canal)] = f
+            guardar_modelo_meta(negocio_id, corte, canal, f)
+            if f["modelo"] != "fallback":
+                hay_forecast = True
+                
+        items = enriquecer_con_forecast(items, forecasts)
+        modo = "forecast" if hay_forecast else "heuristico"
+        
+        rec_id = guardar_recomendacion(negocio_id, items, modo, horizonte)
+        return {"id": rec_id, "modo": modo, "items": items,
                 "resumen": {"ingreso_total": sum(i["ingreso_estimado"] for i in items),
                             "margen_total": sum(i.get("margen_total", 0) for i in items)}}
     except Exception as e:

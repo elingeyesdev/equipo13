@@ -1,3 +1,5 @@
+import psycopg
+from psycopg.rows import dict_row
 import json
 from app.db import get_conn, fetch_all
 
@@ -53,3 +55,13 @@ def guardar_recomendacion(negocio_id: str, items: list[dict], modo: str, horizon
                      it.get("tendencia"), it.get("precio_pronosticado"), it.get("accion"), it.get("confianza")),
                 )
             return rec_id
+
+def guardar_modelo_meta(negocio_id, corte, canal, f: dict) -> None:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO modelo_forecast_meta (negocio_id, corte_canonico, canal, modelo, metricas, n_puntos)
+                   VALUES (%s,%s,%s,%s,%s,%s)""",
+                (negocio_id, corte, canal, f.get("modelo"),
+                 json.dumps({"confianza": f.get("confianza")}), f.get("n_puntos")),
+            )

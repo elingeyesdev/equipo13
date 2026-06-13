@@ -39,3 +39,15 @@ def recomendar_heuristico(cortes: list[dict], precios: list[dict]) -> list[dict]
         })
     items.sort(key=lambda x: x["margen_total"], reverse=True)
     return items
+
+
+def enriquecer_con_forecast(items: list[dict], forecasts: dict[tuple, dict]) -> list[dict]:
+    """Inyecta tendencia/accion/precio_pronosticado a cada item según el canal sugerido."""
+    for it in items:
+        f = forecasts.get((it["corte_canonico"], it["canal_sugerido"]))
+        if f:
+            it["tendencia"] = f.get("tendencia")
+            it["accion"] = f.get("accion")
+            it["precio_pronosticado"] = f.get("precio_pronosticado")
+            it["confianza"] = f.get("confianza")
+    return items
