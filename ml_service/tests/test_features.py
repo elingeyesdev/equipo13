@@ -8,4 +8,4 @@ def test_construir_series_agrupa_por_corte_canal():
     ]
     series = construir_series(historico)
     assert ("Pierna", "minorista") in series
-    assert series[("Pierna", "minorista")] == [70.0, 72.0]  # ordenado por fecha asc
+    assert series[("Pierna", "minorista")] == [("2026-06-01", 70.0), ("2026-06-02", 72.0)]
