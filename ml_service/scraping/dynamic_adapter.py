@@ -12,19 +12,19 @@ class DynamicAdapter:
                 page.goto(url, wait_until="networkidle")
                 if "wait_for" in config:
                     page.wait_for_selector(config["wait_for"], timeout=10000)
-                
+
                 elementos = page.query_selector_all(config["item_selector"])
                 for item in elementos:
                     name_el = item.query_selector(config["name_selector"])
                     price_el = item.query_selector(config["price_selector"])
-                    
+
                     if not name_el or not price_el:
                         continue
-                        
+
                     name_text = name_el.inner_text().strip()
                     price_text = price_el.inner_text().strip()
                     precio = _parsear_precio(price_text, config["price_regex"])
-                    
+
                     if precio is not None:
                         out.append(PrecioScrapeado(
                             nombre_crudo=name_text,
@@ -32,9 +32,9 @@ class DynamicAdapter:
                             canal=canal,
                             raw={"price_text": price_text}
                         ))
-            except Exception as e:
-                print(f"Error scraping dinamico en {url}: {e}")
             finally:
+                # No tragamos la excepción: dejamos que propague para que el
+                # runner marque la fuente como 'error' (observabilidad).
                 browser.close()
                 
         return out
