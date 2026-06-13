@@ -41,6 +41,7 @@ const NAV_AGRO = [
   { id: 'proveedores',label: 'Proveedores',       icon: 'truck' },
   { id: 'servicios',  label: 'Servicios',         icon: 'wrench' },
   { id: 'precios',    label: 'Precios Mercado',   icon: 'tag' },
+  { id: 'fuentesdatos', label: 'Fuentes de Datos', icon: 'database' },
 ];
 const NAV_BOTTOM = [
   { id: 'config',     label: 'Configuración',     icon: 'settings' },

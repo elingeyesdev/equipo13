@@ -29,6 +29,7 @@ import Pendientes from './pages/agro/Pendientes.jsx';
 import Operarios from './pages/Operarios.jsx';
 import Rutinas from './pages/agro/Rutinas.jsx';
 import ReportesOperarios from './pages/agro/ReportesOperarios.jsx';
+import FuentesDatos from './pages/agro/FuentesDatos.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -147,6 +148,7 @@ const App = () => {
       case 'operarios':   return <Operarios negocioId={negocioId} />;
       case 'reportesoperarios': return <ReportesOperarios negocioId={negocioId} />;
       case 'rutinas':     return <Rutinas negocioId={negocioId} />;
+      case 'fuentesdatos': return <FuentesDatos negocioId={negocioId} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>
