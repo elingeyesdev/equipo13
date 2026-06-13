@@ -1,0 +1,8 @@
+# Artefactos de Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Entorno virtual y secretos
+.venv/
+.env
