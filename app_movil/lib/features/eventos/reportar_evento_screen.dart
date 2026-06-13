@@ -35,7 +35,29 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
     }
   }
 
+  // Devuelve un mensaje de error si el formulario no es válido, o null si lo es.
+  String? _validar() {
+    if (_tipo == 'pesaje') {
+      final p = double.tryParse(_pesoCtrl.text);
+      if (p == null || p <= 0) return 'Ingresá un peso promedio válido (mayor a 0).';
+    } else if (_tipo == 'baja') {
+      final c = int.tryParse(_cabezasCtrl.text);
+      if (c == null || c <= 0) return 'Ingresá la cantidad de cabezas (mayor a 0).';
+      if (_causaCtrl.text.trim().isEmpty) return 'Ingresá la causa de la baja.';
+    } else if (_tipo == 'incidente') {
+      if (_descCtrl.text.trim().isEmpty) return 'Ingresá una descripción del incidente.';
+    } else if (_tipo == 'stock_bajo') {
+      if (_descCtrl.text.trim().isEmpty) return 'Ingresá el nombre del insumo.';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
+    final err = _validar();
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(eventoRepoProvider);
@@ -55,7 +77,7 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
         if (pb != null) payload['peso_baja'] = pb;
       } else if (_tipo == 'pesaje') {
         payload = {
-          'peso_promedio': double.tryParse(_pesoCtrl.text) ?? 0,
+          'peso_promedio': double.parse(_pesoCtrl.text),
         };
       } else if (_tipo == 'incidente') {
         payload = {

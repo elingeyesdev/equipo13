@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Se usa la cámara para adjuntar fotos de evidencia a los eventos del lote (bajas, incidentes, etc.).</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Se accede a la galería para adjuntar fotos de evidencia a los eventos del lote.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
