@@ -4,6 +4,7 @@ import { apiFetch } from '../config/api.js';
 export default function Operarios({ negocioId }) {
   const [operarios, setOperarios] = useState([]);
   const [lotes, setLotes] = useState([]);
+  const [codigoNegocio, setCodigoNegocio] = useState(null);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [credenciales, setCredenciales] = useState(null); // {username, pin_temporal} recién creados
   const [cargando, setCargando] = useState(false);
@@ -13,12 +14,14 @@ export default function Operarios({ negocioId }) {
     setCargando(true);
     setError(null);
     try {
-      const [ops, lts] = await Promise.all([
+      const [ops, lts, neg] = await Promise.all([
         apiFetch(`/api/negocios/${negocioId}/operarios`),
         apiFetch(`/api/negocios/${negocioId}/lotes`),
+        apiFetch(`/api/negocios/${negocioId}`),
       ]);
       setOperarios(Array.isArray(ops) ? ops : []);
       setLotes(Array.isArray(lts) ? lts : []);
+      setCodigoNegocio(neg?.codigo || null);
     } catch (e) {
       setError(e.error || 'No se pudieron cargar los operarios');
     } finally {
@@ -85,6 +88,11 @@ export default function Operarios({ negocioId }) {
   return (
     <div style={{ padding: 24 }}>
       <h2>Operarios</h2>
+
+      <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', padding: 12, marginBottom: 16, borderRadius: 6, color: '#0d47a1' }}>
+        Código de este negocio (los operarios lo necesitan para ingresar en la app):{' '}
+        <code style={{ fontSize: 18, fontWeight: 700 }}>{codigoNegocio || '—'}</code>
+      </div>
 
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
 

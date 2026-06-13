@@ -118,6 +118,14 @@ export async function asignarLote(req, res) {
   const { lote_id } = req.body || {};
   if (!lote_id) return res.status(400).json({ error: 'lote_id es requerido' });
   try {
+    // El operario debe ser miembro de este negocio (evita asignar lotes a
+    // operarios de otro negocio conociendo los UUIDs).
+    const memb = await pool.query(
+      `SELECT 1 FROM membresias WHERE user_id = $1 AND negocio_id = $2 AND rol = 'operario'`,
+      [operarioId, negocioId]
+    );
+    if (!memb.rows.length) return res.status(404).json({ error: 'Operario no encontrado' });
+
     const lote = await pool.query(
       'SELECT id FROM lotes WHERE id = $1 AND negocio_id = $2',
       [lote_id, negocioId]
