@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { notificar } from '../services/firebase.js';
 
 // ==========================================
 // OPERARIO
@@ -122,6 +123,11 @@ export async function crearTarea(req, res) {
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [negocioId, lote_id || null, titulo, descripcion || null, fecha_objetivo || null, asignado_a || null, req.user.id]
     );
+    
+    if (asignado_a) {
+      notificar(asignado_a, 'Nueva tarea asignada', `Se te asignó una nueva tarea: ${titulo}`);
+    }
+    
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('crearTarea error:', err);
@@ -192,6 +198,7 @@ export async function crearPlantilla(req, res) {
           `INSERT INTO tarea_plantilla_asignacion (plantilla_id, lote_id, operario_user_id) VALUES ($1, $2, $3)`,
           [plantillaId, asig.lote_id, asig.operario_user_id]
         );
+        notificar(asig.operario_user_id, 'Nueva rutina asignada', `Se te asignó la rutina: ${nombre}`);
       }
     }
 

@@ -7,8 +7,10 @@ import {
   getVistaMensual, getDetalleDia, guardarRegistroDia, getEstandarDelDia,
 } from '../controllers/hojaVidaController.js';
 import { uploadFoto, handleUpload } from '../controllers/uploadController.js';
+import { registrarPesaje, getLotesAsignados } from '../controllers/operarioController.js';
 import { crearEvento, misEventos } from '../controllers/eventoController.js';
 import { misTareas, completarTarea, getChecklistDia, toggleChecklist } from '../controllers/tareaController.js';
+import { registrarDispositivo } from '../controllers/dispositivoController.js';
 
 const router = Router();
 
@@ -42,5 +44,8 @@ router.get('/tareas', injectNegocio, misTareas);
 router.post('/tareas/:id/completar', injectNegocio, completarTarea);
 router.get('/lotes/:loteId/checklist', injectNegocio, requireLoteAsignado, getChecklistDia);
 router.post('/checklist/:id/toggle', injectNegocio, toggleChecklist);
+
+// Dispositivos (FCM)
+router.post('/dispositivos', registrarDispositivo);
 
 export default router;

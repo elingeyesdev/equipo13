@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../core/api_exception.dart';
+import '../notificaciones/notificaciones_service.dart';
 
 class SessionState {
   final bool loading;
@@ -65,6 +66,10 @@ class SessionNotifier extends StateNotifier<SessionState> {
         operarioNombre: data['user']['nombre'] ?? data['user']['username'],
         negocioNombre: data['negocio']['nombre'],
       );
+      
+      // Registrar dispositivo en el backend para FCM
+      await ref.read(notificacionesServiceProvider).registrarDispositivo();
+      
     } on ApiException catch (e) {
       state = state.copyWith(loading: false, error: e.message);
     }

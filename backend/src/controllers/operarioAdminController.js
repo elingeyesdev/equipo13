@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { pool } from '../config/database.js';
 import { generarPin, generarUsername } from '../utils/codigos.js';
+import { notificar } from '../services/firebase.js';
 
 // GET /api/negocios/:negocioId/operarios
 export async function listarOperarios(req, res) {
@@ -87,6 +88,9 @@ export async function resetPin(req, res) {
       'UPDATE users SET pin_hash = $1, pin_intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $2',
       [pinHash, operarioId]
     );
+    
+    notificar(operarioId, 'PIN Reseteado', 'Tu PIN ha sido reseteado por el administrador. Inicia sesión con el nuevo PIN.');
+    
     res.json({ pin_temporal: pin });
   } catch (err) {
     console.error('resetPin error:', err);
@@ -140,6 +144,9 @@ export async function asignarLote(req, res) {
        RETURNING id`,
       [operarioId, lote_id, negocioId]
     );
+    
+    notificar(operarioId, 'Nuevo lote asignado', `Se te ha asignado un nuevo lote.`);
+    
     res.status(201).json({ id: rows[0].id });
   } catch (err) {
     console.error('asignarLote error:', err);

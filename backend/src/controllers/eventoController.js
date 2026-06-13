@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { notificar } from '../services/firebase.js';
 
 // POST /api/operario/lotes/:loteId/eventos
 export async function crearEvento(req, res) {
@@ -107,6 +108,9 @@ export async function aprobarBaja(req, res) {
     );
 
     await client.query('COMMIT');
+    
+    notificar(ev.operario_user_id, 'Baja aprobada', `Tu solicitud de baja de ${cabezas} cabezas fue aprobada.`);
+    
     res.json(upd.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -127,6 +131,9 @@ export async function rechazarBaja(req, res) {
       [req.user.id, req.body?.notas || null, eventoId, negocioId]
     );
     if (!rowCount) return res.status(404).json({ error: 'Baja pendiente no encontrada' });
+    
+    notificar(rows[0].operario_user_id, 'Baja rechazada', 'Tu solicitud de baja fue rechazada.');
+    
     res.json(rows[0]);
   } catch (err) {
     console.error('rechazarBaja error:', err);
