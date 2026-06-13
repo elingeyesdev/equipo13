@@ -14,6 +14,8 @@ class LotesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(session.negocioNombre ?? 'Mis lotes'),
         actions: [
+          IconButton(icon: const Icon(Icons.history),
+            onPressed: () => context.push('/mi-actividad')),
           IconButton(icon: const Icon(Icons.logout),
             onPressed: () => ref.read(sessionProvider.notifier).logout()),
         ],

@@ -7,6 +7,8 @@ import '../features/lotes/lotes_screen.dart';
 import '../../models/lote.dart';
 import '../features/registro_dia/detalle_lote_screen.dart';
 import '../features/registro_dia/registro_dia_screen.dart';
+import '../features/eventos/reportar_evento_screen.dart';
+import '../features/actividad/mi_actividad_screen.dart';
 
 GoRouter buildRouter(WidgetRef ref) {
   return GoRouter(
@@ -24,6 +26,9 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(path: '/lote/:id', builder: (c, s) => DetalleLoteScreen(lote: s.extra as Lote)),
       GoRoute(path: '/lote/:id/dia/:fecha', builder: (c, s) =>
           RegistroDiaScreen(lote: s.extra as Lote, fecha: s.pathParameters['fecha']!)),
+      GoRoute(path: '/lote/:id/evento', builder: (c, s) =>
+          ReportarEventoScreen(loteId: s.pathParameters['id']!)),
+      GoRoute(path: '/mi-actividad', builder: (c, s) => const MiActividadScreen()),
     ],
   );
 }

@@ -60,6 +60,11 @@ class _DetalleLoteScreenState extends ConsumerState<DetalleLoteScreen> {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/lote/${widget.lote.id}/evento'),
+        icon: const Icon(Icons.campaign),
+        label: const Text('Reportar Evento'),
+      ),
     );
   }
 }
