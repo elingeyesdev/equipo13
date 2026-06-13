@@ -142,6 +142,7 @@ import {
   deleteMerma,
   getResumenMermas,
 } from '../controllers/mermaController.js';
+import { ejecutarScraping } from '../controllers/ventasMlController.js';
 
 const router = Router();
 
@@ -303,5 +304,8 @@ router.get('/:negocioId/tareas', authMiddleware, requireMembership('admin'), lis
 router.post('/:negocioId/plantillas', authMiddleware, requireMembership('admin'), crearPlantilla);
 router.get('/:negocioId/plantillas', authMiddleware, requireMembership('admin'), listarPlantillas);
 router.patch('/:negocioId/plantillas/:id', authMiddleware, requireMembership('admin'), togglePlantillaActiva);
+
+// Inteligencia de ventas (ML + Scraping)
+router.post('/:negocioId/scraping/run', authMiddleware, requireMembership('admin'), ejecutarScraping);
 
 export default router;
