@@ -14,15 +14,22 @@ def detectar_alertas_precio(
     supera el umbral (en valor absoluto).
     """
     # Agrupar por (corte, canal)
-    grupos: dict[tuple, list[float]] = defaultdict(list)
+    grupos: dict[tuple, list[dict]] = defaultdict(list)
     for p in precios:
         key = (p["corte_canonico"], p["canal"])
-        grupos[key].append(float(p["precio_kg"]))
+        grupos[key].append(p)
 
     alertas = []
-    for (corte, canal), serie in grupos.items():
-        if len(serie) < 2:
+    for (corte, canal), registros in grupos.items():
+        if len(registros) < 2:
             continue  # Sin referencia histórica, no hay alerta
+
+        # Ordenar cronológicamente ascendente cuando haya fecha: el origen real
+        # (cargar_precios_recientes) viene en orden DESC, así que sin esto el
+        # "precio_nuevo" (serie[-1]) sería el más antiguo, invirtiendo la alerta.
+        if all("fecha" in r for r in registros):
+            registros = sorted(registros, key=lambda r: str(r["fecha"]))
+        serie = [float(r["precio_kg"]) for r in registros]
 
         precio_nuevo = serie[-1]
         precio_promedio = sum(serie[:-1]) / len(serie[:-1])

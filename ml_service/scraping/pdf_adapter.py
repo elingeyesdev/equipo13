@@ -1,5 +1,4 @@
 import re
-import pdfplumber
 from .base import PrecioScrapeado
 
 
@@ -34,6 +33,10 @@ class PdfAdapter:
 
         Si `url` empieza por http, descarga el archivo primero.
         """
+        # Import perezoso: pdfplumber es una dependencia opcional (solo para fuentes
+        # 'pdf'); no debe romper la carga del servicio si no está instalada.
+        import pdfplumber
+
         path = self._resolver_path(url)
         col_corte = config.get("col_corte", 0)
         col_precio = config.get("col_precio", 1)
