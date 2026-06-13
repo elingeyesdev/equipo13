@@ -9,6 +9,13 @@ import {
 } from '../controllers/operarioAdminController.js';
 import { listarEventos, aprobarBaja, rechazarBaja } from '../controllers/eventoController.js';
 import {
+  crearTarea,
+  listarTareas,
+  crearPlantilla,
+  listarPlantillas,
+  togglePlantillaActiva,
+} from '../controllers/tareaController.js';
+import {
   getUnidades,
   createUnidad,
   updateUnidad,
@@ -287,5 +294,12 @@ router.delete('/:negocioId/operarios/:operarioId/lotes/:loteId', authMiddleware,
 router.get('/:negocioId/eventos', authMiddleware, requireMembership('admin'), listarEventos);
 router.post('/:negocioId/pendientes/bajas/:eventoId/aprobar',  authMiddleware, requireMembership('admin'), aprobarBaja);
 router.post('/:negocioId/pendientes/bajas/:eventoId/rechazar', authMiddleware, requireMembership('admin'), rechazarBaja);
+
+// Tareas y rutinas
+router.post('/:negocioId/tareas', authMiddleware, requireMembership('admin'), crearTarea);
+router.get('/:negocioId/tareas', authMiddleware, requireMembership('admin'), listarTareas);
+router.post('/:negocioId/plantillas', authMiddleware, requireMembership('admin'), crearPlantilla);
+router.get('/:negocioId/plantillas', authMiddleware, requireMembership('admin'), listarPlantillas);
+router.patch('/:negocioId/plantillas/:id', authMiddleware, requireMembership('admin'), togglePlantillaActiva);
 
 export default router;

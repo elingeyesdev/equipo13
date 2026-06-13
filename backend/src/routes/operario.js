@@ -8,6 +8,7 @@ import {
 } from '../controllers/hojaVidaController.js';
 import { uploadFoto, handleUpload } from '../controllers/uploadController.js';
 import { crearEvento, misEventos } from '../controllers/eventoController.js';
+import { misTareas, completarTarea, getChecklistDia, toggleChecklist } from '../controllers/tareaController.js';
 
 const router = Router();
 
@@ -35,5 +36,11 @@ router.post('/upload', uploadFoto, handleUpload);
 // Eventos (bajas, pesajes, incidentes, stock_bajo)
 router.post('/lotes/:loteId/eventos', injectNegocio, requireLoteAsignado, crearEvento);
 router.get('/eventos', injectNegocio, misEventos);
+
+// Tareas y rutinas
+router.get('/tareas', injectNegocio, misTareas);
+router.post('/tareas/:id/completar', injectNegocio, completarTarea);
+router.get('/lotes/:loteId/checklist', injectNegocio, requireLoteAsignado, getChecklistDia);
+router.post('/checklist/:id/toggle', injectNegocio, toggleChecklist);
 
 export default router;
