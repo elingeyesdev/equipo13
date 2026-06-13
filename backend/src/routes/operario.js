@@ -7,7 +7,6 @@ import {
   getVistaMensual, getDetalleDia, guardarRegistroDia, getEstandarDelDia,
 } from '../controllers/hojaVidaController.js';
 import { uploadFoto, handleUpload } from '../controllers/uploadController.js';
-import { registrarPesaje, getLotesAsignados } from '../controllers/operarioController.js';
 import { crearEvento, misEventos } from '../controllers/eventoController.js';
 import { misTareas, completarTarea, getChecklistDia, toggleChecklist } from '../controllers/tareaController.js';
 import { registrarDispositivo } from '../controllers/dispositivoController.js';
