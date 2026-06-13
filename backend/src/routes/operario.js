@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { injectNegocio } from '../middleware/injectNegocio.js';
-import { requireLoteAsignado } from '../middleware/membership.js';
+import { requireLoteAsignado, soloOperario } from '../middleware/membership.js';
 import { misLotes, miPerfil, listarInsumosOperario } from '../controllers/operarioAppController.js';
 import {
   getVistaMensual, getDetalleDia, guardarRegistroDia, getEstandarDelDia,
@@ -11,8 +11,8 @@ import { crearEvento, misEventos } from '../controllers/eventoController.js';
 
 const router = Router();
 
-// Todas las rutas exigen token de operario.
-router.use(authMiddleware);
+// Todas las rutas exigen un token de rol operario.
+router.use(authMiddleware, soloOperario);
 
 // injectNegocio fija :negocioId desde el token. Debe aplicarse POR RUTA (no en
 // un router.use aparte): Express reescribe req.params con los params de la ruta

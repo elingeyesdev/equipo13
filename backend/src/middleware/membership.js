@@ -34,6 +34,15 @@ export function requireMembership(rolMin = null) {
   };
 }
 
+// Para las rutas de la app móvil: exige que el token sea de rol operario.
+// Evita que tokens admin (u otros) consuman endpoints pensados solo para operarios.
+export function soloOperario(req, res, next) {
+  if (!req.user || req.user.rol !== 'operario') {
+    return res.status(403).json({ error: 'Solo operarios' });
+  }
+  next();
+}
+
 // Para endpoints de operario: valida que el lote del path esté asignado al usuario.
 export async function requireLoteAsignado(req, res, next) {
   const { loteId } = req.params;

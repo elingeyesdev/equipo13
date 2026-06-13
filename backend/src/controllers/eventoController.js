@@ -8,6 +8,23 @@ export async function crearEvento(req, res) {
   if (!['baja', 'pesaje', 'incidente', 'stock_bajo'].includes(tipo)) {
     return res.status(400).json({ error: 'Tipo de evento inválido' });
   }
+  // Validación server-side del payload (defensa en profundidad; el cliente ya valida).
+  if (tipo === 'pesaje') {
+    const p = Number(payload.peso_promedio);
+    if (!Number.isFinite(p) || p <= 0) {
+      return res.status(400).json({ error: 'peso_promedio debe ser mayor a 0' });
+    }
+  }
+  if (tipo === 'baja') {
+    const c = parseInt(payload.cabezas);
+    if (!Number.isInteger(c) || c <= 0) {
+      return res.status(400).json({ error: 'cabezas debe ser mayor a 0' });
+    }
+  }
+  // Las fotos deben ser rutas generadas por el servidor (/uploads/...), no URLs arbitrarias.
+  if (!Array.isArray(fotos) || !fotos.every((f) => typeof f === 'string' && f.startsWith('/uploads/'))) {
+    return res.status(400).json({ error: 'Fotos inválidas' });
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -20,13 +37,15 @@ export async function crearEvento(req, res) {
       [negocioId, loteId, req.user.id, tipo, JSON.stringify(payload), JSON.stringify(fotos), estado]
     );
 
-    // Efecto inmediato del pesaje
-    if (tipo === 'pesaje' && payload.peso_promedio != null) {
+    // Efecto inmediato del pesaje. El INSERT NO se silencia: si falla, la
+    // transacción completa hace rollback (consistencia entre evento, pesajes_lote
+    // y peso_actual_prom).
+    if (tipo === 'pesaje') {
       await client.query(
         `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg)
          VALUES ($1, CURRENT_DATE, $2)`,
         [loteId, payload.peso_promedio]
-      ).catch((err) => { console.error('Error insertando en pesajes_lote', err); });
+      );
       await client.query(
         'UPDATE lotes SET peso_actual_prom = $1 WHERE id = $2 AND negocio_id = $3',
         [payload.peso_promedio, loteId, negocioId]
