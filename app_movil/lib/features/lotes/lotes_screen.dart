@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import 'lotes_repository.dart';
+import '../tareas/tareas_repository.dart';
 
 class LotesScreen extends ConsumerWidget {
   const LotesScreen({super.key});
@@ -10,10 +11,24 @@ class LotesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lotesAsync = ref.watch(misLotesProvider);
     final session = ref.watch(sessionProvider);
+    final tareasAsync = ref.watch(misTareasProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(session.negocioNombre ?? 'Mis lotes'),
         actions: [
+          tareasAsync.when(
+            data: (t) => IconButton(
+              icon: Badge(
+                label: Text('${t.length}'),
+                isLabelVisible: t.isNotEmpty,
+                child: const Icon(Icons.assignment),
+              ),
+              onPressed: () => context.push('/tareas'),
+            ),
+            loading: () => const IconButton(icon: Icon(Icons.assignment), onPressed: null),
+            error: (e, stackTrace) => const IconButton(icon: Icon(Icons.assignment), onPressed: null),
+          ),
           IconButton(icon: const Icon(Icons.history),
             onPressed: () => context.push('/mi-actividad')),
           IconButton(icon: const Icon(Icons.logout),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/lote.dart';
 import '../../models/hoja_vida.dart';
 import 'registro_repository.dart';
+import '../tareas/checklist_widget.dart';
 
 class DetalleLoteScreen extends ConsumerStatefulWidget {
   final Lote lote;
@@ -38,25 +39,32 @@ class _DetalleLoteScreenState extends ConsumerState<DetalleLoteScreen> {
         builder: (c, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final dias = snap.data!;
-          return GridView.count(
-            crossAxisCount: 7,
-            padding: const EdgeInsets.all(8),
-            children: dias.map((d) {
-              final color = d.confirmado
-                  ? Colors.green
-                  : d.tieneRegistro ? Colors.amber : Colors.grey.shade200;
-              return InkWell(
-                onTap: () async {
-                  await context.push('/lote/${widget.lote.id}/dia/${d.fecha}', extra: widget.lote);
-                  setState(_cargar);
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
-                  child: Center(child: Text('${d.diaDelMes}')),
+          return Column(
+            children: [
+              ChecklistWidget(loteId: widget.lote.id),
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 7,
+                  padding: const EdgeInsets.all(8),
+                  children: dias.map((d) {
+                    final color = d.confirmado
+                        ? Colors.green
+                        : d.tieneRegistro ? Colors.amber : Colors.grey.shade200;
+                    return InkWell(
+                      onTap: () async {
+                        await context.push('/lote/${widget.lote.id}/dia/${d.fecha}', extra: widget.lote);
+                        setState(_cargar);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+                        child: Center(child: Text('${d.diaDelMes}')),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              );
-            }).toList(),
+              ),
+            ],
           );
         },
       ),
