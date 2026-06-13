@@ -7,6 +7,7 @@ import {
   getVistaMensual, getDetalleDia, guardarRegistroDia, getEstandarDelDia,
 } from '../controllers/hojaVidaController.js';
 import { uploadFoto, handleUpload } from '../controllers/uploadController.js';
+import { crearEvento, misEventos } from '../controllers/eventoController.js';
 
 const router = Router();
 
@@ -30,5 +31,9 @@ router.post('/lotes/:loteId/hoja-de-vida/:fecha',    injectNegocio, requireLoteA
 
 // Subida de fotos de evidencia
 router.post('/upload', uploadFoto, handleUpload);
+
+// Eventos (bajas, pesajes, incidentes, stock_bajo)
+router.post('/lotes/:loteId/eventos', injectNegocio, requireLoteAsignado, crearEvento);
+router.get('/eventos', injectNegocio, misEventos);
 
 export default router;

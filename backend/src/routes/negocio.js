@@ -7,6 +7,7 @@ import {
   listarOperarios, crearOperario, resetPin,
   setActivoOperario, asignarLote, desasignarLote,
 } from '../controllers/operarioAdminController.js';
+import { listarEventos, aprobarBaja, rechazarBaja } from '../controllers/eventoController.js';
 import {
   getUnidades,
   createUnidad,
@@ -281,5 +282,10 @@ router.post  ('/:negocioId/operarios/:operarioId/reset-pin',      authMiddleware
 router.patch ('/:negocioId/operarios/:operarioId',               authMiddleware, requireMembership('admin'), setActivoOperario);
 router.post  ('/:negocioId/operarios/:operarioId/lotes',          authMiddleware, requireMembership('admin'), asignarLote);
 router.delete('/:negocioId/operarios/:operarioId/lotes/:loteId', authMiddleware, requireMembership('admin'), desasignarLote);
+
+// Eventos (bajas, incidentes, etc)
+router.get('/:negocioId/eventos', authMiddleware, requireMembership('admin'), listarEventos);
+router.post('/:negocioId/pendientes/bajas/:eventoId/aprobar',  authMiddleware, requireMembership('admin'), aprobarBaja);
+router.post('/:negocioId/pendientes/bajas/:eventoId/rechazar', authMiddleware, requireMembership('admin'), rechazarBaja);
 
 export default router;
