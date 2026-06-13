@@ -23,7 +23,7 @@ def cargar_cortes_disponibles(negocio_id: str) -> list[dict]:
 
 def cargar_precios_recientes(negocio_id: str) -> list[dict]:
     return fetch_all(
-        """SELECT corte_canonico, canal, precio_kg
+        """SELECT corte_canonico, canal, precio_kg, fecha
              FROM precio_mercado_historico
             WHERE negocio_id = %s
             ORDER BY fecha DESC, scraped_at DESC""",
