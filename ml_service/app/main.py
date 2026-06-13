@@ -1,11 +1,23 @@
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
+import asyncio
+import sys
+import os
 from .auth import auth_dependency
 from scraping.repo import cargar_fuentes, cargar_alias, persistir_filas, guardar_scrape_run
 from scraping.runner import correr_fuentes
 from scraping.registry import get_adapter
+from ml.repo import cargar_cortes_disponibles, cargar_precios_recientes, guardar_recomendacion
+from ml.recommend import recomendar_heuristico
 
-app = FastAPI(title="Inteligencia de Ventas")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    yield
+
+app = FastAPI(title="Inteligencia de Ventas", lifespan=lifespan)
 
 @app.get("/health")
 def health():
@@ -38,5 +50,22 @@ def scraping_run(payload: ScrapingRequest):
             
         total = sum(r["filas_insertadas"] for r in runs)
         return {"fuentes": len(fuentes), "filas_insertadas": total, "runs": runs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/recomendaciones/generar", dependencies=[Depends(auth_dependency)])
+def generar_recomendaciones(payload: dict):
+    negocio_id = payload.get("negocio_id")
+    if not negocio_id:
+        raise HTTPException(status_code=400, detail="negocio_id requerido")
+    horizonte = int(payload.get("horizonte_dias", 7))
+    try:
+        cortes = cargar_cortes_disponibles(negocio_id)
+        precios = cargar_precios_recientes(negocio_id)
+        items = recomendar_heuristico(cortes, precios)
+        rec_id = guardar_recomendacion(negocio_id, items, "heuristico", horizonte)
+        return {"id": rec_id, "modo": "heuristico", "items": items,
+                "resumen": {"ingreso_total": sum(i["ingreso_estimado"] for i in items),
+                            "margen_total": sum(i.get("margen_total", 0) for i in items)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
