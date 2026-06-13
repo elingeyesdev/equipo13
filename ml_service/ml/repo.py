@@ -65,3 +65,10 @@ def guardar_modelo_meta(negocio_id, corte, canal, f: dict) -> None:
                 (negocio_id, corte, canal, f.get("modelo"),
                  json.dumps({"confianza": f.get("confianza")}), f.get("n_puntos")),
             )
+
+def cargar_topes_canal(negocio_id: str) -> dict[str, float]:
+    rows = fetch_all(
+        "SELECT canal, kg_max_semana FROM tope_canal WHERE negocio_id = %s",
+        (negocio_id,)
+    )
+    return {r["canal"]: float(r["kg_max_semana"]) for r in rows}

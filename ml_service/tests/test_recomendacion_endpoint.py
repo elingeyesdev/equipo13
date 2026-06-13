@@ -10,11 +10,12 @@ def test_generar_recomendaciones(monkeypatch):
                         lambda nid: [{"corte_canonico": "Pierna", "canal": "minorista", "precio_kg": 78.0, "fecha": "2026-06-13"}])
     monkeypatch.setattr(main, "guardar_recomendacion", lambda nid, items, modo, hz: "rec1")
     monkeypatch.setattr(main, "guardar_modelo_meta", lambda nid, corte, canal, f: None)
+    monkeypatch.setattr(main, "cargar_topes_canal", lambda nid: {})
     
     client = TestClient(main.app)
     res = client.post("/recomendaciones/generar", json={"negocio_id": "n1"},
                       headers={"Authorization": "Bearer secreto"})
-    assert res.status_code == 200
+    assert res.status_code == 200, res.json()
     data = res.json()
     assert data["id"] == "rec1"
     assert data["items"][0]["canal_sugerido"] == "minorista"
