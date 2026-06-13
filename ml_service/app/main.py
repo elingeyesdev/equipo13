@@ -17,6 +17,9 @@ from ml.forecast import pronosticar
 async def lifespan(app: FastAPI):
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    if os.environ.get("ENABLE_SCHEDULER", "true") == "true":
+        from scheduler import iniciar_scheduler
+        app.state.scheduler = iniciar_scheduler()
     yield
 
 app = FastAPI(title="Inteligencia de Ventas", lifespan=lifespan)
