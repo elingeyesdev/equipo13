@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from .auth import auth_dependency
-from scraping.engine import ScrapingEngine
+from scraping.repo import cargar_fuentes, cargar_alias, persistir_filas, guardar_scrape_run
+from scraping.runner import correr_fuentes
+from scraping.registry import get_adapter
 
 app = FastAPI(title="Inteligencia de Ventas")
 
@@ -13,32 +15,28 @@ def health():
 class ScrapingRequest(BaseModel):
     negocio_id: str
 
-SOURCES_MOCK = {
-    "fidalga": {
-        "url": "https://www.fidalga.com/collections/cerdo",
-        "type": "dynamic",
-        "canal": "minorista",
-        "config": {
-            "item_selector": ".product-card",
-            "name_selector": ".product-title",
-            "price_selector": ".price",
-            "price_regex": r"Bs\.\s*([\d.,]+)",
-            "wait_for": ".product-card"
-        }
-    }
-}
 
-engine = ScrapingEngine()
-
-@app.post("/scraping/run")
-def scraping_run(payload: ScrapingRequest, token: str = Depends(auth_dependency)):
+@app.post("/scraping/run", dependencies=[Depends(auth_dependency)])
+def scraping_run(payload: ScrapingRequest):
+    negocio_id = payload.negocio_id
+    if not negocio_id:
+        raise HTTPException(status_code=400, detail="negocio_id requerido")
+    
     try:
-        precios = engine.run(SOURCES_MOCK)
-        return {
-            "status": "ok",
-            "negocio_id": payload.negocio_id,
-            "items_encontrados": len(precios),
-            "precios": [p.to_dict() for p in precios]
-        }
+        fuentes = cargar_fuentes(negocio_id)
+        alias = cargar_alias(negocio_id)
+
+        def fetch_fn(tipo, url, config, canal):
+            return get_adapter(tipo).fetch(url, config, canal)
+
+        def persist_fn(fuente_id, filas):
+            return persistir_filas(negocio_id, fuente_id, filas)
+
+        runs = correr_fuentes(fuentes, alias, fetch_fn, persist_fn)
+        for r in runs:
+            guardar_scrape_run(negocio_id, r)
+            
+        total = sum(r["filas_insertadas"] for r in runs)
+        return {"fuentes": len(fuentes), "filas_insertadas": total, "runs": runs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
