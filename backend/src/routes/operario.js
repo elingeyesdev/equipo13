@@ -6,6 +6,7 @@ import { misLotes, miPerfil, listarInsumosOperario } from '../controllers/operar
 import {
   getVistaMensual, getDetalleDia, guardarRegistroDia, getEstandarDelDia,
 } from '../controllers/hojaVidaController.js';
+import { uploadFoto, handleUpload } from '../controllers/uploadController.js';
 
 const router = Router();
 
@@ -26,5 +27,8 @@ router.get('/lotes/:loteId/hoja-de-vida',            injectNegocio, requireLoteA
 router.get('/lotes/:loteId/hoja-de-vida/:fecha',     injectNegocio, requireLoteAsignado, getDetalleDia);
 // Guardar BORRADOR (no confirma; el admin confirma desde la web)
 router.post('/lotes/:loteId/hoja-de-vida/:fecha',    injectNegocio, requireLoteAsignado, guardarRegistroDia);
+
+// Subida de fotos de evidencia
+router.post('/upload', uploadFoto, handleUpload);
 
 export default router;

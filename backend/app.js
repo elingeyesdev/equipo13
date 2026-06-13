@@ -34,6 +34,9 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Sirviendo estáticos de uploads
+app.use('/uploads', express.static('uploads'));
+
 // Rutas
 import authRoutes from './src/routes/auth.js';
 import negociosRoutes from './src/routes/negocios.js';
