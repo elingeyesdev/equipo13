@@ -42,6 +42,7 @@ const NAV_AGRO = [
   { id: 'servicios',  label: 'Servicios',         icon: 'wrench' },
   { id: 'precios',    label: 'Precios Mercado',   icon: 'tag' },
   { id: 'fuentesdatos', label: 'Fuentes de Datos', icon: 'database' },
+  { id: 'recomendaciones', label: 'Recomendaciones de Venta', icon: 'trendingUp' },
 ];
 const NAV_BOTTOM = [
   { id: 'config',     label: 'Configuración',     icon: 'settings' },

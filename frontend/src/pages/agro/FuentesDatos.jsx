@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_URL } from '../../config/api';
+import { apiFetch } from '../../config/api';
 
 export default function FuentesDatos({ negocioId }) {
   const [fuentes, setFuentes] = useState([]);
@@ -8,36 +8,52 @@ export default function FuentesDatos({ negocioId }) {
   const [form, setForm] = useState({ nombre: '', url: '', tipo: 'static', canal: 'minorista', config: '{}' });
   const [aliasForm, setAliasForm] = useState({ alias_texto: '', corte_canonico: '' });
   const [msg, setMsg] = useState(null);
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   async function cargar() {
-    const [f, a, r] = await Promise.all([
-      fetch(`${API_URL}/api/negocios/${negocioId}/fuentes-scraping`, { headers }),
-      fetch(`${API_URL}/api/negocios/${negocioId}/corte-alias`, { headers }),
-      fetch(`${API_URL}/api/negocios/${negocioId}/scrape-runs`, { headers }),
-    ]);
-    setFuentes(await f.json()); setAlias(await a.json()); setRuns(await r.json());
+    try {
+      const [f, a, r] = await Promise.all([
+        apiFetch(`/api/negocios/${negocioId}/fuentes-scraping`),
+        apiFetch(`/api/negocios/${negocioId}/corte-alias`),
+        apiFetch(`/api/negocios/${negocioId}/scrape-runs`),
+      ]);
+      setFuentes(f); setAlias(a); setRuns(r);
+    } catch (e) {
+      console.error(e);
+    }
   }
   useEffect(() => { if (negocioId) cargar(); }, [negocioId]);
 
   async function crearFuente() {
     let config; try { config = JSON.parse(form.config); } catch { setMsg('Config no es JSON válido'); return; }
-    await fetch(`${API_URL}/api/negocios/${negocioId}/fuentes-scraping`, {
-      method: 'POST', headers, body: JSON.stringify({ ...form, config }) });
-    setForm({ nombre: '', url: '', tipo: 'static', canal: 'minorista', config: '{}' }); cargar();
+    try {
+      const payload = { ...form, config };
+      const data = await apiFetch(`/api/negocios/${negocioId}/fuentes-scraping`, {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      setFuentes([...fuentes, data]);
+      setForm({ nombre: '', url: '', tipo: 'static', canal: 'minorista', config: '{}' });
+    } catch (e) { console.error(e); }
   }
+  
   async function crearAlias() {
-    await fetch(`${API_URL}/api/negocios/${negocioId}/corte-alias`, {
-      method: 'POST', headers, body: JSON.stringify(aliasForm) });
-    setAliasForm({ alias_texto: '', corte_canonico: '' }); cargar();
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/corte-alias`, {
+        method: 'POST', body: JSON.stringify(aliasForm)
+      });
+      setAlias([...alias, data]);
+      setAliasForm({ alias_texto: '', corte_canonico: '' });
+    } catch (e) { console.error(e); }
   }
+  
   async function ejecutar() {
     setMsg('Ejecutando scraping…');
-    const res = await fetch(`${API_URL}/api/negocios/${negocioId}/scraping/run`, { method: 'POST', headers });
-    const data = await res.json();
-    setMsg(res.ok ? `Listo: ${data.filas_insertadas} precios guardados.` : `Error: ${data.error}`);
-    cargar();
+    try {
+      const data = await apiFetch(`/api/negocios/${negocioId}/scraping/run`, { method: 'POST' });
+      setMsg(`Listo: ${data?.filas_insertadas || 0} precios guardados.`);
+      cargar();
+    } catch (e) {
+      setMsg(`Error: ${e.error || e.message}`);
+    }
   }
 
   return (
