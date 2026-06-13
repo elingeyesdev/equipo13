@@ -1,0 +1,6 @@
+{
+  "products": [
+    {"title": "Mortadela Sofia 1kg", "variants": [{"price": "38.50", "grams": 1000}]},
+    {"title": "Salchicha Viena Sofia 500g", "variants": [{"price": "25.00", "grams": 500}]}
+  ]
+}
