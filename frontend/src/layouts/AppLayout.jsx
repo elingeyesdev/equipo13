@@ -26,7 +26,15 @@ const NAV_AGRO = [
       { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
     ]
   },
-  { id: 'operarios',  label: 'Operarios',         icon: 'user' },
+  { 
+    id: 'operarios_group',  
+    label: 'Operarios',     
+    icon: 'user',
+    subItems: [
+      { id: 'operarios', label: 'Gestión', icon: 'user' },
+      { id: 'reportesoperarios', label: 'Productividad', icon: 'barChart' },
+    ]
+  },
   { id: 'rutinas',    label: 'Rutinas y Tareas',  icon: 'calendar' },
   { id: 'insumos',    label: 'Insumos',           icon: 'layers' },
   { id: 'compras',    label: 'Inventario',        icon: 'archive' },
