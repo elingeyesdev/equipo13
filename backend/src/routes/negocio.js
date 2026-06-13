@@ -142,7 +142,10 @@ import {
   deleteMerma,
   getResumenMermas,
 } from '../controllers/mermaController.js';
-import { ejecutarScraping } from '../controllers/ventasMlController.js';
+import {
+  ejecutarScraping, listarFuentes, crearFuente, actualizarFuente, eliminarFuente,
+  listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns
+} from '../controllers/ventasMlController.js';
 
 const router = Router();
 
@@ -307,5 +310,14 @@ router.patch('/:negocioId/plantillas/:id', authMiddleware, requireMembership('ad
 
 // Inteligencia de ventas (ML + Scraping)
 router.post('/:negocioId/scraping/run', authMiddleware, requireMembership('admin'), ejecutarScraping);
+router.get('/:negocioId/fuentes-scraping',        authMiddleware, requireMembership('admin'), listarFuentes);
+router.post('/:negocioId/fuentes-scraping',       authMiddleware, requireMembership('admin'), crearFuente);
+router.put('/:negocioId/fuentes-scraping/:id',    authMiddleware, requireMembership('admin'), actualizarFuente);
+router.delete('/:negocioId/fuentes-scraping/:id', authMiddleware, requireMembership('admin'), eliminarFuente);
+router.get('/:negocioId/corte-alias',             authMiddleware, requireMembership('admin'), listarAlias);
+router.post('/:negocioId/corte-alias',            authMiddleware, requireMembership('admin'), crearAlias);
+router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembership('admin'), eliminarAlias);
+router.get('/:negocioId/precios-historico',       authMiddleware, requireMembership('admin'), listarHistorico);
+router.get('/:negocioId/scrape-runs',             authMiddleware, requireMembership('admin'), listarScrapeRuns);
 
 export default router;
