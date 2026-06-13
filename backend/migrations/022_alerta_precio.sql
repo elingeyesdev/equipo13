@@ -1,4 +1,4 @@
-CREATE TABLE alerta_precio (
+CREATE TABLE IF NOT EXISTS alerta_precio (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     negocio_id UUID NOT NULL REFERENCES negocios(id) ON DELETE CASCADE,
     corte_canonico VARCHAR(200) NOT NULL,
