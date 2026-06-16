@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme.dart';
 import 'evento_repository.dart';
 
 class ReportarEventoScreen extends ConsumerStatefulWidget {
@@ -105,75 +106,155 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
     }
   }
 
+  static const _tipos = [
+    (value: 'incidente', label: 'Incidente', icon: Icons.warning_amber_rounded),
+    (value: 'baja', label: 'Baja / Muerte', icon: Icons.heart_broken_rounded),
+    (value: 'pesaje', label: 'Pesaje', icon: Icons.monitor_weight_rounded),
+    (value: 'stock_bajo', label: 'Stock bajo', icon: Icons.inventory_2_rounded),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reportar Evento')),
+      appBar: AppBar(title: const Text('Reportar evento')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: _tipo,
-              decoration: const InputDecoration(labelText: 'Tipo de Evento', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'incidente', child: Text('Incidente')),
-                DropdownMenuItem(value: 'baja', child: Text('Baja/Muerte')),
-                DropdownMenuItem(value: 'pesaje', child: Text('Pesaje Lote')),
-                DropdownMenuItem(value: 'stock_bajo', child: Text('Stock Bajo')),
-              ],
-              onChanged: (v) => setState(() => _tipo = v!),
+            const _SectionLabel('Tipo de evento'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _tipos.map((t) {
+                final selected = _tipo == t.value;
+                return GestureDetector(
+                  onTap: () => setState(() => _tipo = t.value),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: (MediaQuery.of(context).size.width - 32 - 10) / 2,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: selected ? AppColors.primaryLight : AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.6 : 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(t.icon, size: 20, color: selected ? AppColors.primaryDark : AppColors.textSecondary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(t.label,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: selected ? AppColors.primaryDark : AppColors.textPrimary,
+                              )),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-            const SizedBox(height: 16),
-            
+            const SizedBox(height: 22),
+            const _SectionLabel('Detalles'),
+            const SizedBox(height: 10),
+
             if (_tipo == 'baja') ...[
-              TextField(controller: _cabezasCtrl, decoration: const InputDecoration(labelText: 'Cabezas', border: OutlineInputBorder()), keyboardType: TextInputType.number),
-              const SizedBox(height: 16),
-              TextField(controller: _causaCtrl, decoration: const InputDecoration(labelText: 'Causa', border: OutlineInputBorder())),
-              const SizedBox(height: 16),
-              TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso estimado (kg)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              TextField(controller: _cabezasCtrl, decoration: const InputDecoration(labelText: 'Cabezas', prefixIcon: Icon(Icons.numbers_rounded)), keyboardType: TextInputType.number),
+              const SizedBox(height: 14),
+              TextField(controller: _causaCtrl, decoration: const InputDecoration(labelText: 'Causa')),
+              const SizedBox(height: 14),
+              TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso estimado (kg)'), keyboardType: TextInputType.number),
             ],
-            
+
             if (_tipo == 'pesaje') ...[
-              TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso promedio (kg)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso promedio (kg)', prefixIcon: Icon(Icons.scale_rounded)), keyboardType: TextInputType.number),
             ],
 
             if (_tipo == 'incidente') ...[
-              TextField(controller: _causaCtrl, decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder())),
-              const SizedBox(height: 16),
-              TextField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Descripción', border: OutlineInputBorder()), maxLines: 3),
+              TextField(controller: _causaCtrl, decoration: const InputDecoration(labelText: 'Categoría')),
+              const SizedBox(height: 14),
+              TextField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Descripción', alignLabelWithHint: true), maxLines: 3),
             ],
 
             if (_tipo == 'stock_bajo') ...[
-              TextField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Nombre Insumo', border: OutlineInputBorder())),
+              TextField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Nombre del insumo', prefixIcon: Icon(Icons.label_outline_rounded))),
             ],
 
-            const SizedBox(height: 24),
-            Row(
+            const SizedBox(height: 22),
+            const _SectionLabel('Evidencia fotográfica'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
-                ElevatedButton.icon(
-                  onPressed: _tomarFoto,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Añadir Evidencia'),
+                ..._fotos.asMap().entries.map((e) => Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(e.value, height: 84, width: 84, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _fotos.removeAt(e.key)),
+                        child: Container(
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          padding: const EdgeInsets.all(2),
+                          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                )),
+                GestureDetector(
+                  onTap: _tomarFoto,
+                  child: Container(
+                    height: 84,
+                    width: 84,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_rounded, color: AppColors.textSecondary, size: 24),
+                        SizedBox(height: 4),
+                        Text('Añadir', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: _fotos.map((f) => Image.file(f, height: 80, width: 80, fit: BoxFit.cover)).toList(),
-            ),
-            
-            const SizedBox(height: 32),
-            ElevatedButton(
+
+            const SizedBox(height: 28),
+            FilledButton.icon(
               onPressed: _isLoading ? null : _submit,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
-              child: _isLoading ? const CircularProgressIndicator() : const Text('Enviar Reporte'),
-            )
+              icon: _isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                  : const Icon(Icons.send_rounded),
+              label: Text(_isLoading ? 'Enviando…' : 'Enviar reporte'),
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+  @override
+  Widget build(BuildContext context) {
+    return Text(text.toUpperCase(),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6, color: AppColors.textTertiary));
   }
 }

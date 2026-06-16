@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme.dart';
 import '../../models/lote.dart';
 import '../../models/hoja_vida.dart';
 import 'registro_repository.dart';
@@ -87,58 +88,137 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_cargando) return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
     final estandar = _detalle?['estandar'];
     return Scaffold(
-      appBar: AppBar(title: Text('Registro ${widget.fecha}')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Registro del día', overflow: TextOverflow.ellipsis),
+            Text('${widget.lote.identificador} · ${widget.fecha}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+          ],
+        ),
+      ),
       body: _confirmado
-          ? const Center(child: Padding(padding: EdgeInsets.all(24),
-              child: Text('Este día ya fue confirmado por el administrador y no puede editarse.')))
+          ? const EmptyState(
+              icon: Icons.lock_rounded,
+              title: 'Día confirmado',
+              subtitle: 'Este día ya fue confirmado por el administrador y no puede editarse.',
+            )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 if (estandar != null && estandar['alimentacion'] != null)
-                  Card(color: Colors.blue.shade50, child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text('Guía del día (estándar): ${estandar['alimentacion']}'))),
-                const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border(left: BorderSide(color: AppColors.info, width: 3)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.info),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Guía del día (estándar)',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.info)),
+                              const SizedBox(height: 2),
+                              Text('${estandar['alimentacion']}',
+                                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8, left: 2),
+                  child: Text('Insumos usados', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+                ),
+                if (_items.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('Todavía no agregaste insumos para este día.',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  ),
                 ..._items.asMap().entries.map((entry) {
                   final i = entry.key; final item = entry.value;
-                  return Card(child: Padding(
-                    padding: const EdgeInsets.all(8),
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
                     child: Row(children: [
-                      Expanded(flex: 3, child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: item.insumoId,
-                        items: _insumos.map((ins) => DropdownMenuItem(
-                          value: ins['id'] as String, child: Text(ins['nombre']))).toList(),
-                        onChanged: (v) {
-                          final ins = _insumos.firstWhere((x) => x['id'] == v);
-                          setState(() => _items[i] = ItemRegistro(
-                            tipo: 'insumo', insumoId: v, unidadId: ins['unidad_id'], cantidad: item.cantidad));
-                        },
+                      Expanded(flex: 3, child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: item.insumoId,
+                          borderRadius: BorderRadius.circular(12),
+                          items: _insumos.map((ins) => DropdownMenuItem(
+                            value: ins['id'] as String, child: Text(ins['nombre'], overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (v) {
+                            final ins = _insumos.firstWhere((x) => x['id'] == v);
+                            setState(() => _items[i] = ItemRegistro(
+                              tipo: 'insumo', insumoId: v, unidadId: ins['unidad_id'], cantidad: item.cantidad));
+                          },
+                        ),
                       )),
                       const SizedBox(width: 8),
                       Expanded(flex: 2, child: TextFormField(
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         initialValue: item.cantidad?.toString() ?? '',
-                        decoration: const InputDecoration(labelText: 'Cantidad'),
+                        decoration: const InputDecoration(
+                          labelText: 'Cantidad',
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        ),
                         onChanged: (v) => _items[i] = ItemRegistro(
                           tipo: 'insumo', insumoId: item.insumoId, unidadId: item.unidadId,
                           cantidad: double.tryParse(v)),
                       )),
-                      IconButton(icon: const Icon(Icons.delete),
-                        onPressed: () => setState(() => _items.removeAt(i))),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                        onPressed: () => setState(() => _items.removeAt(i)),
+                      ),
                     ]),
-                  ));
+                  );
                 }),
-                TextButton.icon(onPressed: _agregarItem,
-                  icon: const Icon(Icons.add), label: const Text('Agregar insumo')),
-                const SizedBox(height: 8),
-                TextField(controller: _notas, maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Notas del día', border: OutlineInputBorder())),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: _guardar, child: const Text('Guardar borrador')),
+                const SizedBox(height: 4),
+                OutlinedButton.icon(
+                  onPressed: _agregarItem,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Agregar insumo'),
+                ),
+                const SizedBox(height: 18),
+                TextField(controller: _notas, maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Notas del día', alignLabelWithHint: true)),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: _guardar,
+                  icon: const Icon(Icons.save_rounded),
+                  label: const Text('Guardar borrador'),
+                ),
+                const SizedBox(height: 10),
+                const Center(
+                  child: Text('El administrador confirmará el registro.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                ),
               ],
             ),
     );

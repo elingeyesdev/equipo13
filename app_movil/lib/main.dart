@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers.dart';
 import 'core/router.dart';
+import 'core/theme.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -16,7 +17,8 @@ class MyApp extends ConsumerWidget {
     final router = buildRouter(ref);
     return MaterialApp.router(
       title: 'Registro de Lotes',
-      theme: ThemeData(colorSchemeSeed: Colors.green, useMaterial3: true),
+      debugShowCheckedModeBanner: false,
+      theme: buildAppTheme(),
       routerConfig: router,
     );
   }
