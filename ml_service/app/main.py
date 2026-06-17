@@ -13,7 +13,7 @@ from ml.recommend import recomendar_heuristico, enriquecer_con_forecast
 from ml.features import construir_series
 from ml.forecast import pronosticar
 from ml.optimize import asignar_volumenes_con_topes
-from ml.alertas import cargar_alertas_recientes
+from ml.alertas import cargar_alertas_recientes, detectar_alertas_precio, guardar_alertas
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -101,5 +101,20 @@ def get_alertas_precios(negocio_id: str, limit: int = 20):
     try:
         alertas = cargar_alertas_recientes(negocio_id, limit=limit)
         return {"alertas": alertas, "total": len(alertas)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/alertas/recalcular", dependencies=[Depends(auth_dependency)])
+def recalcular_alertas(payload: ScrapingRequest):
+    """Recalcula alertas de cambio de precio bajo demanda (sin esperar al cron diario)."""
+    negocio_id = payload.negocio_id
+    if not negocio_id:
+        raise HTTPException(status_code=400, detail="negocio_id requerido")
+    try:
+        precios = cargar_precios_recientes(negocio_id)
+        alertas = detectar_alertas_precio(precios)
+        guardar_alertas(negocio_id, alertas)
+        return {"alertas_generadas": len(alertas)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

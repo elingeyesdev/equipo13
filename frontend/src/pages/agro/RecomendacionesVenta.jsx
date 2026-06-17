@@ -25,7 +25,7 @@ export default function RecomendacionesVenta({ negocioId }) {
 
   function exportarCSV() {
     const cols = ['corte_canonico', 'canal_sugerido', 'precio_referencia', 'costo_kg', 'margen_kg',
-                  'kg_disponibles', 'ingreso_estimado', 'tendencia', 'accion'];
+                  'kg_disponibles', 'ingreso_estimado', 'tendencia', 'precio_pronosticado', 'confianza', 'accion'];
     const head = cols.join(',');
     const rows = items.map(i => cols.map(c => i[c] ?? '').join(','));
     const blob = new Blob([[head, ...rows].join('\n')], { type: 'text/csv' });
@@ -42,9 +42,11 @@ export default function RecomendacionesVenta({ negocioId }) {
     { key: 'kg_disponibles', label: 'Kg disp.', align: 'right', mono: true },
     { key: 'ingreso_estimado', label: 'Ingreso est.', align: 'right', mono: true },
     { key: 'tendencia', label: 'Tendencia', align: 'center' },
+    { key: 'precio_pronosticado', label: 'Pronóstico', align: 'right', mono: true },
+    { key: 'confianza', label: 'Confianza', align: 'center' },
     { key: 'accion', label: 'Acción', align: 'left' },
   ];
-  const GRID = 'minmax(120px,1.4fr) minmax(110px,1fr) 90px 90px 100px 80px 110px 100px 110px';
+  const GRID = 'minmax(110px,1.3fr) minmax(95px,1fr) 82px 82px 90px 72px 100px 80px 82px 80px 100px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -99,9 +101,9 @@ export default function RecomendacionesVenta({ negocioId }) {
             : it.accion === 'esperar'
               ? { label: 'Esperar', color: 'var(--accent-warning)', icon: 'history' }
               : null;
-          const tend = it.tendencia === 'sube' || it.tendencia === 'up'
+          const tend = ['subiendo', 'sube', 'up'].includes(it.tendencia)
             ? { icon: 'arrowUp', color: 'var(--accent-success)' }
-            : it.tendencia === 'baja' || it.tendencia === 'down'
+            : ['bajando', 'baja', 'down'].includes(it.tendencia)
               ? { icon: 'arrowDown', color: 'var(--accent-danger)' }
               : null;
           return (
@@ -119,6 +121,19 @@ export default function RecomendacionesVenta({ negocioId }) {
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(it.ingreso_estimado)}</span>
               <span style={{ textAlign: 'center' }}>
                 {tend ? <Icon name={tend.icon} size={15} style={{ color: tend.color }} /> : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+              </span>
+              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>
+                {it.precio_pronosticado ? fmt(it.precio_pronosticado) : '—'}
+              </span>
+              <span style={{ textAlign: 'center' }}>
+                {it.confianza != null ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ width: '28px', height: '4px', borderRadius: '2px', background: 'var(--border-subtle)', overflow: 'hidden', display: 'inline-block' }}>
+                      <span style={{ display: 'block', height: '100%', width: `${Math.round(it.confianza * 100)}%`, borderRadius: '2px', background: it.confianza >= 0.7 ? 'var(--accent-success)' : it.confianza >= 0.4 ? 'var(--accent-warning)' : 'var(--text-tertiary)' }} />
+                    </span>
+                    <span style={{ color: it.confianza >= 0.7 ? 'var(--accent-success)' : 'var(--text-tertiary)' }}>{Math.round(it.confianza * 100)}%</span>
+                  </span>
+                ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
               </span>
               <span>
                 {accion ? (
@@ -140,16 +155,39 @@ export default function RecomendacionesVenta({ negocioId }) {
 function AlertasPrecio({ negocioId }) {
   const [alertas, setAlertas] = useState([]);
   const [expandido, setExpandido] = useState(true);
+  const [recalculando, setRecalculando] = useState(false);
 
-  useEffect(() => {
-    apiFetch(`/api/negocios/${negocioId}/alertas-precio`)
-      .then(d => setAlertas(d.alertas || []))
-      .catch(() => {});
-  }, [negocioId]);
+  async function cargarAlertas() {
+    try {
+      const d = await apiFetch(`/api/negocios/${negocioId}/alertas-precio`);
+      setAlertas(d.alertas || []);
+    } catch { /* ignore */ }
+  }
 
-  if (alertas.length === 0) return null;
+  useEffect(() => { cargarAlertas(); }, [negocioId]);
+
+  async function recalcular() {
+    setRecalculando(true);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/alertas-precio/recalcular`, { method: 'POST' });
+      await cargarAlertas();
+    } catch (e) { console.error('recalcular alertas:', e); }
+    setRecalculando(false);
+  }
+
   const WARN = 'var(--accent-warning)';
   const GRID = 'minmax(120px,1.4fr) minmax(90px,1fr) 110px 110px 100px 130px';
+
+  if (alertas.length === 0) return (
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <Icon name="alertTriangle" size={16} style={{ color: 'var(--text-tertiary)' }} />
+      <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', flex: 1 }}>No hay alertas de cambio de precio.</span>
+      <button
+        onClick={recalcular} disabled={recalculando}
+        style={{ background: 'transparent', border: `1px solid ${WARN}44`, borderRadius: '5px', padding: '4px 12px', fontSize: '12px', color: WARN, cursor: 'pointer', fontWeight: 500, opacity: recalculando ? 0.5 : 1 }}
+      >{recalculando ? 'Recalculando…' : 'Recalcular alertas'}</button>
+    </div>
+  );
 
   return (
     <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${WARN}33`, borderLeft: `3px solid ${WARN}`, borderRadius: '8px', overflow: 'hidden' }}>
@@ -161,6 +199,11 @@ function AlertasPrecio({ negocioId }) {
         <Icon name="alertTriangle" size={16} style={{ color: WARN }} />
         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Alertas de cambio de precio</span>
         <span style={{ background: 'var(--accent-danger)', color: '#fff', borderRadius: '999px', padding: '1px 8px', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{alertas.length}</span>
+        <button
+          onClick={e => { e.stopPropagation(); recalcular(); }}
+          disabled={recalculando}
+          style={{ marginLeft: '8px', background: 'transparent', border: `1px solid ${WARN}44`, borderRadius: '5px', padding: '3px 10px', fontSize: '11px', color: WARN, cursor: 'pointer', fontWeight: 500, opacity: recalculando ? 0.5 : 1, transition: 'opacity 0.15s' }}
+        >{recalculando ? 'Recalculando…' : 'Recalcular'}</button>
         <Icon name={expandido ? 'chevronUp' : 'chevronDown'} size={15} style={{ color: 'var(--text-tertiary)', marginLeft: 'auto' }} />
       </div>
       {expandido && (

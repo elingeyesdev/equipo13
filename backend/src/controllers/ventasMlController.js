@@ -140,3 +140,14 @@ export async function getAlertasPrecios(req, res) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }
 }
+
+// POST /api/negocios/:negocioId/alertas-precio/recalcular
+export async function recalcularAlertasPrecios(req, res) {
+  try {
+    const data = await mlPost('/alertas/recalcular', { negocio_id: req.params.negocioId });
+    res.json(data);
+  } catch (err) {
+    console.error('recalcularAlertasPrecios error:', err);
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}

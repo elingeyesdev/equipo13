@@ -1,0 +1,11 @@
+# Virtual environment (installed via pip in the container instead)
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE / OS
+.env
+.git/
