@@ -6,7 +6,7 @@ from app.db import get_conn, fetch_all
 
 def cargar_cortes_disponibles(negocio_id: str) -> list[dict]:
     # Agrega el despiece por nombre de corte: kg disponibles y costo promedio ponderado.
-    return fetch_all(
+    rows = fetch_all(
         """SELECT dc.nombre AS corte_canonico,
                   SUM(dc.peso_kg) AS kg_disponibles,
                   CASE WHEN SUM(dc.peso_kg) > 0
@@ -19,16 +19,25 @@ def cargar_cortes_disponibles(negocio_id: str) -> list[dict]:
            HAVING SUM(dc.peso_kg) > 0""",
         (negocio_id,),
     )
+    # PostgreSQL devuelve NUMERIC como Decimal; el ML opera con float (Prophet,
+    # optimize y json.dumps no mezclan float con Decimal). Coercionamos en el borde.
+    for r in rows:
+        r["kg_disponibles"] = float(r["kg_disponibles"])
+        r["costo_kg"] = float(r["costo_kg"])
+    return rows
 
 
 def cargar_precios_recientes(negocio_id: str) -> list[dict]:
-    return fetch_all(
+    rows = fetch_all(
         """SELECT corte_canonico, canal, precio_kg, fecha
              FROM precio_mercado_historico
             WHERE negocio_id = %s
             ORDER BY fecha DESC, scraped_at DESC""",
         (negocio_id,),
     )
+    for r in rows:
+        r["precio_kg"] = float(r["precio_kg"])
+    return rows
 
 
 def guardar_recomendacion(negocio_id: str, items: list[dict], modo: str, horizonte: int) -> str:

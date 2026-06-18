@@ -9,5 +9,10 @@ statsmodels==0.14.4
 APScheduler==3.10.4
 pdfplumber==0.11.4
 prophet==1.1.5
+# Prophet 1.1.5 trae un modelo Stan precompilado; cmdstanpy>=1.3 rechaza ese
+# directorio (exige makefile). 1.2.4 lo acepta y usa el binario precompilado.
+cmdstanpy==1.2.4
+# Prophet 1.1.5 usa np.float_, removido en NumPy 2.0. Fijamos NumPy 1.x.
+numpy>=1.26,<2
 python-dotenv==1.0.1
 pytest==8.3.4
