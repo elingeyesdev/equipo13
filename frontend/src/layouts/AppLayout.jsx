@@ -23,7 +23,7 @@ const NAV_AGRO = [
       { id: 'diario',     label: 'Diario de producción', icon: 'clipboardList' },
       { id: 'pendientes', label: 'Pendientes',        icon: 'bell' },
       { id: 'liquidacion',label: 'Liquidación',       icon: 'scale' },
-      { id: 'despiece',   label: 'Despiece',          icon: 'scissors' },
+      { id: 'catalogocortes', label: 'Catálogo de Cortes', icon: 'scissors' },
     ]
   },
   { 

@@ -55,12 +55,40 @@ export const createDespiece = async (req, res) => {
     await client.query('BEGIN');
 
     const loteCheck = await client.query(
-      'SELECT id, costo_adquisicion FROM lotes WHERE id = $1 AND negocio_id = $2 FOR UPDATE',
+      'SELECT id, costo_adquisicion, cabezas_activas, peso_actual_prom FROM lotes WHERE id = $1 AND negocio_id = $2 FOR UPDATE',
       [id, negocioId]
     );
     if (!loteCheck.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Lote no encontrado' });
+    }
+
+    // Validar que el peso canal total (cortes nuevos + ya convertidos en insumo,
+    // que esta operación no toca) no supere lo que el lote debería rendir:
+    // cabezas activas × peso actual prom. × rendimiento canal (75% estándar cerdo).
+    const cabezasActivas = Number(loteCheck.rows[0].cabezas_activas) || 0;
+    const pesoActualProm = Number(loteCheck.rows[0].peso_actual_prom) || 0;
+    const RENDIMIENTO_CANAL_REF = 0.75;
+    const canalEsperado = cabezasActivas > 0 && pesoActualProm > 0
+      ? cabezasActivas * pesoActualProm * RENDIMIENTO_CANAL_REF
+      : null;
+
+    if (canalEsperado != null) {
+      const vinculadosRes = await client.query(
+        `SELECT COALESCE(SUM(peso_kg), 0) AS total FROM despiece_cortes
+         WHERE lote_id = $1 AND insumo_generado_id IS NOT NULL`,
+        [id]
+      );
+      const pesoVinculado = Number(vinculadosRes.rows[0].total);
+      const pesoNuevos = cortes.reduce((acc, c) => acc + Number(c.peso_kg), 0);
+      const pesoProyectado = pesoVinculado + pesoNuevos;
+      if (pesoProyectado > canalEsperado + 0.01) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `El peso canal total (${pesoProyectado.toFixed(1)} kg) excede el canal esperado del ` +
+            `lote (${canalEsperado.toFixed(1)} kg = ${cabezasActivas} cab. × ${pesoActualProm.toFixed(1)} kg × 75% rendimiento).`,
+        });
+      }
     }
 
     // Costo total del lote (adquisición + bitácora)
@@ -261,18 +289,29 @@ export const asignarCostosConjuntosValorVentas = async (req, res) => {
       return res.status(400).json({ error: 'El lote no tiene cortes registrados' });
     }
 
-    // 3. Cargar precios de mercado vigentes para el canal dado
-    const { rows: preciosRows } = await client.query(
-      `SELECT DISTINCT ON (corte_nombre) corte_nombre, precio_unitario 
-       FROM precios_mercado_cortes 
-       WHERE negocio_id = $1 AND canal = $2 AND activo = true 
+    // 3a. Precios manuales (fallback para cortes sin dato de scraping)
+    const { rows: preciosManualesRows } = await client.query(
+      `SELECT DISTINCT ON (corte_nombre) corte_nombre, precio_unitario
+       FROM precios_mercado_cortes
+       WHERE negocio_id = $1 AND canal = $2 AND activo = true
        ORDER BY corte_nombre, fecha_vigencia DESC`,
       [negocioId, canal]
     );
-    
     const preciosMercado = {};
-    preciosRows.forEach(p => {
+    preciosManualesRows.forEach(p => {
       preciosMercado[p.corte_nombre] = Number(p.precio_unitario);
+    });
+
+    // 3b. Precios reales scrapeados (prioridad sobre los manuales si existen)
+    const { rows: preciosScrapeadosRows } = await client.query(
+      `SELECT DISTINCT ON (corte_canonico) corte_canonico, precio_kg
+       FROM precio_mercado_historico
+       WHERE negocio_id = $1 AND canal = $2
+       ORDER BY corte_canonico, fecha DESC`,
+      [negocioId, canal]
+    );
+    preciosScrapeadosRows.forEach(p => {
+      preciosMercado[p.corte_canonico] = Number(p.precio_kg);
     });
 
     // 4. Llamar al servicio puro

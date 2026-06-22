@@ -12,20 +12,34 @@ export default function RecomendacionesVenta({ negocioId }) {
   const [resumen, setResumen] = useState(null);
   const [modo, setModo] = useState('heuristico');
   const [cargando, setCargando] = useState(false);
+  const [metaModelos, setMetaModelos] = useState([]);
+  const [error, setError] = useState(null);
+  const [historico, setHistorico] = useState([]);
 
   async function cargar() {
     setCargando(true);
+    setError(null);
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/recomendaciones`);
       setItems(data.items || []); setResumen(data.resumen || null); setModo(data.modo || 'heuristico');
-    } catch (e) { console.error(e); }
+      
+      const meta = await apiFetch(`/api/negocios/${negocioId}/recomendaciones/meta`);
+      setMetaModelos(meta || []);
+      
+      const hist = await apiFetch(`/api/negocios/${negocioId}/precios-historico`);
+      setHistorico(hist || []);
+    } catch (e) { 
+      console.error(e); 
+      setError(e.message || 'Error de conexión al motor de Machine Learning.');
+    }
     setCargando(false);
   }
   useEffect(() => { if (negocioId) cargar(); }, [negocioId]);
 
   function exportarCSV() {
     const cols = ['corte_canonico', 'canal_sugerido', 'precio_referencia', 'costo_kg', 'margen_kg',
-                  'kg_disponibles', 'ingreso_estimado', 'tendencia', 'precio_pronosticado', 'confianza', 'accion'];
+                  'kg_disponibles', 'ingreso_estimado', 'tendencia', 'precio_pronosticado', 
+                  'margen_pronosticado', 'ingreso_pronosticado', 'confianza', 'accion'];
     const head = cols.join(',');
     const rows = items.map(i => cols.map(c => i[c] ?? '').join(','));
     const blob = new Blob([[head, ...rows].join('\n')], { type: 'text/csv' });
@@ -38,15 +52,18 @@ export default function RecomendacionesVenta({ negocioId }) {
     { key: 'canal_sugerido', label: 'Canal sugerido', align: 'left' },
     { key: 'precio_referencia', label: 'Precio/kg', align: 'right', mono: true },
     { key: 'costo_kg', label: 'Costo/kg', align: 'right', mono: true },
+    { key: 'grafico', label: 'Gráfico 30d', align: 'center' },
     { key: 'margen_kg', label: 'Margen/kg', align: 'right', mono: true },
     { key: 'kg_disponibles', label: 'Kg disp.', align: 'right', mono: true },
     { key: 'ingreso_estimado', label: 'Ingreso est.', align: 'right', mono: true },
     { key: 'tendencia', label: 'Tendencia', align: 'center' },
     { key: 'precio_pronosticado', label: 'Pronóstico', align: 'right', mono: true },
+    { key: 'margen_pronosticado', label: 'Margen pron.', align: 'right', mono: true },
+    { key: 'ingreso_pronosticado', label: 'Ingreso pron.', align: 'right', mono: true },
     { key: 'confianza', label: 'Confianza', align: 'center' },
     { key: 'accion', label: 'Acción', align: 'left' },
   ];
-  const GRID = 'minmax(110px,1.3fr) minmax(95px,1fr) 82px 82px 90px 72px 100px 80px 82px 80px 100px';
+  const GRID = 'minmax(110px,1.3fr) minmax(95px,1fr) 82px 82px 75px 90px 72px 100px 80px 82px 90px 100px 80px 100px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -79,6 +96,34 @@ export default function RecomendacionesVenta({ negocioId }) {
         </div>
       )}
 
+      {/* Modelos Meta */}
+      {metaModelos.length > 0 && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '-4px' }}>
+          {metaModelos.map((m, idx) => {
+            const esProphet = m.modelo.toLowerCase() === 'prophet';
+            return (
+              <div key={idx} style={{ 
+                display: 'inline-flex', alignItems: 'center', gap: '6px', 
+                padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-secondary)', fontSize: '11px', color: 'var(--text-secondary)'
+              }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.corte_canonico}</span>
+                <span>({m.canal})</span>
+                <span style={{ color: 'var(--border-subtle)' }}>|</span>
+                <span style={{ color: esProphet ? 'var(--accent-success)' : 'var(--accent-industrial)', fontWeight: 500 }}>
+                  {m.modelo}
+                </span>
+                <span style={{ color: 'var(--border-subtle)' }}>|</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>MAE {m.metricas?.mae || '—'}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>MAPE {m.metricas?.mape || '—'}%</span>
+                <span style={{ color: 'var(--border-subtle)' }}>|</span>
+                <span>{m.n_puntos} pts</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Tabla de recomendaciones */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '10px', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -89,6 +134,12 @@ export default function RecomendacionesVenta({ negocioId }) {
 
         {cargando ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>Calculando recomendaciones…</div>
+        ) : error ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-danger)', fontSize: '14px', lineHeight: 1.6 }}>
+            <Icon name="alertTriangle" size={28} style={{ opacity: 0.5 }} />
+            <div style={{ marginTop: '10px', fontWeight: 500 }}>{error}</div>
+            <div style={{ fontSize: '12px', opacity: 0.8 }}>Verificá que el contenedor ml_service esté corriendo.</div>
+          </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1.6 }}>
             <Icon name="trendingUp" size={28} style={{ color: 'var(--text-tertiary)', opacity: 0.5 }} />
@@ -116,6 +167,9 @@ export default function RecomendacionesVenta({ negocioId }) {
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{it.canal_sugerido}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{fmt(it.precio_referencia)}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textAlign: 'right' }}>{fmt(it.costo_kg)}</span>
+              <span style={{ textAlign: 'center' }}>
+                <Sparkline historico={historico} corte={it.corte_canonico} canal={it.canal_sugerido} />
+              </span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: it.margen_kg >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right', fontWeight: 500 }}>{fmt(it.margen_kg)}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{fmt(it.kg_disponibles, 1)}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(it.ingreso_estimado)}</span>
@@ -124,6 +178,12 @@ export default function RecomendacionesVenta({ negocioId }) {
               </span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>
                 {it.precio_pronosticado ? fmt(it.precio_pronosticado) : '—'}
+              </span>
+              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: it.margen_pronosticado >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right', fontStyle: 'italic' }}>
+                {it.margen_pronosticado != null ? fmt(it.margen_pronosticado) : '—'}
+              </span>
+              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>
+                {it.ingreso_pronosticado != null ? fmt(it.ingreso_pronosticado) : '—'}
               </span>
               <span style={{ textAlign: 'center' }}>
                 {it.confianza != null ? (
@@ -231,3 +291,36 @@ function AlertasPrecio({ negocioId }) {
     </div>
   );
 }
+
+function Sparkline({ historico, corte, canal }) {
+  if (!historico || historico.length === 0) return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
+  
+  // Filtrar últimos 30 precios del corte y canal
+  const precios = historico
+    .filter(h => h.corte_canonico === corte && h.canal === canal)
+    .slice(0, 30)
+    .map(h => Number(h.precio_kg));
+    
+  if (precios.length < 2) return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
+  
+  const min = Math.min(...precios);
+  const max = Math.max(...precios);
+  const range = max - min || 1;
+  const w = 60;
+  const h = 20;
+  
+  // El histórico viene DESC, así que el más reciente está en el índice 0
+  // Invertimos para graficar de izquierda a derecha (antiguo a nuevo)
+  const pts = [...precios].reverse().map((val, i) => {
+    const x = (i / (precios.length - 1)) * w;
+    const y = h - ((val - min) / range) * h;
+    return `${x},${y}`;
+  }).join(' L ');
+  
+  return (
+    <svg width={w} height={h} style={{ overflow: 'visible', verticalAlign: 'middle' }}>
+      <path d={`M ${pts}`} fill="none" stroke="var(--accent-industrial)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+

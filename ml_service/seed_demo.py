@@ -25,11 +25,30 @@ from app.db import get_conn, fetch_all
 CANALES = ("minorista", "mayorista")
 FACTOR_MAYORISTA = 0.82
 # Precio base minorista por corte (Bs/kg) — ajustá a la realidad boliviana.
-BASE = {"Pierna": 78.0, "Chorizo": 52.0, "Costilla": 60.0, "Paleta": 45.0, "Lomo": 95.0}
+BASE = {
+    "Pierna": 52.0, "Paleta": 42.0, "Lomo": 55.0, "Costilla": 48.0, 
+    "Panceta": 45.0, "Chuleta": 46.0, "Hueso/Carnaza": 25.0, 
+    "Bondiola": 50.0, "Grasa": 15.0, "Cuero": 12.0, 
+    "Recortes": 20.0, "Patas": 10.0
+}
 # Días de histórico por corte. >=365 dispara Prophet; el resto, Holt-Winters.
 HISTORIAL = {"Pierna": 420, "Lomo": 420}
 DIAS_DEFAULT = 90
 TOPES = {"minorista": 150, "mayorista": 500}
+
+# Parámetros del lote demo (Camino B). El peso canal de cada corte se DERIVA de
+# estos números para que sea físicamente coherente con el lote, en vez de aleatorio.
+CABEZAS_DEMO = 20
+PESO_PROM_PIE = 95.0          # kg de peso vivo por cabeza al momento de faenar
+RENDIMIENTO_CANAL = 0.75      # cerdo: ~75% del peso vivo queda como canal aprovechable
+COSTO_ADQUISICION_DEMO = 28000.0
+# Reparto del canal por corte (fracción del peso canal; debe sumar 1.0).
+# Rendimientos de despiece porcino de la plantilla real.
+RENDIMIENTO_CORTE = {
+    "Pierna": 0.24, "Paleta": 0.16, "Lomo": 0.12, "Costilla": 0.10, "Panceta": 0.09,
+    "Chuleta": 0.08, "Hueso/Carnaza": 0.05, "Bondiola": 0.04, "Grasa": 0.04, 
+    "Cuero": 0.03, "Recortes": 0.03, "Patas": 0.02
+}
 
 
 def listar_negocios():
@@ -47,20 +66,27 @@ def cortes_del_negocio(negocio_id):
 
 
 def crear_lote_y_despiece(cur, negocio_id):
-    """Camino B: si el negocio no tiene despiece, crea un lote demo + cortes."""
+    """Camino B: si el negocio no tiene despiece, crea un lote demo + cortes.
+
+    El peso de cada corte se DERIVA del lote (cabezas × peso vivo × rendimiento
+    canal) y se reparte por el rendimiento de despiece de cada corte, de modo que
+    el peso canal total sea físicamente coherente con el lote (no aleatorio)."""
+    peso_canal_total = CABEZAS_DEMO * PESO_PROM_PIE * RENDIMIENTO_CANAL
     cur.execute(
         """INSERT INTO lotes (negocio_id, identificador, tipo_animal, cabezas_inicio,
                               cabezas_activas, peso_inicial_prom, peso_actual_prom, costo_adquisicion)
            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id::text""",
-        (negocio_id, "LOTE-DEMO-ML", "porcino", 20, 20, 25.0, 95.0, 28000.0),
+        (negocio_id, "LOTE-DEMO-ML", "porcino", CABEZAS_DEMO, CABEZAS_DEMO,
+         25.0, PESO_PROM_PIE, COSTO_ADQUISICION_DEMO),
     )
     lote_id = cur.fetchone()["id"]
     for nombre, base in BASE.items():
-        # costo_kg_derivado demo = 60% del precio base minorista
+        peso_kg = round(peso_canal_total * RENDIMIENTO_CORTE[nombre], 2)
+        # costo_kg_derivado demo = 60% del precio base minorista (alimenta el margen del ML)
         cur.execute(
             """INSERT INTO despiece_cortes (lote_id, nombre, peso_kg, costo_kg_derivado)
                VALUES (%s, %s, %s, %s)""",
-            (lote_id, nombre, round(random.uniform(40, 120), 2), round(base * 0.6, 2)),
+            (lote_id, nombre, peso_kg, round(base * 0.6, 2)),
         )
     return list(BASE)
 

@@ -338,6 +338,77 @@ const ComparadorEscenarios = ({
 const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const accentColor = 'var(--accent-agro)';
 
+  // ── Recomendaciones ML ──
+  const [recomendaciones, setRecomendaciones] = useState([]);
+  const [recomendacionesLoading, setRecomendacionesLoading] = useState(false);
+  const [recomendacionesError, setRecomendacionesError] = useState(null);
+  const [ultimaActualizacionMercado, setUltimaActualizacionMercado] = useState(null);
+  const [isScraping, setIsScraping] = useState(false);
+
+  const fetchRecomendaciones = () => {
+    if (!negocioId) return;
+    setRecomendacionesLoading(true);
+    setRecomendacionesError(null);
+    apiFetch(`/api/negocios/${negocioId}/recomendaciones`)
+      .then(data => {
+        setRecomendaciones(data || []);
+        if (data && data.length > 0 && data[0].timestamp) {
+          setUltimaActualizacionMercado(data[0].timestamp);
+        }
+      })
+      .catch(err => setRecomendacionesError(err.message || 'Error cargando recomendaciones'))
+      .finally(() => setRecomendacionesLoading(false));
+  };
+
+  useEffect(() => {
+    fetchRecomendaciones();
+  }, [negocioId]);
+
+  useEffect(() => {
+    if (recomendaciones.length > 0) {
+      setPvpCortesGancho(prev => {
+        const next = { ...prev };
+        let changed = false;
+        recomendaciones.forEach(r => {
+          const cId = String(r.corte).toLowerCase().replace(/\s+/g, '_');
+          if (r.precio_referencia && !next[cId]) {
+            next[cId] = String(r.precio_referencia);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+
+      // Pre-rellenar PVP de productos en el simulador si el nombre coincide con un corte
+      setProductosList(prev => {
+        let changed = false;
+        const next = prev.map(p => {
+          const rec = recomendaciones.find(r => r.corte.toLowerCase() === p.nombre.toLowerCase());
+          if (rec && rec.precio_referencia && (!p.pvp || p.pvp === '0' || p.pvp === '0.00')) {
+            changed = true;
+            return { ...p, pvp: String(rec.precio_referencia) };
+          }
+          return p;
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [recomendaciones]);
+
+  const handleScraping = async () => {
+    if (!negocioId) return;
+    setIsScraping(true);
+    setRecomendacionesError(null);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/scraping/run`, { method: 'POST' });
+      fetchRecomendaciones();
+    } catch (err) {
+      setRecomendacionesError(err.message || 'Error al actualizar mercado');
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
   // ── Lotes ──
   const [lotes, setLotes] = useState([]);
   const [selectedLoteUuid, setSelectedLoteUuid] = useState(activeLote?._id || null);
@@ -379,6 +450,15 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       .then(data => setBitacora(data || [])).catch(() => setBitacora([]));
   }, [negocioId, selectedLoteUuid]);
 
+  // ── Despiece real asociado al lote ──
+  const [despieceReal, setDespieceReal] = useState(null);
+  useEffect(() => {
+    if (!negocioId || !selectedLoteUuid) return;
+    apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteUuid}/despiece`)
+      .then(data => setDespieceReal(data || null))
+      .catch(() => setDespieceReal(null));
+  }, [negocioId, selectedLoteUuid]);
+
   useEffect(() => {
     if (!negocioId) return;
     apiFetch(`/api/negocios/${negocioId}/categorias`)
@@ -405,6 +485,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const [otrosGastosRaw, setOtrosGastosRaw]           = useState(d.otrosGastos         ?? '0');
   const [pvpPieRaw, setPvpPieRaw]                     = useState(d.pvpPie              ?? '22');
   const [pvpGanchoRaw, setPvpGanchoRaw]               = useState(d.pvpGancho           ?? '32');
+  const [pvpCortesGancho, setPvpCortesGancho]         = useState({});
+  const [modoGancho, setModoGancho]                   = useState('por_corte'); // 'unico' | 'por_corte'
 
   // ── Mermas de la cascada (ayuno/transporte + frío) ──
   const [mermaAyunoRaw, setMermaAyunoRaw] = useState(d.mermaAyuno ?? '0');
@@ -415,26 +497,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   // Productos del simulador: lista dinámica con persistencia por negocio.
   const productosStorageKey = negocioId ? `liquidacion_productos_${negocioId}` : null;
-  const [productosList, setProductosList] = useState(() => {
-    const fallback = PRODUCTOS_DEFAULT.map(p => ({ ...p }));
-    if (typeof window === 'undefined' || !productosStorageKey) return fallback;
-    try {
-      const saved = JSON.parse(localStorage.getItem(productosStorageKey) || 'null');
-      if (Array.isArray(saved) && saved.every(p => p && p.id)) {
-        return saved.map(p => ({
-          id:                String(p.id),
-          nombre:            String(p.nombre || 'Sin nombre'),
-          corteId:           String(p.corteId || ''),
-          alternativaCorteId: p.alternativaCorteId ? String(p.alternativaCorteId) : undefined,
-          mermaTermicaPct:   String(p.mermaTermicaPct ?? 0),
-          pvp:               String(p.pvp ?? 0),
-          hintMerma:         p.hintMerma || '',
-          tip:               p.tip || '',
-        }));
-      }
-    } catch { /* ignore */ }
-    return fallback;
-  });
+  const [productosList, setProductosList] = useState([]);
   const [editProductos, setEditProductos] = useState(false);
   // Set de IDs de productos colapsados (vista compacta de una sola línea)
   const [productosColapsados, setProductosColapsados] = useState(() => new Set());
@@ -470,7 +533,27 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     }]);
   };
   const resetProductos = () => {
-    setProductosList(PRODUCTOS_DEFAULT.map(p => ({ ...p })));
+    apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`).then(data => {
+      if (data && data.length > 0) {
+        const nuevosProductos = data
+          .filter(c => c.producto_sugerido)
+          .map(c => {
+             const cid = String(c.nombre).toLowerCase().replace(/\\s+/g, '_');
+             return {
+               id: `prod_${cid}`,
+               nombre: c.producto_sugerido,
+               corteId: cid,
+               mermaTermicaPct: '0',
+               pvp: '0',
+             };
+          });
+        setProductosList(nuevosProductos);
+      } else {
+        setProductosList(PRODUCTOS_DEFAULT.map(p => ({ ...p })));
+      }
+    }).catch(() => {
+      setProductosList(PRODUCTOS_DEFAULT.map(p => ({ ...p })));
+    });
   };
 
   // ── Escritura de defaults principales (inputs no-simulador) ──
@@ -500,27 +583,56 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   // Distribución de cortes configurable por empresa (persistida por negocio).
   // Estructura: array de { id, label, color, pct (string en estado raw) }.
   const cortesStorageKey = negocioId ? `cortes_pcf_${negocioId}` : null;
-  const [cortesList, setCortesList] = useState(() => {
-    const fallback = CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) }));
-    if (typeof window === 'undefined' || !cortesStorageKey) return fallback;
-    try {
-      const saved = JSON.parse(localStorage.getItem(cortesStorageKey) || 'null');
-      // Formato nuevo: array
-      if (Array.isArray(saved) && saved.every(c => c && c.id)) {
-        return saved.map(c => ({
-          id:    String(c.id),
-          label: String(c.label || c.id),
+  const [cortesList, setCortesList] = useState([]);
+  
+  useEffect(() => {
+    if (!negocioId) return;
+    apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`).then(data => {
+      if (data && data.length > 0) {
+        const nuevosCortes = data.map(c => ({
+          id: String(c.nombre).toLowerCase().replace(/\\s+/g, '_'),
+          label: c.nombre,
           color: c.color || '#78909c',
-          pct:   String(c.pct ?? 0),
+          pct: String(c.rendimiento_pct ?? 0)
         }));
+        setCortesList(nuevosCortes);
+        
+        const nuevosProductos = data
+          .filter(c => c.producto_sugerido)
+          .map(c => {
+             const cid = String(c.nombre).toLowerCase().replace(/\\s+/g, '_');
+             return {
+               id: `prod_${cid}`,
+               nombre: c.producto_sugerido,
+               corteId: cid,
+               mermaTermicaPct: '0',
+               pvp: '0',
+             };
+          });
+          
+        try {
+          const savedProds = JSON.parse(localStorage.getItem(productosStorageKey) || 'null');
+          if (Array.isArray(savedProds)) {
+             nuevosProductos.forEach(np => {
+                const sp = savedProds.find(p => p.id === np.id || p.corteId === np.corteId);
+                if (sp) {
+                   np.mermaTermicaPct = String(sp.mermaTermicaPct ?? '0');
+                   np.pvp = String(sp.pvp ?? '0');
+                }
+             });
+          }
+        } catch {}
+
+        setProductosList(nuevosProductos);
+      } else {
+        setCortesList(CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) })));
+        setProductosList(PRODUCTOS_DEFAULT.map(p => ({ ...p })));
       }
-      // Migración del formato viejo: objeto { pernil: 20, chuleta: 26, ... }
-      if (saved && typeof saved === 'object') {
-        return CORTES_DEFAULT.map(c => ({ ...c, pct: String(saved[c.id] ?? c.pct) }));
-      }
-    } catch { /* ignore */ }
-    return fallback;
-  });
+    }).catch(() => {
+      setCortesList(CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) })));
+      setProductosList(PRODUCTOS_DEFAULT.map(p => ({ ...p })));
+    });
+  }, [negocioId, productosStorageKey]);
   const [editCortes, setEditCortes] = useState(false);
 
   useEffect(() => {
@@ -537,7 +649,21 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const cortesValid = Math.abs(cortesSum - 100) < 0.05;
 
   const resetCortes = () => {
-    setCortesList(CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) })));
+    // Si resetea, simplemente re-cargamos de la base de datos
+    apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`).then(data => {
+      if (data && data.length > 0) {
+        setCortesList(data.map(c => ({
+          id: String(c.nombre).toLowerCase().replace(/\\s+/g, '_'),
+          label: c.nombre,
+          color: c.color || '#78909c',
+          pct: String(c.rendimiento_pct ?? 0)
+        })));
+      } else {
+        setCortesList(CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) })));
+      }
+    }).catch(() => {
+      setCortesList(CORTES_DEFAULT.map(c => ({ ...c, pct: String(c.pct) })));
+    });
   };
 
   const addCorte = () => {
@@ -613,7 +739,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const pvAyunado = pvGranja - kgAyuno;
   const pcc       = pvAyunado * (rendimientoCanal / 100);
   const kgFrio    = pcc * (mermaFrio / 100);
-  const pcf       = pcc - kgFrio;
+  const pcf_calculado = pcc - kgFrio;
+  const pcf       = despieceReal?.peso_canal_total != null ? parseFloat(despieceReal.peso_canal_total) : pcf_calculado;
   const pesoUtil  = pcf;
   const kgDesposte = 0;
 
@@ -623,7 +750,18 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   // ── Escenarios E1/E2 ──
   const ingresoPie    = pvAyunado * pvpPie;
-  const ingresoGancho = pcf * pvpGancho;
+
+  // Helper para obtener el kg real de un corte según despiece o proyección
+  const getKgCorteReal = (corte) => {
+    if (despieceReal && despieceReal.cortes) {
+      const rc = despieceReal.cortes.find(x => x.nombre.toLowerCase() === corte.label.toLowerCase());
+      return rc ? (parseFloat(rc.peso_kg) || 0) : 0;
+    }
+    return pcf * (corte.pct / 100);
+  };
+
+  const ingresoGanchoPorCorte = cortesNum.reduce((sum, c) => sum + (getKgCorteReal(c) * (parseFloat(pvpCortesGancho[c.id]) || 0)), 0);
+  const ingresoGancho = modoGancho === 'por_corte' ? ingresoGanchoPorCorte : pcf * pvpGancho;
   const utilPie       = ingresoPie - costoTotalLote - gastosVenta;
   const utilGancho    = ingresoGancho - costoTotalLote - gastosGanchoTotal;
   const costoKgVivo   = safeDivide(costoTotalLote, pvAyunado);
@@ -632,7 +770,17 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   // ── Simulador Industrial: motor de cálculo con productos dinámicos ──
   const costoKgCrudo = pcf > 0 ? costoTotalLote / pcf : 0;
-  const simKgDescarte = getCorteKg('descarte');
+  
+  const getCostoKgCorte = (corteId) => {
+    if (despieceReal && despieceReal.cortes) {
+      const label = cortesById[corteId]?.label;
+      const rc = despieceReal.cortes.find(x => x.nombre.toLowerCase() === label?.toLowerCase());
+      if (rc && rc.costo_kg_derivado) return parseFloat(rc.costo_kg_derivado);
+    }
+    return costoKgCrudo;
+  };
+
+  const simKgDescarte = getKgCorteReal({ label: cortesById['descarte']?.label || 'descarte', pct: cortesById['descarte']?.pct || 0 });
 
   // Vista derivada saneada de los productos
   const productosNum = productosList.map(p => ({
@@ -643,8 +791,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   // Routing: para cada corte, asignarlo al producto con MAYOR margen entre
   // los que lo declaran como corte primario o como alternativa.
-  // Margen por kg = pvp × (1 − merma_térmica) − costo_kg_crudo
-  const margenKgProducto = (p) => p.pvpNum * (1 - p.mermaNum / 100) - costoKgCrudo;
+  const margenKgProducto = (p, corteId) => p.pvpNum * (1 - p.mermaNum / 100) - getCostoKgCorte(corteId);
 
   const corteAsignaciones = {}; // corteId → productoId
   for (const corte of cortesNum) {
@@ -653,7 +800,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       p.corteId === corte.id || p.alternativaCorteId === corte.id
     );
     if (candidatos.length === 0) continue;
-    candidatos.sort((a, b) => margenKgProducto(b) - margenKgProducto(a));
+    candidatos.sort((a, b) => margenKgProducto(b, corte.id) - margenKgProducto(a, corte.id));
     corteAsignaciones[corte.id] = candidatos[0].id;
   }
 
@@ -663,7 +810,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       .filter(([, pid]) => pid === p.id)
       .map(([cid]) => cid);
     const cortesActivos = cortesAsignados.map(cid => cortesById[cid]).filter(Boolean);
-    const kgBase  = cortesActivos.reduce((s, c) => s + (pcf * c.pct / 100), 0);
+    const kgBase  = cortesActivos.reduce((s, c) => s + getKgCorteReal(c), 0);
     const kgFinal = kgBase * (1 - p.mermaNum / 100);
     const ingreso = kgFinal * p.pvpNum;
     const corteDeclarado = cortesById[p.corteId];
@@ -685,6 +832,14 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     };
   });
 
+  productosConCalculos.sort((a, b) => {
+    const recA = recomendaciones.find(r => r.corte.toLowerCase() === a.nombre.toLowerCase() || r.corte.toLowerCase() === (cortesById[a.corteId]?.label || '').toLowerCase());
+    const recB = recomendaciones.find(r => r.corte.toLowerCase() === b.nombre.toLowerCase() || r.corte.toLowerCase() === (cortesById[b.corteId]?.label || '').toLowerCase());
+    const mA = recA?.margen_kg || -9999;
+    const mB = recB?.margen_kg || -9999;
+    return mB - mA;
+  });
+
   const simTotalIngreso = productosConCalculos.reduce((s, p) => s + p.ingreso, 0);
   const simUtilidad     = simTotalIngreso - costoTotalLote - gastosGanchoTotal;
 
@@ -700,8 +855,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
         corte,
         productoPrimario,
         productoAsignado,
-        margenPrimario: margenKgProducto(productoPrimario),
-        margenAsignado: margenKgProducto(productoAsignado),
+        margenPrimario: margenKgProducto(productoPrimario, corte.id),
+        margenAsignado: margenKgProducto(productoAsignado, corte.id),
       });
     }
   }
@@ -1228,12 +1383,28 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
             text="La liquidación cierra el ciclo productivo del lote: tomamos el costo acumulado y lo comparamos contra tres escenarios de venta (Pie, Gancho, Despiece Industrial) para mostrarte cuál da mayor utilidad. Al confirmar, el lote se mueve al historial con el escenario elegido y deja de aparecer como activo."
           />
         </h1>
-        <button
-          onClick={() => setTourActivo(true)}
-          style={{ background: 'transparent', border: `1px solid ${accentColor}`, color: accentColor, borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Icon name="info" size={13} /> Ver tutorial
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => onNavigate?.('recomendaciones')}
+            style={{ background: 'transparent', border: `1px solid var(--border-subtle)`, color: 'var(--text-secondary)', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Icon name="barChart2" size={13} /> Análisis de mercado
+          </button>
+          <button
+            onClick={handleScraping}
+            disabled={isScraping}
+            style={{ background: 'transparent', border: `1px solid var(--border-subtle)`, color: 'var(--text-secondary)', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: isScraping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Icon name={isScraping ? 'loader' : 'refreshCw'} size={13} style={{ animation: isScraping ? 'spin 1s linear infinite' : 'none' }} />
+            {isScraping ? 'Actualizando...' : 'Actualizar mercado'}
+          </button>
+          <button
+            onClick={() => setTourActivo(true)}
+            style={{ background: 'transparent', border: `1px solid ${accentColor}`, color: accentColor, borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Icon name="info" size={13} /> Ver tutorial
+          </button>
+        </div>
       </div>
 
       {/* Selector de lote */}
@@ -1301,6 +1472,20 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                 </span>
                 {mono(pcc.toFixed(0), ' kg')}
               </div>
+              <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  PCF (canal fría)
+                  <InfoTip text={despieceReal ? "Peso de Canal Fría obtenido del registro real de despiece para este lote." : "Peso de Canal Fría estimado. Fórmula: PCC − merma por frío."} />
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {despieceReal && (
+                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '2px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
+                      ✓ DATOS REALES
+                    </span>
+                  )}
+                  {mono(pcf.toFixed(1), ' kg')}
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: 'auto' }}>
                 <INum
                   label="PVP $/kg pie" raw={pvpPieRaw} setRaw={setPvpPieRaw} prefix="Bs"
@@ -1308,12 +1493,38 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                   accentColor={accentColor}
                   tip={`Precio al que vendés el animal vivo por kg de peso ayunado.\n\nPVP de equilibrio (punto sin pérdida ni ganancia): Bs ${pvpMinPie != null ? pvpMinPie.toFixed(2) : '—'}/kg. A ese precio cubrís el costo del lote más los gastos de venta exactamente.`}
                 />
-                <INum
-                  label="PVP $/kg gancho" raw={pvpGanchoRaw} setRaw={setPvpGanchoRaw} prefix="Bs"
-                  hint={pvpMinGancho != null ? `Equilibrio: Bs ${pvpMinGancho.toFixed(2)}/kg` : 'En canal'}
-                  accentColor={accentColor}
-                  tip={`Precio por kg de canal fría (PCF), ya descontada la merma de frío.\n\nPVP de equilibrio (punto sin pérdida ni ganancia): Bs ${pvpMinGancho != null ? pvpMinGancho.toFixed(2) : '—'}/kg. Incluye costo del lote + transporte + comisión + faena.`}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Modalidad Venta Gancho</label>
+                    <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px', border: '1px solid var(--border-subtle)' }}>
+                      <button
+                        onClick={() => setModoGancho('unico')}
+                        style={{ border: 'none', background: modoGancho === 'unico' ? 'var(--bg-primary)' : 'transparent', color: modoGancho === 'unico' ? 'var(--text-primary)' : 'var(--text-tertiary)', borderRadius: '3px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: modoGancho === 'unico' ? 600 : 400, boxShadow: modoGancho === 'unico' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}
+                      >
+                        Único
+                      </button>
+                      <button
+                        onClick={() => setModoGancho('por_corte')}
+                        style={{ border: 'none', background: modoGancho === 'por_corte' ? 'var(--bg-primary)' : 'transparent', color: modoGancho === 'por_corte' ? 'var(--text-primary)' : 'var(--text-tertiary)', borderRadius: '3px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: modoGancho === 'por_corte' ? 600 : 400, boxShadow: modoGancho === 'por_corte' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}
+                      >
+                        Por corte
+                      </button>
+                    </div>
+                  </div>
+                  {modoGancho === 'unico' ? (
+                    <INum
+                      label="PVP $/kg gancho" raw={pvpGanchoRaw} setRaw={setPvpGanchoRaw} prefix="Bs"
+                      hint={pvpMinGancho != null ? `Equilibrio: Bs ${pvpMinGancho.toFixed(2)}/kg` : 'En canal'}
+                      accentColor={accentColor}
+                      tip={`Precio por kg de canal fría (PCF).\nPVP de equilibrio: Bs ${pvpMinGancho != null ? pvpMinGancho.toFixed(2) : '—'}/kg.`}
+                    />
+                  ) : (
+                    <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Icon name="check" size={14} style={{ color: accentColor }} />
+                      Venta por corte activada. Editá los precios en el panel inferior.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1363,6 +1574,90 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
             </div>
           )}
 
+          {/* ── Escenario 2: Gancho por Corte ── */}
+          {pcf > 0 && !sinDatosVenta && modoGancho === 'por_corte' && (
+            <div data-tour="gancho-cortes" style={{ background: 'var(--bg-secondary)', border: `1px solid ${ganchoEsMejor ? accentColor + '55' : 'var(--border-subtle)'}`, borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', background: ganchoEsMejor ? accentColor + '10' : 'var(--bg-tertiary)', borderBottom: `1px solid ${ganchoEsMejor ? accentColor + '33' : 'var(--border-subtle)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: ganchoEsMejor ? accentColor : 'var(--text-primary)' }}>
+                    Venta de Gancho por Corte
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                    Escenario 2 — Gancho
+                  </span>
+                  {despieceReal && (
+                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '1px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
+                      ✓ DATOS REALES
+                    </span>
+                  )}
+                  {ganchoEsMejor && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: accentColor, background: accentColor + '20', padding: '1px 8px', borderRadius: '4px', border: `1px solid ${accentColor}44` }}>
+                      ★ Mayor rentabilidad
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Asigná el precio de venta mayorista para cada corte del canal. Los precios iniciales fueron sugeridos por el modelo de ML basado en los últimos datos de mercado.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 120px', gap: '1px', background: 'var(--bg-tertiary)' }}>
+                    <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corte</div>
+                    <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Kg</div>
+                    <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>PVP/kg (Bs)</div>
+                    <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Ingreso (Bs)</div>
+                  </div>
+                  {cortesNum.filter(c => c.id !== 'descarte').sort((a, b) => {
+                    const recA = recomendaciones.find(r => r.corte.toLowerCase() === a.label.toLowerCase());
+                    const recB = recomendaciones.find(r => r.corte.toLowerCase() === b.label.toLowerCase());
+                    const mA = recA?.margen_kg || -9999;
+                    const mB = recB?.margen_kg || -9999;
+                    return mB - mA;
+                  }).map(c => {
+                    const rec = recomendaciones.find(r => r.corte.toLowerCase() === c.label.toLowerCase());
+                    const kg = pcf * (c.pct / 100);
+                    const pvp = parseFloat(pvpCortesGancho[c.id]) || 0;
+                    const ingreso = kg * pvp;
+                    return (
+                      <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 120px', gap: '1px', background: 'var(--bg-primary)', alignItems: 'center' }}>
+                        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: c.color }} />
+                          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{c.label}</span>
+                          {rec && (
+                            <span style={{ fontSize: '9px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-agro) 15%, transparent)', color: 'var(--accent-agro)', padding: '2px 6px', borderRadius: '4px' }}>
+                              PRIORIDAD ML
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ padding: '10px 12px', fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                          {kg.toFixed(1)}
+                        </div>
+                        <div style={{ padding: '6px 12px' }}>
+                          <IMini
+                            raw={pvpCortesGancho[c.id] || ''}
+                            setRaw={v => setPvpCortesGancho(p => ({ ...p, [c.id]: v }))}
+                            accentColor={accentColor}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text-primary)', textAlign: 'right' }}>
+                          {ingreso.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: '1px', background: 'var(--bg-tertiary)' }}>
+                    <div style={{ padding: '12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>Ingreso Gancho Total</div>
+                    <div style={{ padding: '12px', fontSize: '14px', fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace', color: accentColor, textAlign: 'right' }}>
+                      Bs {ingresoGanchoPorCorte.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Escenario 3: Simulador de Rentabilidad Industrial ── */}
           {pcf > 0 && !sinDatosVenta && (
             <div data-tour="simulador" style={{ background: 'var(--bg-secondary)', border: `1px solid ${industrialEsMejor ? goldColor + '55' : 'var(--border-subtle)'}`, borderRadius: '8px', overflow: 'hidden' }}>
@@ -1379,6 +1674,15 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                   <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
                     Escenario 3 — Despiece
                   </span>
+                  {despieceReal ? (
+                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '1px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
+                      ✓ DATOS REALES
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                      PROYECCIÓN
+                    </span>
+                  )}
                   {industrialEsMejor && (
                     <span style={{ fontSize: '10px', fontWeight: 700, color: goldColor, background: goldColor + '20', padding: '1px 8px', borderRadius: '4px', border: `1px solid ${goldColor}44` }}>
                       ★ Mayor rentabilidad
@@ -1658,6 +1962,11 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                                 onFocus={e => e.target.style.borderBottomColor = accentColor}
                                 onBlur={e => e.target.style.borderBottomColor = 'var(--border-subtle)'}
                               />
+                              {recomendaciones.find(r => r.corte.toLowerCase() === p.nombre.toLowerCase() || r.corte.toLowerCase() === (cortesById[p.corteId]?.label || '').toLowerCase()) && (
+                                <span style={{ fontSize: '9px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-agro) 15%, transparent)', color: 'var(--accent-agro)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  PRIORIDAD ML
+                                </span>
+                              )}
                               {ganoAlternativa && corteAltObj && (
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: corteAltObj.color, background: `color-mix(in srgb, ${corteAltObj.color} 18%, transparent)`, padding: '2px 6px', borderRadius: '3px', border: `1px solid color-mix(in srgb, ${corteAltObj.color} 40%, transparent)` }}>
                                   + {corteAltObj.label}
@@ -2063,31 +2372,88 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
           )}
 
           <div data-tour="boton-liquidar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              onClick={() => { setConfirmError(null); setShowConfirm(true); }}
-              disabled={!puedeLiquidar}
-              title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
-              style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: '8px',
-                border: `2px solid ${puedeLiquidar ? accentColor : 'var(--border-subtle)'}`,
-                background: puedeLiquidar ? accentColor : 'var(--bg-tertiary)',
-                color: puedeLiquidar ? '#fff' : 'var(--text-tertiary)',
-                cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
-                opacity: puedeLiquidar ? 1 : 0.6,
-                fontSize: '14px',
-                fontWeight: 500,
-                fontFamily: 'IBM Plex Sans, sans-serif',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
-            >
-              <Icon name="checkSquare" size={16} /> Registrar liquidación y cerrar lote
-            </button>
+            {['gancho', 'despiece'].includes(escenarioElegido) ? (
+              <>
+                <button
+                  onClick={() => { setConfirmError(null); setShowConfirm(true); }}
+                  disabled={!puedeLiquidar}
+                  title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
+                  style={{
+                    padding: '14px 20px',
+                    borderRadius: '8px',
+                    border: `2px solid var(--border-subtle)`,
+                    background: 'var(--bg-secondary)',
+                    color: puedeLiquidar ? 'var(--text-secondary)' : 'var(--text-tertiary)',
+                    cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
+                    opacity: puedeLiquidar ? 1 : 0.6,
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    fontFamily: 'IBM Plex Sans, sans-serif',
+                    transition: 'all 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Icon name="checkSquare" size={16} /> Liquidar directamente
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveLote(loteData);
+                    onNavigate('despiece');
+                  }}
+                  disabled={!puedeLiquidar}
+                  title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    borderRadius: '8px',
+                    border: `2px solid ${puedeLiquidar ? accentColor : 'var(--border-subtle)'}`,
+                    background: puedeLiquidar ? accentColor : 'var(--bg-tertiary)',
+                    color: puedeLiquidar ? '#fff' : 'var(--text-tertiary)',
+                    cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
+                    opacity: puedeLiquidar ? 1 : 0.6,
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    fontFamily: 'IBM Plex Sans, sans-serif',
+                    transition: 'all 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  Siguiente: registrar despiece <Icon name="chevronRight" size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setConfirmError(null); setShowConfirm(true); }}
+                disabled={!puedeLiquidar}
+                title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  borderRadius: '8px',
+                  border: `2px solid ${puedeLiquidar ? accentColor : 'var(--border-subtle)'}`,
+                  background: puedeLiquidar ? accentColor : 'var(--bg-tertiary)',
+                  color: puedeLiquidar ? '#fff' : 'var(--text-tertiary)',
+                  cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
+                  opacity: puedeLiquidar ? 1 : 0.6,
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  fontFamily: 'IBM Plex Sans, sans-serif',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Icon name="checkSquare" size={16} /> Registrar liquidación y cerrar lote
+              </button>
+            )}
             {!puedeLiquidar && (
               <InfoTip
                 width={280}

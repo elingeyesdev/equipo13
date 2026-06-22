@@ -47,7 +47,7 @@ const ModalValorVentas = ({ isOpen, onClose, onSubmit, saving }) => {
   );
 };
 
-const Despiece = ({ negocioId, onNavigate }) => {
+const Despiece = ({ negocioId, onNavigate, activeLote, setActiveLote }) => {
   const [lotes, setLotes] = useState([]);
   const [selectedLoteId, setSelectedLoteId] = useState(null);
   const [cortesDB, setCortesDB] = useState([]);
@@ -59,6 +59,7 @@ const Despiece = ({ negocioId, onNavigate }) => {
   const [error, setError] = useState(null);
   const [genResult, setGenResult] = useState(null);
   const [costoTotalLote, setCostoTotalLote] = useState(0);
+  const [catalogoCortes, setCatalogoCortes] = useState([]);
 
   const [modalValorVentas, setModalValorVentas] = useState(false);
   const [asignando, setAsignando] = useState(false);
@@ -70,7 +71,18 @@ const Despiece = ({ negocioId, onNavigate }) => {
     apiFetch(`/api/negocios/${negocioId}/lotes`)
       .then(data => {
         setLotes(data);
-        if (data.length > 0) setSelectedLoteId(data[0].id);
+        if (activeLote) {
+          setSelectedLoteId(activeLote.id);
+        } else if (data.length > 0) {
+          setSelectedLoteId(data[0].id);
+        }
+      })
+      .catch(console.error);
+      
+    apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`)
+      .then(data => {
+        setCatalogoCortes(data || []);
+        if (data && data.length > 0) setFormNombre(data[0].nombre);
       })
       .catch(console.error);
   }, [negocioId]);
@@ -101,11 +113,30 @@ const Despiece = ({ negocioId, onNavigate }) => {
   const puedeGuardar = nuevosLocales.length > 0 && localCortes.filter(c => !c.insumo_generado_id).length > 0;
   const puedeGenerarInsumos = dbSinInsumo.length > 0 && nuevosLocales.length === 0;
 
+  // Referencia para validar el peso pesado contra lo que el lote debería rendir
+  // (no se usa para ningún cálculo de costo, solo para que quien pesa los cortes
+  // tenga con qué comparar mientras no hay cabezas/rendimiento visibles en esta pantalla).
+  const loteData = lotes.find(l => l.id === selectedLoteId);
+  const cabezasLote = parseFloat(loteData?.cabezas_activas) || 0;
+  const pesoPromLote = parseFloat(loteData?.peso_actual_prom) || 0;
+  const RENDIMIENTO_CANAL_REF = 0.75; // estándar cerdo (72-78%); ver Liquidación para ajustarlo por lote.
+  const canalEsperado = cabezasLote > 0 && pesoPromLote > 0
+    ? cabezasLote * pesoPromLote * RENDIMIENTO_CANAL_REF
+    : null;
+
   // ── Agregar fila local ────────────────────────────────────
   const addCorte = () => {
     const nombre = formNombre.trim();
     const peso = parseFloat(formPeso);
     if (!nombre || !(peso > 0)) return;
+    if (canalEsperado != null && pesoTotal + peso > canalEsperado + 0.01) {
+      setError(
+        `Ese peso haría que el canal total (${fmt(pesoTotal + peso, 1)} kg) supere el canal esperado del lote ` +
+        `(${fmt(canalEsperado, 1)} kg = ${fmt(cabezasLote, 0)} cab. × ${fmt(pesoPromLote, 1)} kg × 75%). Revisá el peso ingresado.`
+      );
+      return;
+    }
+    setError(null);
     setLocalCortes(prev => [
       ...prev,
       { id: `new-${Date.now()}`, nombre, peso_kg: peso, insumo_generado_id: null, _new: true },
@@ -197,8 +228,6 @@ const Despiece = ({ negocioId, onNavigate }) => {
     }
   };
 
-  const loteData = lotes.find(l => l.id === selectedLoteId);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <InfoBanner
@@ -212,12 +241,12 @@ const Despiece = ({ negocioId, onNavigate }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <button
-            onClick={() => onNavigate?.('lotes')}
+            onClick={() => onNavigate?.('liquidacion')}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '4px 0', fontFamily: 'var(--font-sans)', alignSelf: 'flex-start' }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
           >
-            <Icon name="chevronLeft" size={14} /> Lotes
+            <Icon name="chevronLeft" size={14} /> Volver a liquidación
           </button>
           <h1 style={{ fontSize: '20px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
             Despiece de lote
@@ -269,8 +298,12 @@ const Despiece = ({ negocioId, onNavigate }) => {
             label: 'Peso canal total',
             value: `${fmt(pesoTotal, 1)} kg`,
             icon: 'scale',
-            sub: `${localCortes.length} corte${localCortes.length !== 1 ? 's' : ''} registrado${localCortes.length !== 1 ? 's' : ''}`,
+            sub: canalEsperado
+              ? `${localCortes.length} corte${localCortes.length !== 1 ? 's' : ''} · esperado ≈ ${fmt(canalEsperado, 1)} kg según el lote`
+              : `${localCortes.length} corte${localCortes.length !== 1 ? 's' : ''} registrado${localCortes.length !== 1 ? 's' : ''}`,
             tip: 'Suma del peso de todos los cortes. Representa el canal (sin vísceras ni cuero). Para cerdos el rendimiento canal típico es 75 % del peso en pie.',
+            formula: canalEsperado ? 'Canal esperado = cabezas activas × peso actual prom. × rendimiento canal (75% estándar cerdo)' : null,
+            ejemplo: canalEsperado ? `${fmt(cabezasLote, 0)} cab. × ${fmt(pesoPromLote, 1)} kg × 75% = ${fmt(canalEsperado, 1)} kg` : null,
           },
           {
             label: 'Costo / kg derivado',
@@ -308,15 +341,29 @@ const Despiece = ({ negocioId, onNavigate }) => {
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nombre del corte</label>
-              <input
-                value={formNombre}
-                onChange={e => setFormNombre(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addCorte()}
-                placeholder="Ej. Lomo, Costilla, Paleta…"
-                style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'var(--font-sans)' }}
-                onFocus={e => (e.target.style.borderColor = accentColor)}
-                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
-              />
+              {catalogoCortes.length > 0 ? (
+                <select
+                  value={formNombre}
+                  onChange={e => setFormNombre(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'var(--font-sans)' }}
+                  onFocus={e => (e.target.style.borderColor = accentColor)}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                >
+                  {catalogoCortes.map(c => (
+                    <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={formNombre}
+                  onChange={e => setFormNombre(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addCorte()}
+                  placeholder="Ej. Lomo, Costilla, Paleta…"
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '7px 10px', fontSize: '13px', outline: 'none', fontFamily: 'var(--font-sans)' }}
+                  onFocus={e => (e.target.style.borderColor = accentColor)}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                />
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>

@@ -47,7 +47,23 @@ def enriquecer_con_forecast(items: list[dict], forecasts: dict[tuple, dict]) -> 
         f = forecasts.get((it["corte_canonico"], it["canal_sugerido"]))
         if f:
             it["tendencia"] = f.get("tendencia")
-            it["accion"] = f.get("accion")
             it["precio_pronosticado"] = f.get("precio_pronosticado")
             it["confianza"] = f.get("confianza")
+            
+            if it["precio_pronosticado"] is not None:
+                it["margen_pronosticado"] = round(it["precio_pronosticado"] - it["costo_kg"], 4)
+                it["ingreso_pronosticado"] = round(it["precio_pronosticado"] * it["kg_disponibles"], 4)
+            else:
+                it["margen_pronosticado"] = None
+                it["ingreso_pronosticado"] = None
+                
+            margen = it["margen_kg"]
+            tendencia = it["tendencia"]
+            
+            if margen < 0:
+                it["accion"] = "no_vender"
+            elif margen >= 0 and tendencia in ["subiendo", "sube", "up"]:
+                it["accion"] = "esperar"
+            else:
+                it["accion"] = "vender_ahora"
     return items

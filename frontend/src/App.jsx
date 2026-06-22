@@ -31,6 +31,7 @@ import Rutinas from './pages/agro/Rutinas.jsx';
 import ReportesOperarios from './pages/agro/ReportesOperarios.jsx';
 import FuentesDatos from './pages/agro/FuentesDatos.jsx';
 import RecomendacionesVenta from './pages/agro/RecomendacionesVenta.jsx';
+import CatalogoCortes from './pages/agro/CatalogoCortes.jsx';
 
 const savedTheme = localStorage.getItem('cu_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -140,7 +141,7 @@ const App = () => {
       case 'diario':      return <DiarioProduccion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
       case 'hojavida':    return <HojaVida negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveFecha={setActiveFecha} />;
       case 'liquidacion': return <Liquidacion negocioId={negocioId} activeLote={activeLote} onNavigate={navigate} setActiveLote={setActiveLote} />;
-      case 'despiece':    return <Despiece negocioId={negocioId} onNavigate={navigate} />;
+      case 'despiece':    return <Despiece negocioId={negocioId} activeLote={activeLote} setActiveLote={setActiveLote} onNavigate={navigate} />;
       case 'registrodia': return <RegistroDia negocioId={negocioId} activeLote={activeLote} fecha={activeFecha} onNavigate={navigate} />;
       case 'compras':     return <Compras negocioId={negocioId} />;
       case 'servicios':   return <CatalogoServicios negocioId={negocioId} />;
@@ -151,6 +152,7 @@ const App = () => {
       case 'rutinas':     return <Rutinas negocioId={negocioId} />;
       case 'fuentesdatos': return <FuentesDatos negocioId={negocioId} />;
       case 'recomendaciones': return <RecomendacionesVenta negocioId={negocioId} />;
+      case 'catalogocortes': return <CatalogoCortes negocioId={negocioId} onNavigate={navigate} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px' }}>

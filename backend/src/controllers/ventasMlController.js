@@ -151,3 +151,21 @@ export async function recalcularAlertasPrecios(req, res) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }
 }
+
+// GET /api/negocios/:negocioId/recomendaciones/meta
+export async function getModelosMeta(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (corte_canonico, canal) 
+         corte_canonico, canal, modelo, metricas, n_puntos, created_at
+       FROM modelo_forecast_meta
+       WHERE negocio_id = $1
+       ORDER BY corte_canonico, canal, created_at DESC`,
+      [req.params.negocioId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('getModelosMeta error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}

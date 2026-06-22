@@ -1,3 +1,5 @@
+import { seedCatalogoCortesPorcino } from './catalogoCortesPorcino.js';
+
 // Seed: Engorde porcino bajo confinamiento
 //
 // Crea un negocio agro con:
@@ -361,6 +363,9 @@ export async function seedEngordePorcino(negocioId, db) {
       );
     }
   }
+
+  // ───────── 12. Catálogo de cortes porcino ─────────
+  await seedCatalogoCortesPorcino(negocioId, db);
 }
 
 function notasParaDia(dia) {

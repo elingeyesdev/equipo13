@@ -145,8 +145,11 @@ import {
 import {
   ejecutarScraping, listarFuentes, crearFuente, actualizarFuente, eliminarFuente,
   listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns, getRecomendaciones,
-  getAlertasPrecios, recalcularAlertasPrecios
+  getAlertasPrecios, recalcularAlertasPrecios, getModelosMeta
 } from '../controllers/ventasMlController.js';
+import {
+  listarCatalogoCortes, crearCatalogoCorte, actualizarCatalogoCorte, eliminarCatalogoCorte
+} from '../controllers/catalogoCortesController.js';
 
 const router = Router();
 
@@ -244,6 +247,12 @@ router.post('/:negocioId/precios-mercado', authMiddleware, negocioOwner, createP
 router.put('/:negocioId/precios-mercado/:id', authMiddleware, negocioOwner, updatePrecioMercado);
 router.delete('/:negocioId/precios-mercado/:id', authMiddleware, negocioOwner, deletePrecioMercado);
 
+// Catálogo de Cortes
+router.get('/:negocioId/catalogo-cortes', authMiddleware, negocioOwner, listarCatalogoCortes);
+router.post('/:negocioId/catalogo-cortes', authMiddleware, negocioOwner, crearCatalogoCorte);
+router.put('/:negocioId/catalogo-cortes/:id', authMiddleware, negocioOwner, actualizarCatalogoCorte);
+router.delete('/:negocioId/catalogo-cortes/:id', authMiddleware, negocioOwner, eliminarCatalogoCorte);
+
 // Diario de producción — L-3
 router.get('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, getDiario);
 router.post('/:negocioId/lotes/:loteId/diario', authMiddleware, negocioOwner, createDiarioEntry);
@@ -321,6 +330,7 @@ router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembers
 router.get('/:negocioId/precios-historico',       authMiddleware, requireMembership('admin'), listarHistorico);
 router.get('/:negocioId/scrape-runs',             authMiddleware, requireMembership('admin'), listarScrapeRuns);
 router.get('/:negocioId/recomendaciones',         authMiddleware, requireMembership('admin'), getRecomendaciones);
+router.get('/:negocioId/recomendaciones/meta',    authMiddleware, requireMembership('admin'), getModelosMeta);
 router.get('/:negocioId/alertas-precio',          authMiddleware, requireMembership('admin'), getAlertasPrecios);
 router.post('/:negocioId/alertas-precio/recalcular', authMiddleware, requireMembership('admin'), recalcularAlertasPrecios);
 
