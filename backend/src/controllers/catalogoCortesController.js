@@ -34,8 +34,8 @@ export async function crearCatalogoCorte(req, res) {
   const { negocioId } = req.params;
   const { nombre, rendimiento_pct, tipo, producto_sugerido, aliases, color, orden } = req.body || {};
   
-  if (!nombre || !rendimiento_pct || !tipo) {
-    return res.status(400).json({ error: 'nombre, rendimiento_pct y tipo son requeridos' });
+  if (!nombre || rendimiento_pct == null || rendimiento_pct === '' || Number.isNaN(Number(rendimiento_pct)) || !tipo) {
+    return res.status(400).json({ error: 'nombre, rendimiento_pct (numérico, puede ser 0) y tipo son requeridos' });
   }
 
   try {

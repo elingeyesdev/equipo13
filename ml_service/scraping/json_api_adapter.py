@@ -42,5 +42,5 @@ class JsonApiAdapter:
                 continue
             precio_kg = round(precio / (gramos / 1000.0), 4)
             out.append(PrecioScrapeado(nombre_crudo=str(title), precio_kg=precio_kg,
-                                       canal=canal, raw={"price": price, "grams": grams}))
+                                       canal=canal, raw={"title": str(title), "price": price, "grams": grams}))
         return out

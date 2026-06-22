@@ -4,16 +4,17 @@ import { seedCatalogoCortesPorcino } from '../seeds/catalogoCortesPorcino.js';
 async function main() {
   console.log('Iniciando backfill de catalogo_cortes...');
   try {
+    // Procesamos TODOS los negocios agro. seedCatalogoCortesPorcino es idempotente
+    // (ON CONFLICT DO NOTHING en catalogo_cortes, DO UPDATE en corte_alias), así que
+    // re-correrlo sobre un negocio que ya tiene catálogo no duplica nada y, sobre todo,
+    // sincroniza corte_alias en negocios sembrados antes de que existiera ese sync.
     const { rows: negocios } = await pool.query(`
-      SELECT n.id 
+      SELECT n.id
       FROM negocios n
-      WHERE n.rubro = 'agro_ganadero' 
-        AND NOT EXISTS (
-          SELECT 1 FROM catalogo_cortes c WHERE c.negocio_id = n.id
-        )
+      WHERE n.rubro = 'agro_ganadero'
     `);
 
-    console.log(`Negocios a backfillear: ${negocios.length}`);
+    console.log(`Negocios agro a procesar (idempotente): ${negocios.length}`);
 
     for (const n of negocios) {
       await seedCatalogoCortesPorcino(n.id, pool);

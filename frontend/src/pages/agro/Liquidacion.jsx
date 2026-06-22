@@ -345,23 +345,37 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const [ultimaActualizacionMercado, setUltimaActualizacionMercado] = useState(null);
   const [isScraping, setIsScraping] = useState(false);
 
-  const fetchRecomendaciones = () => {
+  const fetchRecomendaciones = (allowAutoScrape = true) => {
     if (!negocioId) return;
     setRecomendacionesLoading(true);
     setRecomendacionesError(null);
     apiFetch(`/api/negocios/${negocioId}/recomendaciones`)
       .then(data => {
-        setRecomendaciones(data || []);
-        if (data && data.length > 0 && data[0].timestamp) {
-          setUltimaActualizacionMercado(data[0].timestamp);
+        const items = data && Array.isArray(data.items) ? data.items : [];
+        if (items.length === 0 && allowAutoScrape) {
+          // Auto-scraping if no data is found (e.g. after DB wipe or first use)
+          setIsScraping(true);
+          apiFetch(`/api/negocios/${negocioId}/scraping/run`, { method: 'POST' })
+            .then(() => fetchRecomendaciones(false))
+            .catch(err => {
+               setRecomendacionesError(err.message || 'Error al actualizar mercado automáticamente');
+               setIsScraping(false);
+            });
+        } else {
+          setRecomendaciones(items.map(it => ({ ...it, corte: it.corte_canonico ?? it.corte })));
+          setUltimaActualizacionMercado(new Date().toLocaleString('es-BO'));
+          setIsScraping(false);
         }
       })
-      .catch(err => setRecomendacionesError(err.message || 'Error cargando recomendaciones'))
+      .catch(err => {
+        setRecomendacionesError(err.message || 'Error cargando recomendaciones');
+        setIsScraping(false);
+      })
       .finally(() => setRecomendacionesLoading(false));
   };
 
   useEffect(() => {
-    fetchRecomendaciones();
+    fetchRecomendaciones(true);
   }, [negocioId]);
 
   useEffect(() => {
@@ -383,7 +397,8 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       setProductosList(prev => {
         let changed = false;
         const next = prev.map(p => {
-          const rec = recomendaciones.find(r => r.corte.toLowerCase() === p.nombre.toLowerCase());
+          const corteLabel = (cortesById[p.corteId]?.label || '').toLowerCase();
+          const rec = recomendaciones.find(r => r.corte.toLowerCase() === p.nombre.toLowerCase() || r.corte.toLowerCase() === corteLabel);
           if (rec && rec.precio_referencia && (!p.pvp || p.pvp === '0' || p.pvp === '0.00')) {
             changed = true;
             return { ...p, pvp: String(rec.precio_referencia) };
@@ -450,14 +465,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
       .then(data => setBitacora(data || [])).catch(() => setBitacora([]));
   }, [negocioId, selectedLoteUuid]);
 
-  // ── Despiece real asociado al lote ──
-  const [despieceReal, setDespieceReal] = useState(null);
-  useEffect(() => {
-    if (!negocioId || !selectedLoteUuid) return;
-    apiFetch(`/api/negocios/${negocioId}/lotes/${selectedLoteUuid}/despiece`)
-      .then(data => setDespieceReal(data || null))
-      .catch(() => setDespieceReal(null));
-  }, [negocioId, selectedLoteUuid]);
+
 
   useEffect(() => {
     if (!negocioId) return;
@@ -538,7 +546,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
         const nuevosProductos = data
           .filter(c => c.producto_sugerido)
           .map(c => {
-             const cid = String(c.nombre).toLowerCase().replace(/\\s+/g, '_');
+             const cid = String(c.nombre).toLowerCase().replace(/\s+/g, '_');
              return {
                id: `prod_${cid}`,
                nombre: c.producto_sugerido,
@@ -590,7 +598,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`).then(data => {
       if (data && data.length > 0) {
         const nuevosCortes = data.map(c => ({
-          id: String(c.nombre).toLowerCase().replace(/\\s+/g, '_'),
+          id: String(c.nombre).toLowerCase().replace(/\s+/g, '_'),
           label: c.nombre,
           color: c.color || '#78909c',
           pct: String(c.rendimiento_pct ?? 0)
@@ -600,7 +608,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
         const nuevosProductos = data
           .filter(c => c.producto_sugerido)
           .map(c => {
-             const cid = String(c.nombre).toLowerCase().replace(/\\s+/g, '_');
+             const cid = String(c.nombre).toLowerCase().replace(/\s+/g, '_');
              return {
                id: `prod_${cid}`,
                nombre: c.producto_sugerido,
@@ -653,7 +661,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     apiFetch(`/api/negocios/${negocioId}/catalogo-cortes`).then(data => {
       if (data && data.length > 0) {
         setCortesList(data.map(c => ({
-          id: String(c.nombre).toLowerCase().replace(/\\s+/g, '_'),
+          id: String(c.nombre).toLowerCase().replace(/\s+/g, '_'),
           label: c.nombre,
           color: c.color || '#78909c',
           pct: String(c.rendimiento_pct ?? 0)
@@ -740,7 +748,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   const pcc       = pvAyunado * (rendimientoCanal / 100);
   const kgFrio    = pcc * (mermaFrio / 100);
   const pcf_calculado = pcc - kgFrio;
-  const pcf       = despieceReal?.peso_canal_total != null ? parseFloat(despieceReal.peso_canal_total) : pcf_calculado;
+  const pcf       = pcf_calculado;
   const pesoUtil  = pcf;
   const kgDesposte = 0;
 
@@ -751,32 +759,23 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   // ── Escenarios E1/E2 ──
   const ingresoPie    = pvAyunado * pvpPie;
 
-  // Helper para obtener el kg real de un corte según despiece o proyección
+  // Helper para obtener el kg real de un corte proyectado sobre pcf
   const getKgCorteReal = (corte) => {
-    if (despieceReal && despieceReal.cortes) {
-      const rc = despieceReal.cortes.find(x => x.nombre.toLowerCase() === corte.label.toLowerCase());
-      return rc ? (parseFloat(rc.peso_kg) || 0) : 0;
-    }
     return pcf * (corte.pct / 100);
   };
 
   const ingresoGanchoPorCorte = cortesNum.reduce((sum, c) => sum + (getKgCorteReal(c) * (parseFloat(pvpCortesGancho[c.id]) || 0)), 0);
   const ingresoGancho = modoGancho === 'por_corte' ? ingresoGanchoPorCorte : pcf * pvpGancho;
-  const utilPie       = ingresoPie - costoTotalLote - gastosVenta;
-  const utilGancho    = ingresoGancho - costoTotalLote - gastosGanchoTotal;
+  const utilPie       = ingresoPie > 0 ? ingresoPie - costoTotalLote - gastosVenta : -Infinity;
+  const utilGancho    = ingresoGancho > 0 ? ingresoGancho - costoTotalLote - gastosGanchoTotal : -Infinity;
   const costoKgVivo   = safeDivide(costoTotalLote, pvAyunado);
   const costoKgGancho = safeDivide(costoTotalLote, pcf);
-  const ganchoEsMejor = utilGancho > utilPie;
+  const ganchoEsMejor = utilGancho > utilPie && utilGancho !== -Infinity;
 
   // ── Simulador Industrial: motor de cálculo con productos dinámicos ──
   const costoKgCrudo = pcf > 0 ? costoTotalLote / pcf : 0;
   
   const getCostoKgCorte = (corteId) => {
-    if (despieceReal && despieceReal.cortes) {
-      const label = cortesById[corteId]?.label;
-      const rc = despieceReal.cortes.find(x => x.nombre.toLowerCase() === label?.toLowerCase());
-      if (rc && rc.costo_kg_derivado) return parseFloat(rc.costo_kg_derivado);
-    }
     return costoKgCrudo;
   };
 
@@ -841,7 +840,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
   });
 
   const simTotalIngreso = productosConCalculos.reduce((s, p) => s + p.ingreso, 0);
-  const simUtilidad     = simTotalIngreso - costoTotalLote - gastosGanchoTotal;
+  const simUtilidad     = simTotalIngreso > 0 ? simTotalIngreso - costoTotalLote - gastosGanchoTotal : -Infinity;
 
   // Detectar reroutings activos (corte X asignado a un producto distinto del primario)
   const reroutings = [];
@@ -901,10 +900,10 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
 
   // ── Mejor escenario overall ──
   const industrialEsMejor = pcf > 0 && simTotalIngreso > 0 && simUtilidad > utilGancho && simUtilidad > utilPie;
-  const mejorEscenario    = industrialEsMejor ? 'despiece' : ganchoEsMejor ? 'gancho' : 'pie';
+  const mejorEscenario    = industrialEsMejor ? 'despiece' : ganchoEsMejor ? 'gancho' : (ingresoPie > 0 ? 'pie' : null);
 
   // ── ICA desde bitácora ──
-  const alimentoCatNames = categorias.filter(c => /aliment|forraje/i.test(c.nombre)).map(c => c.nombre);
+  const alimentoCatNames = categorias.filter(c => /aliment|forraje|balanceado|comida|nutrici|ración/i.test(c.nombre)).map(c => c.nombre);
   const entradasAlimento = bitacora.filter(r => !r.es_baja && r.monto != null && alimentoCatNames.includes(r.tipo));
   const alimentoConsumido = entradasAlimento.reduce((s, r) => s + parseFloat(r.monto), 0);
   const hayDatosAlimento  = entradasAlimento.length > 0;
@@ -932,24 +931,24 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
     {
       id: 'pie', label: 'Venta en Pie',
       kgUtil: pvAyunado, costoKg: costoKgVivo,
-      ingreso: pvGranja > 0 ? ingresoPie : null,
+      ingreso: pvGranja > 0 && ingresoPie > 0 ? ingresoPie : null,
       gastos: gastosVenta,
-      utilidad: pvGranja === 0 ? null : utilPie,
-      utilCabeza: safeDivide(utilPie, cabezasVenta),
-      utilKg:     safeDivide(utilPie, pvAyunado),
-      margen:     safeDivide(utilPie * 100, costoTotalLote),
+      utilidad: pvGranja > 0 && ingresoPie > 0 ? utilPie : null,
+      utilCabeza: pvGranja > 0 && ingresoPie > 0 ? safeDivide(utilPie, cabezasVenta) : null,
+      utilKg:     pvGranja > 0 && ingresoPie > 0 ? safeDivide(utilPie, pvAyunado) : null,
+      margen:     pvGranja > 0 && ingresoPie > 0 ? safeDivide(utilPie * 100, costoTotalLote) : null,
       pvpMin: pvpMinPie, pvpActual: pvpPie,
       disponible: pvGranja > 0,
     },
     {
       id: 'gancho', label: 'Venta Gancho',
       kgUtil: pcf, costoKg: costoKgGancho,
-      ingreso: pcc > 0 ? ingresoGancho : null,
+      ingreso: pcc > 0 && ingresoGancho > 0 ? ingresoGancho : null,
       gastos: gastosGanchoTotal,
-      utilidad: pcc === 0 ? null : utilGancho,
-      utilCabeza: safeDivide(utilGancho, cabezasVenta),
-      utilKg:     safeDivide(utilGancho, pcf),
-      margen:     safeDivide(utilGancho * 100, costoTotalLote),
+      utilidad: pcc > 0 && ingresoGancho > 0 ? utilGancho : null,
+      utilCabeza: pcc > 0 && ingresoGancho > 0 ? safeDivide(utilGancho, cabezasVenta) : null,
+      utilKg:     pcc > 0 && ingresoGancho > 0 ? safeDivide(utilGancho, pcf) : null,
+      margen:     pcc > 0 && ingresoGancho > 0 ? safeDivide(utilGancho * 100, costoTotalLote) : null,
       pvpMin: pvpMinGancho, pvpActual: pvpGancho,
       disponible: pcc > 0,
     },
@@ -1475,14 +1474,9 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
               <div style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                   PCF (canal fría)
-                  <InfoTip text={despieceReal ? "Peso de Canal Fría obtenido del registro real de despiece para este lote." : "Peso de Canal Fría estimado. Fórmula: PCC − merma por frío."} />
+                  <InfoTip text="Peso de Canal Fría estimado. Fórmula: PCC − merma por frío." />
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {despieceReal && (
-                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '2px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
-                      ✓ DATOS REALES
-                    </span>
-                  )}
                   {mono(pcf.toFixed(1), ' kg')}
                 </div>
               </div>
@@ -1585,11 +1579,7 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                   <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
                     Escenario 2 — Gancho
                   </span>
-                  {despieceReal && (
-                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '1px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
-                      ✓ DATOS REALES
-                    </span>
-                  )}
+
                   {ganchoEsMejor && (
                     <span style={{ fontSize: '10px', fontWeight: 700, color: accentColor, background: accentColor + '20', padding: '1px 8px', borderRadius: '4px', border: `1px solid ${accentColor}44` }}>
                       ★ Mayor rentabilidad
@@ -1674,15 +1664,9 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
                   <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
                     Escenario 3 — Despiece
                   </span>
-                  {despieceReal ? (
-                    <span style={{ fontSize: '10px', fontWeight: 600, background: 'color-mix(in srgb, var(--accent-success) 15%, transparent)', color: 'var(--accent-success)', padding: '1px 6px', borderRadius: '4px', border: '1px solid color-mix(in srgb, var(--accent-success) 30%, transparent)' }}>
-                      ✓ DATOS REALES
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
-                      PROYECCIÓN
-                    </span>
-                  )}
+                  <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', background: 'var(--bg-primary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                    PROYECCIÓN
+                  </span>
                   {industrialEsMejor && (
                     <span style={{ fontSize: '10px', fontWeight: 700, color: goldColor, background: goldColor + '20', padding: '1px 8px', borderRadius: '4px', border: `1px solid ${goldColor}44` }}>
                       ★ Mayor rentabilidad

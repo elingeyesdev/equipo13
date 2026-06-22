@@ -8,6 +8,7 @@
     "start": "node app.js",
     "dev": "node --watch app.js",
     "db:migrate": "node -e \"import('./src/config/database.js').then(m => m.runMigration())\"",
+    "db:seed": "node scripts/seed_demo_completo.js",
     "test": "node --test tests/*.test.js"
   },
   "keywords": [],

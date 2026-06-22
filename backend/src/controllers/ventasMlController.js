@@ -157,15 +157,77 @@ export async function getModelosMeta(req, res) {
   try {
     const { rows } = await pool.query(
       `SELECT DISTINCT ON (corte_canonico, canal) 
-         corte_canonico, canal, modelo, metricas, n_puntos, created_at
+         corte_canonico, canal, modelo, metricas, n_puntos, entrenado_en
        FROM modelo_forecast_meta
        WHERE negocio_id = $1
-       ORDER BY corte_canonico, canal, created_at DESC`,
+       ORDER BY corte_canonico, canal, entrenado_en DESC`,
       [req.params.negocioId]
     );
     res.json(rows);
   } catch (err) {
     console.error('getModelosMeta error:', err);
     res.status(500).json({ error: err.message });
+  }
+}
+
+// GET /api/negocios/:negocioId/precios-scrapeados
+export async function listarPreciosScrapeados(req, res) {
+  try {
+    const negocioId = req.params.negocioId;
+    const canal = req.query.canal;
+    
+    let query = `
+      SELECT DISTINCT ON (p.corte_canonico, p.canal, p.fuente_id)
+             p.corte_canonico, p.canal, p.precio_kg, p.fecha, p.scraped_at, p.raw,
+             f.nombre AS fuente_nombre, f.url AS fuente_url
+        FROM precio_mercado_historico p
+        JOIN fuentes_scraping f ON f.id = p.fuente_id
+       WHERE p.negocio_id = $1 AND p.fuente_id IS NOT NULL
+    `;
+    const params = [negocioId];
+
+    if (canal) {
+      query += ` AND p.canal = $2`;
+      params.push(canal);
+    }
+
+    query += ` ORDER BY p.corte_canonico, p.canal, p.fuente_id, p.fecha DESC, p.scraped_at DESC;`;
+
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('listarPreciosScrapeados error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// GET /api/negocios/:negocioId/precios-serie?corte=&canal=
+export async function listarSeriePrecios(req, res) {
+  const { corte, canal } = req.query;
+  try {
+    const cond = ['negocio_id = $1']; 
+    const params = [req.params.negocioId];
+    
+    if (corte) { 
+      params.push(corte); 
+      cond.push(`corte_canonico = $${params.length}`); 
+    }
+    if (canal) { 
+      params.push(canal); 
+      cond.push(`canal = $${params.length}`); 
+    }
+    
+    // Devolvemos la serie ASC sin LIMIT (o un LIMIT alto) para dibujar la curva
+    const { rows } = await pool.query(
+      `SELECT corte_canonico, canal, precio_kg, fecha 
+         FROM precio_mercado_historico
+        WHERE ${cond.join(' AND ')} 
+        ORDER BY fecha ASC LIMIT 5000`, 
+      params
+    );
+    res.json(rows);
+  } catch (err) { 
+    console.error('listarSeriePrecios error:', err); 
+    res.status(500).json({ error: err.message }); 
   }
 }

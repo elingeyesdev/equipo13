@@ -100,13 +100,6 @@ import {
   getPuntoEquilibrio,
 } from '../controllers/analisisController.js';
 import {
-  getDespiece,
-  createDespiece,
-  generarInsumos,
-  deleteCorte,
-  asignarCostosConjuntosValorVentas,
-} from '../controllers/despieceController.js';
-import {
   getPreciosMercado,
   createPrecioMercado,
   updatePrecioMercado,
@@ -145,7 +138,7 @@ import {
 import {
   ejecutarScraping, listarFuentes, crearFuente, actualizarFuente, eliminarFuente,
   listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns, getRecomendaciones,
-  getAlertasPrecios, recalcularAlertasPrecios, getModelosMeta
+  getAlertasPrecios, recalcularAlertasPrecios, getModelosMeta, listarPreciosScrapeados, listarSeriePrecios
 } from '../controllers/ventasMlController.js';
 import {
   listarCatalogoCortes, crearCatalogoCorte, actualizarCatalogoCorte, eliminarCatalogoCorte
@@ -234,13 +227,6 @@ router.get('/:negocioId/lotes/:id/costos-detalle', authMiddleware, negocioOwner,
 router.post('/:negocioId/lotes/:id/escenarios', authMiddleware, negocioOwner, getEscenarios);
 router.get('/:negocioId/lotes/:id/ica', authMiddleware, negocioOwner, getIca);
 
-// Despiece — J2 + J3
-router.get('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, getDespiece);
-router.post('/:negocioId/lotes/:id/despiece', authMiddleware, negocioOwner, createDespiece);
-router.post('/:negocioId/lotes/:id/despiece/generar-insumos', authMiddleware, negocioOwner, generarInsumos);
-router.post('/:negocioId/lotes/:id/despiece/asignar-costos-conjuntos', authMiddleware, negocioOwner, asignarCostosConjuntosValorVentas);
-router.delete('/:negocioId/lotes/:id/despiece/:corteId', authMiddleware, negocioOwner, deleteCorte);
-
 // Precios de Mercado
 router.get('/:negocioId/precios-mercado', authMiddleware, negocioOwner, getPreciosMercado);
 router.post('/:negocioId/precios-mercado', authMiddleware, negocioOwner, createPrecioMercado);
@@ -324,6 +310,10 @@ router.get('/:negocioId/fuentes-scraping',        authMiddleware, requireMembers
 router.post('/:negocioId/fuentes-scraping',       authMiddleware, requireMembership('admin'), crearFuente);
 router.put('/:negocioId/fuentes-scraping/:id',    authMiddleware, requireMembership('admin'), actualizarFuente);
 router.delete('/:negocioId/fuentes-scraping/:id', authMiddleware, requireMembership('admin'), eliminarFuente);
+
+router.get('/:negocioId/precios-scrapeados', authMiddleware, requireMembership('admin'), listarPreciosScrapeados);
+router.get('/:negocioId/precios-serie', authMiddleware, requireMembership('admin'), listarSeriePrecios);
+
 router.get('/:negocioId/corte-alias',             authMiddleware, requireMembership('admin'), listarAlias);
 router.post('/:negocioId/corte-alias',            authMiddleware, requireMembership('admin'), crearAlias);
 router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembership('admin'), eliminarAlias);

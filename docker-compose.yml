@@ -39,6 +39,9 @@ services:
       # Dentro de la red Docker el host es el nombre del servicio, NO localhost.
       ML_SERVICE_URL: http://ml_service:8001
       ML_SERVICE_TOKEN: ${ML_SERVICE_TOKEN:-token-demo-larga}
+      # Siembra automática de la demo completa al arrancar (solo si la BD está vacía).
+      # Poné "false" si querés arrancar sin datos de demo.
+      SEED_DEMO: "${SEED_DEMO:-true}"
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:

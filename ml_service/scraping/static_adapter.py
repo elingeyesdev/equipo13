@@ -42,6 +42,6 @@ class StaticAdapter:
                 nombre_crudo=name_el.get_text(" ", strip=True),
                 precio_kg=precio,
                 canal=canal,
-                raw={"price_text": price_el.get_text(" ", strip=True)},
+                raw={"title": name_el.get_text(" ", strip=True), "price_text": price_el.get_text(" ", strip=True)},
             ))
         return out
