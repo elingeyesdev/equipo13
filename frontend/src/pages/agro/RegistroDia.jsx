@@ -57,6 +57,14 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
   const [saveOk,  setSaveOk]  = useState(false);
   const [saveErr, setSaveErr] = useState(null);
 
+  const [peso, setPeso] = useState('');
+  const [pesoCabezas, setPesoCabezas] = useState('');
+  const [pesoNotas, setPesoNotas] = useState('');
+  const [pesoSaving, setPesoSaving] = useState(false);
+  const [pesoMsg, setPesoMsg] = useState(null);
+
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [addMode,      setAddMode]      = useState('none');
   const [newInsumoId,  setNewInsumoId]  = useState('');
   const [newCantidad,  setNewCantidad]  = useState('');
@@ -104,7 +112,7 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
         setLoading(false);
       })
       .catch(e => { setError(e?.error || 'Error al cargar el registro'); setLoading(false); });
-  }, [negocioId, loteId, fecha]);
+  }, [negocioId, loteId, fecha, reloadKey]);
 
   useEffect(() => {
     if (!newInsumoId || !negocioId) { setStockInfo(null); return; }
@@ -208,6 +216,30 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
     }
   };
 
+  const guardarPeso = async () => {
+    const val = Number(peso);
+    if (!Number.isFinite(val) || val <= 0) { setPesoMsg('Ingresa un peso mayor a 0'); return; }
+    setPesoSaving(true); setPesoMsg(null);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/lotes/${loteId}/pesajes`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fecha,
+          peso_prom_kg: val,
+          n_cabezas_muestra: pesoCabezas ? Number(pesoCabezas) : null,
+          notas: pesoNotas || null,
+        }),
+      });
+      setPeso(''); setPesoCabezas(''); setPesoNotas('');
+      setPesoMsg('Peso registrado ✓');
+      setReloadKey(k => k + 1);
+    } catch (err) {
+      setPesoMsg(err.message || 'Error al registrar el peso');
+    } finally {
+      setPesoSaving(false);
+    }
+  };
+
   // ── Guard ────────────────────────────────────────────────────────────────────
   if (!activeLote || !loteId || !fecha) {
     return (
@@ -280,6 +312,40 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
               <Icon name="checkCircle" size={13} /> Confirmado
             </span>
           )}
+        </div>
+
+        {/* Banner de vencido */}
+        {data?.pesaje?.vencido && (
+          <div style={{ padding: '10px 14px', background: 'var(--accent-warning)18', border: '1px solid var(--accent-warning)44', borderRadius: 6, fontSize: 13, color: 'var(--accent-warning)', marginBottom: 8 }}>
+            ⚠ Pesaje pendiente: vencido hace {data.pesaje.dias_atraso} día(s). Tocaba el {data.pesaje.proximo_pesaje_fecha}.
+          </div>
+        )}
+
+        {/* Tarjeta de peso */}
+        <div style={{ border: '1px solid var(--border-mid)', borderRadius: 12, padding: 20, marginBottom: 8, background: 'var(--bg-secondary)' }}>
+          <Label>Peso del lote</Label>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+            Último peso: {data?.pesaje?.ultimo_pesaje_fecha
+              ? `${activeLote?.peso_actual_prom ?? '—'} kg (${data.pesaje.ultimo_pesaje_fecha})`
+              : 'sin registros'}
+            {data?.pesaje?.proximo_pesaje_fecha && ` · próximo: ${data.pesaje.proximo_pesaje_fecha}`}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <Label>Peso promedio (kg)</Label>
+              <input type="number" min="0" step="0.01" value={peso} onChange={(e) => setPeso(e.target.value)} style={{ width: 120, padding: '8px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
+            </div>
+            <div>
+              <Label>Cabezas pesadas (opc.)</Label>
+              <input type="number" min="0" value={pesoCabezas} onChange={(e) => setPesoCabezas(e.target.value)} style={{ width: 120, padding: '8px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <Label>Notas (opc.)</Label>
+              <input type="text" value={pesoNotas} onChange={(e) => setPesoNotas(e.target.value)} style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
+            </div>
+            <Btn variant="primary" loading={pesoSaving} onClick={guardarPeso}>Registrar peso</Btn>
+          </div>
+          {pesoMsg && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>{pesoMsg}</div>}
         </div>
 
         {/* Cuerpo en dos columnas */}
