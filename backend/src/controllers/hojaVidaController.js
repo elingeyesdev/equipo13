@@ -502,3 +502,24 @@ export async function confirmarDia(req, res) {
     client.release();
   }
 }
+
+// ─── PUT /:negocioId/lotes/:loteId/config-pesaje ─────────────────────────────
+
+export async function updateConfigPesaje(req, res) {
+  const { loteId, negocioId } = req.params;
+  const { pesaje_activo, pesaje_intervalo_dias } = req.body;
+
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE lotes SET pesaje_activo = $1, pesaje_intervalo_dias = $2, updated_at = NOW()
+       WHERE id = $3 AND negocio_id = $4`,
+      [pesaje_activo, pesaje_intervalo_dias, loteId, negocioId]
+    );
+
+    if (rowCount === 0) return res.status(404).json({ error: 'Lote no encontrado' });
+
+    res.json({ message: 'Configuración actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}

@@ -241,6 +241,74 @@ const ListaMes = ({ dias, hoy, onAbrirDia, accentColor }) => {
   );
 };
 
+// ── Componente Recordatorio de Pesaje ────────────────────────────────────────
+const RecordatorioPesaje = ({ lote, negocioId, onChange }) => {
+  const [editing, setEditing] = useState(false);
+  const [activo, setActivo] = useState(lote?.pesaje_activo ?? true);
+  const [intervalo, setIntervalo] = useState(lote?.pesaje_intervalo_dias ?? 14);
+  const [saving, setSaving] = useState(false);
+
+  if (!lote) return null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/lotes/${lote.id}/config-pesaje`, {
+        method: 'PUT',
+        body: JSON.stringify({ pesaje_activo: activo, pesaje_intervalo_dias: parseInt(intervalo, 10) })
+      });
+      setEditing(false);
+      if (onChange) onChange();
+    } catch (err) {
+      alert(err.error || 'Error al guardar configuración');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: 32, height: 32, borderRadius: '6px', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: activo ? 'var(--accent-agro)' : 'var(--text-tertiary)' }}>
+          <Icon name="scale" size={18} />
+        </div>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Recordatorio de Pesaje</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            {activo ? `Se espera pesaje cada ${lote.pesaje_intervalo_dias || 14} días` : 'Recordatorio desactivado para este lote'}
+          </div>
+        </div>
+      </div>
+      {editing ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} /> Activo
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={intervalo}
+            onChange={e => setIntervalo(e.target.value)}
+            disabled={!activo}
+            style={{ width: '60px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px' }}
+          />
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>días</span>
+          <Btn variant="primary" size="small" onClick={handleSave} disabled={saving} style={{ marginLeft: '8px' }}>
+            {saving ? '...' : 'Guardar'}
+          </Btn>
+          <Btn variant="secondary" size="small" onClick={() => {
+            setActivo(lote.pesaje_activo ?? true);
+            setIntervalo(lote.pesaje_intervalo_dias ?? 14);
+            setEditing(false);
+          }} disabled={saving}>Cancelar</Btn>
+        </div>
+      ) : (
+        <Btn variant="secondary" size="small" icon="edit" onClick={() => setEditing(true)}>Editar cadencia</Btn>
+      )}
+    </div>
+  );
+};
+
 // ── Componente principal ─────────────────────────────────────────────────────
 const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
   const accentColor = 'var(--accent-agro)';
@@ -313,6 +381,17 @@ const HojaVida = ({ negocioId, activeLote, onNavigate, setActiveFecha }) => {
           )}
         </div>
       </div>
+
+      <RecordatorioPesaje
+        lote={data?.lote}
+        negocioId={negocioId}
+        onChange={() => {
+          setLoading(true);
+          apiFetch(`/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida?anio=${anio}&mes=${mes}`)
+            .then(res => { setData(res); setLoading(false); })
+            .catch(e  => { setError(e?.error || 'Error al cargar'); setLoading(false); });
+        }}
+      />
 
       {/* Barra de navegación + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>

@@ -119,6 +119,7 @@ import {
   getDetalleDia,
   guardarRegistroDia,
   confirmarDia,
+  updateConfigPesaje,
 } from '../controllers/hojaVidaController.js';
 import {
   getGastosCIF,
@@ -263,6 +264,7 @@ router.get('/:negocioId/lotes/:loteId/hoja-de-vida', authMiddleware, negocioOwne
 router.get('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, getDetalleDia);
 router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha/confirmar', authMiddleware, negocioOwner, confirmarDia);
 router.post('/:negocioId/lotes/:loteId/hoja-de-vida/:fecha', authMiddleware, negocioOwner, guardarRegistroDia);
+router.put('/:negocioId/lotes/:loteId/config-pesaje', authMiddleware, negocioOwner, updateConfigPesaje);
 
 // CIF — Sprint 2 Entregable 1
 // La ruta de prorrateo va antes que /cif/:id para que Express no la trate como un id.
