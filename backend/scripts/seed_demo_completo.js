@@ -230,8 +230,8 @@ async function main() {
 
     // 2. Negocio agro
     const { rows: [negocio] } = await client.query(
-      `INSERT INTO negocios (user_id, nombre, rubro, sub_rubro, plantilla, codigo)
-       VALUES ($1, $2, 'agro_ganadero', 'porcino', 'engorde_porcino', 'GRANJA') RETURNING id`,
+      `INSERT INTO negocios (user_id, nombre, rubro, sub_rubro, plantilla, codigo, pesaje_intervalo_dias)
+       VALUES ($1, $2, 'agro_ganadero', 'porcino', 'engorde_porcino', 'GRANJA', 15) RETURNING id`,
       [admin.id, DEMO_NEGOCIO],
     );
     const negocioId = negocio.id;

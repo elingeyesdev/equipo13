@@ -18,7 +18,7 @@ test('updateLote acepta pesaje_intervalo_dias y pesaje_activo', async () => {
   } finally { pool.query = original; }
 });
 
-test('createLote sin override usa el sugerido por especie (cerdo → 14)', async () => {
+test('createLote sin override deja pesaje_intervalo_dias = null (hereda negocio)', async () => {
   const original = pool.query;
   let params = [];
   pool.query = async (_q, p) => { params = p; return { rows: [{ id: 'l1' }] }; };
@@ -26,6 +26,18 @@ test('createLote sin override usa el sugerido por especie (cerdo → 14)', async
   const res = mockRes();
   try {
     await createLote(req, res);
-    assert.ok(params.includes(14)); // el intervalo sugerido para cerdo entró como parámetro
+    assert.equal(params[params.length - 1], null); // intervaloLote (último parámetro) = null
+  } finally { pool.query = original; }
+});
+
+test('createLote con override guarda el intervalo enviado', async () => {
+  const original = pool.query;
+  let params = [];
+  pool.query = async (_q, p) => { params = p; return { rows: [{ id: 'l1' }] }; };
+  const req = { params: { negocioId: 'n1' }, body: { identificador: 'L-1', tipo_animal: 'cerdo', pesaje_intervalo_dias: 10 } };
+  const res = mockRes();
+  try {
+    await createLote(req, res);
+    assert.equal(params[params.length - 1], 10);
   } finally { pool.query = original; }
 });

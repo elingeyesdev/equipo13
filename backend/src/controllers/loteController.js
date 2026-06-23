@@ -1,5 +1,4 @@
 import { pool } from '../config/database.js';
-import { intervaloSugeridoPorEspecie } from '../services/pesajeProgramado.js';
 
 // ──────────────────────────────────────────────
 // LOTES CRUD & LIFECYCLE
@@ -91,10 +90,10 @@ export const createLote = async (req, res) => {
     return res.status(400).json({ error: 'identificador y tipo_animal son requeridos' });
   }
 
-  // Si no mandan override, usar el sugerido por especie (null = hereda el del negocio).
+  // Si no mandan override, queda NULL → el lote hereda el intervalo del negocio.
   const intervaloLote = pesaje_intervalo_dias != null
     ? parseInt(pesaje_intervalo_dias)
-    : intervaloSugeridoPorEspecie(tipo_animal);
+    : null;
 
   try {
     const { rows } = await pool.query(

@@ -198,37 +198,40 @@ export async function seedEngordePorcino(negocioId, db) {
   //   dia 21-30 → 1.3 kg/cab/dia
   //   Promedio: 0.9 kg/cab/dia · ICa esperado ~1.6 (eficiente)
   async function createLoteConRegistros(config) {
-    const { identificador, cabezas, pesoInicial, pesoActual, costoAdq } = config;
+    const {
+      identificador, cabezas, pesoInicial, costoAdq,
+      pesajeIntervalo = null,  // override del lote; null = hereda el del negocio
+      pesajeActivo = true,
+      pesajes,                 // [{ offset, peso }] — el último define peso_actual y la base del recordatorio
+    } = config;
     const FECHA_ENTRADA_OFFSET = 30;
+    const pesoActual = pesajes[pesajes.length - 1].peso;
 
     const { rows: [lote] } = await db.query(
       `INSERT INTO lotes (
          negocio_id, identificador, tipo_animal, fecha_entrada,
          cabezas_inicio, cabezas_activas, peso_inicial_prom, peso_actual_prom,
-         costo_adquisicion, edad_promedio_dias
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+         costo_adquisicion, edad_promedio_dias, pesaje_intervalo_dias, pesaje_activo
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [
         negocioId, identificador, 'Cerdo',
         dateOffset(-FECHA_ENTRADA_OFFSET),
         cabezas, cabezas, pesoInicial, pesoActual,
         costoAdq, 30, // edad biologica al ingreso: 30 dias
+        pesajeIntervalo, pesajeActivo,
       ],
     );
     const loteId = lote.id;
 
-    // Pesajes intermedios (curva realista)
-    await db.query(
-      `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg)
-       VALUES ($1, $2, $3), ($1, $4, $5), ($1, $6, $7), ($1, $8, $9), ($1, $10, $11)`,
-      [
-        loteId,
-        dateOffset(-30),  8.5,
-        dateOffset(-21), 12.5,
-        dateOffset(-14), 16.0,
-        dateOffset(-7),  20.5,
-        dateOffset(0),   pesoActual,
-      ],
-    );
+    // Pesajes historicos (curva realista). El ultimo pesaje define peso_actual_prom
+    // y la fecha base desde la que se cuenta el proximo pesaje del recordatorio.
+    for (const p of pesajes) {
+      await db.query(
+        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, origen)
+         VALUES ($1, $2, $3, 'dueno')`,
+        [loteId, dateOffset(p.offset), p.peso],
+      );
+    }
 
     // Helpers internos que mantienen las dos tablas sincronizadas
     async function registrarInsumo(registroId, fecha, insumoKey, cantidad) {
@@ -336,22 +339,43 @@ export async function seedEngordePorcino(negocioId, db) {
   }
 
   // ───────── 10. Crear los dos lotes ─────────
-  // Lote principal: 50 cerdos.
+  // Pensados para la demo del recordatorio de pesaje:
+  //
+  //   LOTE-CERD-001 → PESAJE VENCIDO. Cadencia propia de 10 días y último
+  //     pesaje hace 14 días → en la lista de Lotes aparece "⚠ Vencido" y, al
+  //     abrir el día de hoy en la Hoja de Vida, sale el banner para registrar
+  //     el peso. Es el lote ideal para mostrar el flujo de "Registrar peso".
+  //
+  //   LOTE-CERD-002 → AL DÍA. Hereda la cadencia del negocio (15 días) y su
+  //     último pesaje fue hace 3 días → en la lista aparece "Próximo: <fecha>".
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
     pesoInicial: 8.5,
-    pesoActual:  25.0,
     costoAdq:    17500, // 50 × 350 Bs/cabeza
+    pesajeIntervalo: 10, // override propio del lote
+    pesajeActivo: true,
+    pesajes: [
+      { offset: -30, peso:  8.5 },
+      { offset: -24, peso: 12.0 },
+      { offset: -18, peso: 16.0 },
+      { offset: -14, peso: 20.0 }, // último: hace 14 días → vencido (cadencia 10)
+    ],
   });
 
-  // Lote chico: 10 cerdos (mismo manejo, escala menor).
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-002',
     cabezas: 10,
     pesoInicial: 8.5,
-    pesoActual:  25.0,
-    costoAdq:    3500, // 10 × 350 Bs/cabeza
+    costoAdq:    3500,  // 10 × 350 Bs/cabeza
+    pesajeIntervalo: null, // hereda la cadencia del negocio (15 días)
+    pesajeActivo: true,
+    pesajes: [
+      { offset: -30, peso:  8.5 },
+      { offset: -21, peso: 13.0 },
+      { offset: -12, peso: 18.5 },
+      { offset:  -3, peso: 24.0 }, // último: hace 3 días → al día (cadencia 15)
+    ],
   });
 
   // ───────── 11. Sincronizar cantidad_disponible final del FIFO ─────────

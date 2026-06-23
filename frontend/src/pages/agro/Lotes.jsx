@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { MoneyDisplay, StatusBadge, Btn, InfoBanner, InfoTip, FormulaHint } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
-import { PRESETS_PESAJE, intervaloSugeridoPorEspecie } from '../../constants/pesaje.js';
+import { PRESETS_PESAJE } from '../../constants/pesaje.js';
 
 function estadoPesajeLote(lote, intervaloNegocio) {
   if (lote.pesaje_activo === false) return { texto: 'Pesaje apagado', vencido: false };
@@ -84,7 +84,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor, intervaloNegocio }) => {
     peso_inicial_prom: '8.5',
     costo_unitario: '',
     pesaje_activo: true,
-    pesaje_intervalo_dias: intervaloSugeridoPorEspecie('Cerdo'),
+    pesaje_intervalo_dias: null, // null = hereda el intervalo del negocio
   });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -137,7 +137,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor, intervaloNegocio }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo de animal</label>
-              <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, pesaje_intervalo_dias: intervaloSugeridoPorEspecie(e.target.value) }))} style={{ height: '38px' }}>
+              <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={{ height: '38px' }}>
                 {TIPOS_ANIMAL.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
