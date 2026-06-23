@@ -17,14 +17,20 @@ const NavBtn = ({ onClick, children }) => (
   </button>
 );
 
-// Color por estado del día.
-// Nota: no se puede concatenar alpha hex (`+ 'CC'`) a una CSS var como
-// `var(--accent-agro)` — produce CSS inválido. Se usan colores sólidos.
+// Estilo del día según estado de registro (sin teñir todo de verde).
 const getDiaColors = (dia, accentColor) => {
-  if (dia?.confirmado)     return { bg: accentColor,             border: accentColor,             num: '#fff' };
-  if (dia?.tiene_registro) return { bg: 'var(--accent-warning)', border: 'var(--accent-warning)', num: '#fff' };
-  return                          { bg: 'var(--bg-secondary)',   border: 'var(--border-subtle)',  num: 'var(--text-secondary)' };
+  if (dia?.confirmado)     return { bg: 'var(--bg-tertiary)', border: accentColor,             num: 'var(--text-primary)' };
+  if (dia?.tiene_registro) return { bg: 'var(--bg-tertiary)', border: 'var(--accent-warning)', num: 'var(--text-primary)' };
+  return                          { bg: 'var(--bg-secondary)', border: 'var(--border-subtle)',  num: 'var(--text-secondary)' };
 };
+
+// Colores de actividad (deben coincidir con la leyenda).
+const ACTIVIDAD = [
+  { key: 'tiene_alimento', color: '#22C55E', label: 'Alimento' },
+  { key: 'tiene_sanidad',  color: '#EF4444', label: 'Sanidad'  },
+  { key: 'tiene_servicio', color: '#3B82F6', label: 'Servicio' },
+  { key: 'tiene_pesaje',   color: '#A855F7', label: 'Pesaje'   },
+];
 
 // ── Vista Calendario ─────────────────────────────────────────────────────────
 const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
@@ -58,10 +64,9 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
           const esHoy     = dia?.fecha === hoy;
           const hayFuturo = dia?.fecha > hoy;
           const colors    = getDiaColors(dia, accentColor);
-          const sanidad   = dia?.estandar_resumido?.sanitario_hoy ?? [];
-          const itemsCount = dia?.registro?.items?.length ?? 0;
-          const tooltip   = dia
-            ? `${dia.fecha} · día ${dia.dias_en_lote} en lote · ${dia.confirmado ? 'Confirmado' : dia.tiene_registro ? 'Borrador' : 'Sin registro'}${itemsCount ? ` · ${itemsCount} ítem${itemsCount === 1 ? '' : 's'}` : ''}${sanidad.length ? ` · Sanidad (${sanidad.length})` : ''}`
+          const actividades = ACTIVIDAD.filter(a => dia?.[a.key]).map(a => a.label);
+          const tooltip = dia
+            ? `${dia.fecha} · día ${dia.dias_en_lote} en lote · ${dia.confirmado ? 'Confirmado' : dia.tiene_registro ? 'Borrador' : 'Sin registro'}${actividades.length ? ` · ${actividades.join(', ')}` : ''}`
             : '';
 
           return (
@@ -103,12 +108,12 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
                   {dia.fase.length > 7 ? dia.fase.substring(0, 6) + '…' : dia.fase}
                 </span>
               )}
-              {sanidad.length > 0 && !hayFuturo && (
-                <span title={`Sanidad programada (${sanidad.length})`} style={{ position: 'absolute', top: '4px', right: '4px', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-warning)', border: dia?.confirmado ? '1px solid #fff' : 'none' }} />
-              )}
-              {itemsCount > 0 && (
-                <span title={`${itemsCount} ítem${itemsCount === 1 ? '' : 's'} registrado${itemsCount === 1 ? '' : 's'}`} style={{ position: 'absolute', bottom: '3px', right: '4px', fontSize: '8px', fontFamily: 'IBM Plex Mono, monospace', color: dia.confirmado || dia.tiene_registro ? 'rgba(255,255,255,0.85)' : 'var(--text-tertiary)', fontWeight: 600 }}>
-                  {itemsCount}
+              {!hayFuturo && (
+                <span style={{ position: 'absolute', bottom: '3px', left: 0, right: 0, display: 'flex', gap: '3px', justifyContent: 'center' }}>
+                  {ACTIVIDAD.filter(a => dia?.[a.key]).map(a => (
+                    <span key={a.key} title={a.label}
+                      style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, display: 'inline-block' }} />
+                  ))}
                 </span>
               )}
             </button>
@@ -118,26 +123,27 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
 
       {/* Leyenda */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+        {/* Estados (borde) */}
         {[
-          { bg: accentColor,             border: accentColor,             label: 'Confirmado' },
-          { bg: 'var(--accent-warning)', border: 'var(--accent-warning)', label: 'Borrador' },
-          { bg: 'var(--bg-secondary)',   border: 'var(--border-subtle)',  label: 'Sin registro' },
-        ].map(({ bg, border, label }) => (
+          { border: accentColor,             label: 'Confirmado' },
+          { border: 'var(--accent-warning)', label: 'Borrador' },
+          { border: 'var(--border-subtle)',  label: 'Sin registro' },
+        ].map(({ border, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-            <span style={{ width: 12, height: 12, borderRadius: '3px', background: bg, border: `1px solid ${border}`, display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ width: 12, height: 12, borderRadius: '3px', background: 'var(--bg-tertiary)', border: `1.5px solid ${border}`, display: 'inline-block', flexShrink: 0 }} />
             {label}
+          </div>
+        ))}
+        {/* Actividades (puntos) */}
+        {ACTIVIDAD.map(a => (
+          <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: a.color, display: 'inline-block', flexShrink: 0 }} />
+            {a.label}
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
           <span style={{ width: 12, height: 12, borderRadius: '3px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', boxShadow: '0 0 0 2px var(--accent-industrial)', display: 'inline-block', flexShrink: 0 }} />
           Hoy
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-warning)', display: 'inline-block', flexShrink: 0 }} />
-          Sanidad programada
-        </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
-          dN = día en lote
         </div>
       </div>
     </div>
@@ -200,12 +206,12 @@ const ListaMes = ({ dias, hoy, onAbrirDia, accentColor }) => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {dia.fase && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{dia.fase}</span>}
-                {sanidad.length > 0 && (
-                  <span title={sanidad.map(s => s.descripcion).join(' · ')}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--accent-warning)', fontWeight: 500, cursor: 'help' }}>
-                    <Icon name="alertCircle" size={11} /> Sanidad ({sanidad.length})
+                {ACTIVIDAD.filter(a => dia[a.key]).map(a => (
+                  <span key={a.key} title={a.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, display: 'inline-block' }} />
+                    {a.label}
                   </span>
-                )}
+                ))}
               </div>
               {alim && (
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
