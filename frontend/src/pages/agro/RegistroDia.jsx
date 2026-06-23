@@ -109,6 +109,11 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
           })));
           setNotas(detalle.registro.notas_del_dia || '');
         }
+        if (detalle.pesaje_del_dia) {
+          setPeso(detalle.pesaje_del_dia.peso_prom_kg || '');
+          setPesoCabezas(detalle.pesaje_del_dia.n_cabezas_muestra || '');
+          setPesoNotas(detalle.pesaje_del_dia.notas || '');
+        }
         setLoading(false);
       })
       .catch(e => { setError(e?.error || 'Error al cargar el registro'); setLoading(false); });
@@ -323,9 +328,30 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
 
         {/* Tarjeta de peso */}
         <div style={{ border: '1px solid var(--border-mid)', borderRadius: 12, padding: 20, marginBottom: 8, background: 'var(--bg-secondary)' }}>
-          <Label>Peso del lote</Label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '6px', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-agro)' }}>
+                <Icon name="scale" size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Peso del lote</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {data?.pesaje_del_dia 
+                    ? 'Pesaje ya registrado para este día' 
+                    : data?.pesaje?.vencido 
+                      ? 'Pesaje vencido o esperado para hoy' 
+                      : 'Opcional (fuera de cadencia)'}
+                </div>
+              </div>
+            </div>
+            {data?.pesaje_del_dia && (
+              <div style={{ background: 'var(--accent-agro)18', color: 'var(--accent-agro)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                {data.pesaje_del_dia.peso_prom_kg} kg/cab
+              </div>
+            )}
+          </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            Último peso: {data?.pesaje?.ultimo_pesaje_fecha
+            Último peso general: {data?.pesaje?.ultimo_pesaje_fecha
               ? `${data.pesaje.ultimo_peso_kg ?? '—'} kg (${data.pesaje.ultimo_pesaje_fecha})`
               : 'sin registros'}
             {data?.pesaje?.proximo_pesaje_fecha && ` · próximo: ${data.pesaje.proximo_pesaje_fecha}`}
@@ -343,7 +369,9 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
               <Label>Notas (opc.)</Label>
               <input type="text" value={pesoNotas} onChange={(e) => setPesoNotas(e.target.value)} style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-mid)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
             </div>
-            <Btn variant="primary" loading={pesoSaving} onClick={guardarPeso}>Registrar peso</Btn>
+            <Btn variant="primary" loading={pesoSaving} onClick={guardarPeso}>
+              {data?.pesaje_del_dia ? 'Actualizar pesaje' : 'Registrar pesaje'}
+            </Btn>
           </div>
           {pesoMsg && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>{pesoMsg}</div>}
         </div>
