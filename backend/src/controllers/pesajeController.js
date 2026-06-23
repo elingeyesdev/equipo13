@@ -28,6 +28,12 @@ export async function registrarPesajeDueno(req, res) {
       `INSERT INTO pesajes_lote
          (lote_id, fecha, peso_prom_kg, origen, registrado_por, n_cabezas_muestra, notas)
        VALUES ($1, COALESCE($2, CURRENT_DATE), $3, 'dueno', $4, $5, $6)
+       ON CONFLICT (lote_id, fecha) DO UPDATE SET
+         peso_prom_kg      = EXCLUDED.peso_prom_kg,
+         origen            = EXCLUDED.origen,
+         registrado_por    = EXCLUDED.registrado_por,
+         n_cabezas_muestra = EXCLUDED.n_cabezas_muestra,
+         notas             = EXCLUDED.notas
        RETURNING *`,
       [loteId, fecha || null, peso, req.user.id, n_cabezas_muestra || null, notas || null]
     );

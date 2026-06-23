@@ -27,7 +27,7 @@ test('registrarPesajeDueno: inserta pesaje (origen dueno) y actualiza peso_actua
   try {
     await registrarPesajeDueno(req, res);
     assert.equal(res.statusCode, 201);
-    assert.ok(qs.some(q => /INSERT INTO pesajes_lote/.test(q) && /origen/.test(q)));
+    assert.ok(qs.some(q => /INSERT INTO pesajes_lote/.test(q) && /ON CONFLICT/.test(q) && /DO UPDATE/.test(q)));
     assert.ok(qs.some(q => /UPDATE lotes/.test(q) && /peso_actual_prom/.test(q)));
   } finally { pool.connect = original; }
 });
