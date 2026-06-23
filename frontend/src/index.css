@@ -15,6 +15,7 @@
   --accent-warning: #F59E0B;
   --accent-danger: #EF4444;
   --accent-success: #10B981;
+  --accent-info: #06B6D4;
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.6);
@@ -37,6 +38,7 @@
   --accent-warning: #D97706;
   --accent-danger: #DC2626;
   --accent-success: #059669;
+  --accent-info: #0891B2;
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.12);
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.18);

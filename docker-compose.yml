@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-equipo13}
+      TZ: America/La_Paz
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -42,6 +43,7 @@ services:
       # Siembra automática de la demo completa al arrancar (solo si la BD está vacía).
       # Poné "false" si querés arrancar sin datos de demo.
       SEED_DEMO: "${SEED_DEMO:-true}"
+      TZ: America/La_Paz
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
@@ -58,6 +60,7 @@ services:
       - backend
     environment:
       VITE_API_URL: http://localhost:${BACKEND_PORT:-3000}
+      TZ: America/La_Paz
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
@@ -79,6 +82,7 @@ services:
       # Demo: scraping manual desde la UI. Poner "true" para activar el cron diario 05:00.
       ENABLE_SCHEDULER: "false"
       PORT: 8001
+      TZ: America/La_Paz
     ports:
       - "${ML_PORT:-8001}:8001"
     volumes:

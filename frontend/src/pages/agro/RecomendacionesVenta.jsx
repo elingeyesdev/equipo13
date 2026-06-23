@@ -1,40 +1,113 @@
-import { useState, useEffect } from 'react';
-import { apiFetch } from '../../config/api';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { Btn, StatusBadge, MetricCard } from '../../components/ui.jsx';
 
-const ACCENT = 'var(--accent-agro)';
+import { useRecomendaciones } from './recomendaciones/useRecomendaciones.js';
+import { rankItems } from './recomendaciones/derive.js';
 
+import VistaDecision from './recomendaciones/VistaDecision.jsx';
+import VistaTabla from './recomendaciones/VistaTabla.jsx';
+import BandaAlertas from './recomendaciones/BandaAlertas.jsx';
+import PanelFichas from './recomendaciones/PanelFichas.jsx';
+import { apiFetch } from '../../config/api.js';
+
+const ACCENT = 'var(--accent-agro)';
 const fmt = (n, d = 2) => Number(n || 0).toLocaleString('es-BO', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-export default function RecomendacionesVenta({ negocioId }) {
-  const [items, setItems] = useState([]);
-  const [resumen, setResumen] = useState(null);
-  const [modo, setModo] = useState('heuristico');
-  const [cargando, setCargando] = useState(false);
-  const [metaModelos, setMetaModelos] = useState([]);
-  const [error, setError] = useState(null);
-  const [historico, setHistorico] = useState([]);
+function Chip({ active, onClick, children }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: '4px 12px', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+        background: active ? 'var(--bg-primary)' : 'transparent',
+        color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+        borderRadius: '16px', transition: 'all 0.15s',
+        boxShadow: active ? 'var(--shadow-sm)' : 'none'
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
-  async function cargar() {
-    setCargando(true);
-    setError(null);
-    try {
-      const data = await apiFetch(`/api/negocios/${negocioId}/recomendaciones`);
-      setItems(data.items || []); setResumen(data.resumen || null); setModo(data.modo || 'heuristico');
-      
-      const meta = await apiFetch(`/api/negocios/${negocioId}/recomendaciones/meta`);
-      setMetaModelos(meta || []);
-      
-      const hist = await apiFetch(`/api/negocios/${negocioId}/precios-historico`);
-      setHistorico(hist || []);
-    } catch (e) { 
-      console.error(e); 
-      setError(e.message || 'Error de conexión al motor de Machine Learning.');
+function ChipSelector({ options, value, onChange }) {
+  return (
+    <div style={{ display: 'flex', background: 'var(--bg-tertiary)', padding: '2px', borderRadius: '18px', gap: '2px' }}>
+      {options.map(opt => (
+        <Chip key={opt.value} active={value === opt.value} onClick={() => onChange(opt.value)}>
+          {opt.label}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+export default function RecomendacionesVenta({ negocioId }) {
+  const [lotes, setLotes] = useState([]);
+  const [loteId, setLoteId] = useState('');
+
+  useEffect(() => {
+    if (negocioId) {
+      apiFetch(`/api/negocios/${negocioId}/lotes`)
+        .then(data => {
+          const activos = data.filter(l => l.activo);
+          setLotes(activos);
+          // Las recomendaciones se calculan sobre cualquier lote (despiece teórico
+          // según catálogo + cabezas + peso), así que abrimos en el primer lote activo.
+          if (activos.length > 0 && !loteId) setLoteId(activos[0].id);
+        })
+        .catch(err => console.error('Error cargando lotes:', err));
     }
-    setCargando(false);
+  }, [negocioId]);
+
+  const { 
+    items: rawItems, resumen, modo, metaModelos, historico, alertas, 
+    cargando, error, recId, horizonte, setHorizonte, recargar
+  } = useRecomendaciones(negocioId, loteId);
+
+  const [vista, setVista] = useState('decision');
+  
+  // Para Fichas guardadas (modo readonly)
+  const [fichaActiva, setFichaActiva] = useState(null);
+  const [guardandoFicha, setGuardandoFicha] = useState(false);
+
+  // Ranking happens here
+  const items = rankItems(fichaActiva ? fichaActiva.items : rawItems);
+  const currentResumen = fichaActiva ? fichaActiva.resumen : resumen;
+
+  // Lote seleccionado (para mensajes contextuales)
+  const loteSel = lotes.find(l => l.id === loteId);
+
+  async function guardarFicha() {
+    if (!recId) return alert('No hay recomendación activa para guardar.');
+    const nombre = prompt('Ingresá un nombre para esta ficha (ej: "Fin de mes", "Venta mayorista"):');
+    if (!nombre) return;
+    
+    setGuardandoFicha(true);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/recomendaciones/${recId}/fijar`, {
+        method: 'POST',
+        body: JSON.stringify({ nombre })
+      });
+      alert('Ficha guardada con éxito.');
+      // Trick to re-trigger PanelFichas reload could be done, but reopening it works.
+    } catch (e) {
+      console.error(e);
+      alert('Error al guardar la ficha: ' + e.message);
+    }
+    setGuardandoFicha(false);
   }
-  useEffect(() => { if (negocioId) cargar(); }, [negocioId]);
+
+  async function cargarFichaGuardada(idFicha) {
+    try {
+      const f = await apiFetch(`/api/negocios/${negocioId}/recomendaciones/fichas/${idFicha}`);
+      setFichaActiva(f);
+    } catch (e) {
+      console.error(e);
+      alert('Error cargando ficha guardada.');
+    }
+  }
 
   function exportarCSV() {
     const cols = ['corte_canonico', 'canal_sugerido', 'precio_referencia', 'costo_kg', 'margen_kg',
@@ -47,280 +120,166 @@ export default function RecomendacionesVenta({ negocioId }) {
     a.href = URL.createObjectURL(blob); a.download = 'recomendaciones_venta.csv'; a.click();
   }
 
-  const COLS = [
-    { key: 'corte_canonico', label: 'Corte', align: 'left' },
-    { key: 'canal_sugerido', label: 'Canal sugerido', align: 'left' },
-    { key: 'precio_referencia', label: 'Precio/kg', align: 'right', mono: true },
-    { key: 'costo_kg', label: 'Costo/kg', align: 'right', mono: true },
-    { key: 'grafico', label: 'Gráfico 30d', align: 'center' },
-    { key: 'margen_kg', label: 'Margen/kg', align: 'right', mono: true },
-    { key: 'kg_disponibles', label: 'Kg disp.', align: 'right', mono: true },
-    { key: 'ingreso_estimado', label: 'Ingreso est.', align: 'right', mono: true },
-    { key: 'tendencia', label: 'Tendencia', align: 'center' },
-    { key: 'precio_pronosticado', label: 'Pronóstico', align: 'right', mono: true },
-    { key: 'margen_pronosticado', label: 'Margen pron.', align: 'right', mono: true },
-    { key: 'ingreso_pronosticado', label: 'Ingreso pron.', align: 'right', mono: true },
-    { key: 'confianza', label: 'Confianza', align: 'center' },
-    { key: 'accion', label: 'Acción', align: 'left' },
-  ];
-  const GRID = 'minmax(110px,1.3fr) minmax(95px,1fr) 82px 82px 75px 90px 72px 100px 80px 82px 90px 100px 80px 100px';
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <style>{`@media print { button { display: none } }`}</style>
+      <style>{`
+        @media print { 
+          button, #no-print { display: none !important; } 
+          .grid-decision { grid-template-columns: 1fr !important; }
+          body { background: white !important; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Recomendaciones de venta</h1>
-            <StatusBadge
-              label={modo === 'forecast' ? 'Pronóstico ML' : 'Heurístico'}
-              color={modo === 'forecast' ? 'var(--accent-industrial)' : 'var(--text-tertiary)'} />
+            <h1 style={{ fontSize: '22px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              {fichaActiva ? `Ficha: ${fichaActiva.nombre}` : 'Recomendaciones de venta'}
+            </h1>
+            {!fichaActiva && (
+              <StatusBadge
+                label={modo === 'forecast' ? 'Pronóstico ML' : 'Heurístico'}
+                color={modo === 'forecast' ? 'var(--accent-industrial)' : 'var(--text-tertiary)'} />
+            )}
+            {fichaActiva && (
+              <StatusBadge label="Solo-Lectura" color="var(--text-tertiary)" />
+            )}
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Qué corte vender, en qué canal y a qué precio según el mercado y tu stock.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+            {fichaActiva 
+              ? `Generada el ${new Date(fichaActiva.generada_en).toLocaleString('es-BO')}` 
+              : 'Qué corte vender, en qué canal y a qué precio según el mercado y tu stock.'}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Btn variant="secondary" icon="refresh" onClick={cargar}>Re-calcular</Btn>
-          <Btn variant="secondary" icon="download" onClick={exportarCSV}>CSV</Btn>
-          <Btn variant="secondary" icon="fileText" onClick={() => window.print()}>PDF</Btn>
+        
+        <div id="no-print" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+          {/* Main actions */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {fichaActiva ? (
+              <Btn variant="primary" icon="history" onClick={() => setFichaActiva(null)}>Volver a hoy</Btn>
+            ) : (
+              <>
+                <Btn variant="secondary" icon="refresh" onClick={recargar} disabled={cargando}>Re-calcular</Btn>
+                <Btn variant="primary" icon="save" onClick={guardarFicha} disabled={cargando || !recId || guardandoFicha}>
+                  {guardandoFicha ? 'Guardando...' : 'Guardar ficha'}
+                </Btn>
+              </>
+            )}
+            <Btn variant="secondary" icon="download" onClick={exportarCSV} disabled={items.length===0}>CSV</Btn>
+            <Btn variant="secondary" icon="fileText" onClick={() => window.print()} disabled={items.length===0}>PDF</Btn>
+          </div>
+          
+          {/* Selectors */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Lote a analizar:
+              <select
+                value={loteId}
+                onChange={e => setLoteId(e.target.value)}
+                disabled={!!fichaActiva}
+                style={{ 
+                  background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', 
+                  borderRadius: '16px', padding: '4px 10px', fontSize: '13px', 
+                  color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' 
+                }}
+              >
+                {!loteId && <option value="">-- Seleccionar Lote --</option>}
+                {lotes.map(l => (
+                  <option key={l.id} value={l.id}>{l.identificador}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Horizonte:
+              <ChipSelector 
+                value={horizonte} onChange={setHorizonte}
+                options={[
+                  { value: 3, label: '3d' },
+                  { value: 7, label: '7d' },
+                  { value: 14, label: '14d' },
+                  { value: 30, label: '30d' },
+                ]} 
+              />
+            </div>
+            
+            <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Vista:
+              <ChipSelector 
+                value={vista} onChange={setVista}
+                options={[
+                  { value: 'decision', label: 'Decisión' },
+                  { value: 'tabla', label: 'Tabla' }
+                ]} 
+              />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Panel de Fichas Guardadas */}
+      {!fichaActiva && negocioId && <div id="no-print"><PanelFichas negocioId={negocioId} onSelectFicha={cargarFichaGuardada} /></div>}
+
+      {/* Alertas */}
+      {!fichaActiva && negocioId && <div id="no-print"><BandaAlertas negocioId={negocioId} alertas={alertas} recargar={recargar} /></div>}
+
       {/* Resumen */}
-      {resumen && (
+      {currentResumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-          <MetricCard label="Ingreso estimado total" value={`Bs ${fmt(resumen.ingreso_total)}`} icon={<Icon name="wallet" size={16} />} accentColor={ACCENT} />
-          <MetricCard label="Margen total" value={`Bs ${fmt(resumen.margen_total)}`} icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-success)" />
+          <MetricCard label="Ingreso estimado total" value={`Bs ${fmt(currentResumen.ingreso_total)}`} icon={<Icon name="wallet" size={16} />} accentColor={ACCENT} />
+          <MetricCard label="Margen total" value={`Bs ${fmt(currentResumen.margen_total)}`} icon={<Icon name="trendingUp" size={16} />} accentColor="var(--accent-success)" />
           <MetricCard label="Cortes analizados" value={items.length} mono icon={<Icon name="layers" size={16} />} />
         </div>
       )}
 
-      {/* Modelos Meta */}
-      {metaModelos.length > 0 && (
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '-4px' }}>
-          {metaModelos.map((m, idx) => {
-            const esProphet = m.modelo.toLowerCase() === 'prophet';
-            return (
-              <div key={idx} style={{ 
-                display: 'inline-flex', alignItems: 'center', gap: '6px', 
-                padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-secondary)', fontSize: '11px', color: 'var(--text-secondary)'
-              }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.corte_canonico}</span>
-                <span>({m.canal})</span>
-                <span style={{ color: 'var(--border-subtle)' }}>|</span>
-                <span style={{ color: esProphet ? 'var(--accent-success)' : 'var(--accent-industrial)', fontWeight: 500 }}>
-                  {m.modelo}
-                </span>
-                <span style={{ color: 'var(--border-subtle)' }}>|</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>MAE {m.metricas?.mae || '—'}</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>MAPE {m.metricas?.mape || '—'}%</span>
-                <span style={{ color: 'var(--border-subtle)' }}>|</span>
-                <span>{m.n_puntos} pts</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tabla de recomendaciones */}
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '10px', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-          {COLS.map(c => (
-            <div key={c.key} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: c.align }}>{c.label}</div>
-          ))}
-        </div>
-
-        {cargando ? (
+      {/* Contenido Principal */}
+      <div style={{ minHeight: '300px' }}>
+        {!loteId && !fichaActiva ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1.6, background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <Icon name="layers" size={28} style={{ color: 'var(--text-tertiary)', opacity: 0.5 }} />
+            <div style={{ marginTop: '10px' }}>Seleccioná un lote para analizar.</div>
+            <div style={{ fontSize: '12px' }}>Las recomendaciones se basarán en los kilos disponibles de los cortes del lote seleccionado.</div>
+          </div>
+        ) : cargando ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>Calculando recomendaciones…</div>
         ) : error ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-danger)', fontSize: '14px', lineHeight: 1.6 }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-danger)', fontSize: '14px', lineHeight: 1.6, background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
             <Icon name="alertTriangle" size={28} style={{ opacity: 0.5 }} />
             <div style={{ marginTop: '10px', fontWeight: 500 }}>{error}</div>
             <div style={{ fontSize: '12px', opacity: 0.8 }}>Verificá que el contenedor ml_service esté corriendo.</div>
           </div>
         ) : items.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1.6 }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1.6, background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
             <Icon name="trendingUp" size={28} style={{ color: 'var(--text-tertiary)', opacity: 0.5 }} />
             <div style={{ marginTop: '10px' }}>No hay datos suficientes todavía.</div>
-            <div style={{ fontSize: '12px' }}>Configurá fuentes de datos y ejecutá el scraping primero.</div>
-          </div>
-        ) : items.map((it, idx) => {
-          const accion = it.accion === 'vender_ahora'
-            ? { label: 'Vender', color: 'var(--accent-success)', icon: 'checkCircle' }
-            : it.accion === 'esperar'
-              ? { label: 'Esperar', color: 'var(--accent-warning)', icon: 'history' }
-              : null;
-          const tend = ['subiendo', 'sube', 'up'].includes(it.tendencia)
-            ? { icon: 'arrowUp', color: 'var(--accent-success)' }
-            : ['bajando', 'baja', 'down'].includes(it.tendencia)
-              ? { icon: 'arrowDown', color: 'var(--accent-danger)' }
-              : null;
-          return (
-            <div key={idx}
-              style={{ display: 'grid', gridTemplateColumns: GRID, gap: '10px', padding: '11px 16px', borderBottom: idx < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'center', transition: 'background 0.1s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{it.corte_canonico}</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{it.canal_sugerido}</span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{fmt(it.precio_referencia)}</span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textAlign: 'right' }}>{fmt(it.costo_kg)}</span>
-              <span style={{ textAlign: 'center' }}>
-                <Sparkline historico={historico} corte={it.corte_canonico} canal={it.canal_sugerido} />
-              </span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: it.margen_kg >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right', fontWeight: 500 }}>{fmt(it.margen_kg)}</span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{fmt(it.kg_disponibles, 1)}</span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(it.ingreso_estimado)}</span>
-              <span style={{ textAlign: 'center' }}>
-                {tend ? <Icon name={tend.icon} size={15} style={{ color: tend.color }} /> : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
-              </span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>
-                {it.precio_pronosticado ? fmt(it.precio_pronosticado) : '—'}
-              </span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: it.margen_pronosticado >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right', fontStyle: 'italic' }}>
-                {it.margen_pronosticado != null ? fmt(it.margen_pronosticado) : '—'}
-              </span>
-              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>
-                {it.ingreso_pronosticado != null ? fmt(it.ingreso_pronosticado) : '—'}
-              </span>
-              <span style={{ textAlign: 'center' }}>
-                {it.confianza != null ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ width: '28px', height: '4px', borderRadius: '2px', background: 'var(--border-subtle)', overflow: 'hidden', display: 'inline-block' }}>
-                      <span style={{ display: 'block', height: '100%', width: `${Math.round(it.confianza * 100)}%`, borderRadius: '2px', background: it.confianza >= 0.7 ? 'var(--accent-success)' : it.confianza >= 0.4 ? 'var(--accent-warning)' : 'var(--text-tertiary)' }} />
-                    </span>
-                    <span style={{ color: it.confianza >= 0.7 ? 'var(--accent-success)' : 'var(--text-tertiary)' }}>{Math.round(it.confianza * 100)}%</span>
-                  </span>
-                ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
-              </span>
-              <span>
-                {accion ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: accion.color, fontSize: '12px', fontWeight: 500 }}>
-                    <Icon name={accion.icon} size={13} />{accion.label}
-                  </span>
-                ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
-              </span>
+            <div style={{ fontSize: '12px' }}>
+              {loteSel && (loteSel.cabezas_activas <= 0 || Number(loteSel.peso_actual_prom) <= 0)
+                ? 'El lote no tiene cabezas activas o peso promedio cargado.'
+                : 'Los cortes de este lote no tienen precio de mercado. Configurá fuentes de datos y ejecutá el scraping primero.'}
             </div>
-          );
-        })}
-      </div>
-
-      {negocioId && <AlertasPrecio negocioId={negocioId} />}
-    </div>
-  );
-}
-
-function AlertasPrecio({ negocioId }) {
-  const [alertas, setAlertas] = useState([]);
-  const [expandido, setExpandido] = useState(true);
-  const [recalculando, setRecalculando] = useState(false);
-
-  async function cargarAlertas() {
-    try {
-      const d = await apiFetch(`/api/negocios/${negocioId}/alertas-precio`);
-      setAlertas(d.alertas || []);
-    } catch { /* ignore */ }
-  }
-
-  useEffect(() => { cargarAlertas(); }, [negocioId]);
-
-  async function recalcular() {
-    setRecalculando(true);
-    try {
-      await apiFetch(`/api/negocios/${negocioId}/alertas-precio/recalcular`, { method: 'POST' });
-      await cargarAlertas();
-    } catch (e) { console.error('recalcular alertas:', e); }
-    setRecalculando(false);
-  }
-
-  const WARN = 'var(--accent-warning)';
-  const GRID = 'minmax(120px,1.4fr) minmax(90px,1fr) 110px 110px 100px 130px';
-
-  if (alertas.length === 0) return (
-    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <Icon name="alertTriangle" size={16} style={{ color: 'var(--text-tertiary)' }} />
-      <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', flex: 1 }}>No hay alertas de cambio de precio.</span>
-      <button
-        onClick={recalcular} disabled={recalculando}
-        style={{ background: 'transparent', border: `1px solid ${WARN}44`, borderRadius: '5px', padding: '4px 12px', fontSize: '12px', color: WARN, cursor: 'pointer', fontWeight: 500, opacity: recalculando ? 0.5 : 1 }}
-      >{recalculando ? 'Recalculando…' : 'Recalcular alertas'}</button>
-    </div>
-  );
-
-  return (
-    <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${WARN}33`, borderLeft: `3px solid ${WARN}`, borderRadius: '8px', overflow: 'hidden' }}>
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '12px 16px' }}
-        onClick={() => setExpandido(e => !e)}
-        id="alertas-precio-toggle"
-      >
-        <Icon name="alertTriangle" size={16} style={{ color: WARN }} />
-        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Alertas de cambio de precio</span>
-        <span style={{ background: 'var(--accent-danger)', color: '#fff', borderRadius: '999px', padding: '1px 8px', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{alertas.length}</span>
-        <button
-          onClick={e => { e.stopPropagation(); recalcular(); }}
-          disabled={recalculando}
-          style={{ marginLeft: '8px', background: 'transparent', border: `1px solid ${WARN}44`, borderRadius: '5px', padding: '3px 10px', fontSize: '11px', color: WARN, cursor: 'pointer', fontWeight: 500, opacity: recalculando ? 0.5 : 1, transition: 'opacity 0.15s' }}
-        >{recalculando ? 'Recalculando…' : 'Recalcular'}</button>
-        <Icon name={expandido ? 'chevronUp' : 'chevronDown'} size={15} style={{ color: 'var(--text-tertiary)', marginLeft: 'auto' }} />
-      </div>
-      {expandido && (
-        <div style={{ padding: '0 16px 12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-            {[['Corte', 'left'], ['Canal', 'left'], ['Precio nuevo', 'right'], ['Promedio ant.', 'right'], ['Variación', 'right'], ['Fecha', 'left']].map(([h, a]) => (
-              <div key={h} style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.05em', fontWeight: 500, textAlign: a }}>{h}</div>
-            ))}
           </div>
-          {alertas.map((a, i) => {
-            const up = a.variacion_pct > 0;
-            return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: GRID, gap: '10px', padding: '9px 0', borderBottom: i < alertas.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{a.corte_canonico}</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{a.canal}</span>
-                <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{Number(a.precio_nuevo).toFixed(2)}</span>
-                <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textAlign: 'right' }}>{Number(a.precio_promedio).toFixed(2)}</span>
-                <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: up ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right' }}>{up ? '+' : ''}{Number(a.variacion_pct).toFixed(2)}%</span>
-                <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{a.created_at?.slice(0, 16) || '—'}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        ) : vista === 'decision' ? (
+          <VistaDecision 
+            items={items} 
+            metaModelos={metaModelos} 
+            historico={historico} 
+            alertas={alertas} 
+            horizonte={horizonte} 
+          />
+        ) : (
+          <VistaTabla 
+            items={items} 
+            metaModelos={metaModelos} 
+            historico={historico} 
+          />
+        )}
+      </div>
+
     </div>
   );
 }
-
-function Sparkline({ historico, corte, canal }) {
-  if (!historico || historico.length === 0) return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
-  
-  // Filtrar últimos 30 precios del corte y canal
-  const precios = historico
-    .filter(h => h.corte_canonico === corte && h.canal === canal)
-    .slice(0, 30)
-    .map(h => Number(h.precio_kg));
-    
-  if (precios.length < 2) return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
-  
-  const min = Math.min(...precios);
-  const max = Math.max(...precios);
-  const range = max - min || 1;
-  const w = 60;
-  const h = 20;
-  
-  // El histórico viene DESC, así que el más reciente está en el índice 0
-  // Invertimos para graficar de izquierda a derecha (antiguo a nuevo)
-  const pts = [...precios].reverse().map((val, i) => {
-    const x = (i / (precios.length - 1)) * w;
-    const y = h - ((val - min) / range) * h;
-    return `${x},${y}`;
-  }).join(' L ');
-  
-  return (
-    <svg width={w} height={h} style={{ overflow: 'visible', verticalAlign: 'middle' }}>
-      <path d={`M ${pts}`} fill="none" stroke="var(--accent-industrial)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-

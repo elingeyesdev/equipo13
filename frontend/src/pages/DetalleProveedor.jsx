@@ -20,9 +20,14 @@ const DetalleProveedor = ({ negocioId, activeProveedor, onNavigate }) => {
   }, [negocioId, activeProveedor?.id]);
 
   const fmt = (n) => (parseFloat(n) || 0).toLocaleString('es-BO', { minimumFractionDigits: 2 });
-  const fmtFecha = (f) => f
-    ? new Date(f + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+  const fmtFecha = (f) => {
+    if (!f) return '—';
+    const isPlainDate = /^\d{4}-\d{2}-\d{2}$/.test(f);
+    const dateStr = isPlainDate ? `${f}T12:00:00` : f;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Fecha inválida';
+    return d.toLocaleDateString('es-BO', { timeZone: 'America/La_Paz', day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

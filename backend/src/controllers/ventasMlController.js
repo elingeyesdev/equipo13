@@ -120,6 +120,7 @@ export async function getRecomendaciones(req, res) {
   try {
     const data = await mlPost('/recomendaciones/generar', {
       negocio_id: req.params.negocioId,
+      lote_id: req.query.loteId,
       horizonte_dias: parseInt(req.query.horizonte) || 7,
     });
     res.json(data);
@@ -230,4 +231,45 @@ export async function listarSeriePrecios(req, res) {
     console.error('listarSeriePrecios error:', err); 
     res.status(500).json({ error: err.message }); 
   }
+}
+
+// POST /api/negocios/:negocioId/recomendaciones/:recId/fijar  { nombre }
+export async function fijarRecomendacion(req, res) {
+  const { nombre } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE recomendacion_venta SET fijada = TRUE, nombre = $1
+        WHERE id = $2 AND negocio_id = $3 RETURNING id, nombre, generada_en, fijada`,
+      [nombre || `Ficha ${new Date().toISOString().slice(0,10)}`, req.params.recId, req.params.negocioId]);
+    if (!rows.length) return res.status(404).json({ error: 'Recomendación no encontrada' });
+    res.json(rows[0]);
+  } catch (err) { console.error('fijarRecomendacion error:', err); res.status(500).json({ error: err.message }); }
+}
+
+// GET /api/negocios/:negocioId/recomendaciones/fichas  → lista de fijadas
+export async function listarFichas(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, nombre, generada_en, horizonte_dias, modo, resumen
+         FROM recomendacion_venta
+        WHERE negocio_id = $1 AND fijada = TRUE
+        ORDER BY generada_en DESC LIMIT 50`, [req.params.negocioId]);
+    res.json(rows);
+  } catch (err) { console.error('listarFichas error:', err); res.status(500).json({ error: err.message }); }
+}
+
+// GET /api/negocios/:negocioId/recomendaciones/fichas/:recId  → cabecera + items
+export async function getFicha(req, res) {
+  try {
+    const cab = await pool.query(
+      `SELECT id, nombre, generada_en, horizonte_dias, modo, resumen
+         FROM recomendacion_venta WHERE id = $1 AND negocio_id = $2`,
+      [req.params.recId, req.params.negocioId]);
+    if (!cab.rows.length) return res.status(404).json({ error: 'Ficha no encontrada' });
+    const items = await pool.query(
+      `SELECT corte_canonico, canal_sugerido, precio_referencia, costo_kg, margen_kg,
+              kg_disponibles, ingreso_estimado, tendencia, precio_pronosticado, accion, confianza
+         FROM recomendacion_item WHERE recomendacion_id = $1`, [req.params.recId]);
+    res.json({ ...cab.rows[0], items: items.rows });
+  } catch (err) { console.error('getFicha error:', err); res.status(500).json({ error: err.message }); }
 }

@@ -8,8 +8,8 @@ from .auth import auth_dependency
 from scraping.repo import cargar_fuentes, cargar_alias, persistir_filas, guardar_scrape_run
 from scraping.runner import correr_fuentes
 from scraping.registry import get_adapter
-from ml.repo import cargar_cortes_disponibles, cargar_precios_recientes, guardar_recomendacion, guardar_modelo_meta, cargar_topes_canal
-from ml.recommend import recomendar_heuristico, enriquecer_con_forecast
+from ml.repo import cargar_cortes_disponibles, cargar_cortes_catalogo, cargar_precios_recientes, guardar_recomendacion, guardar_modelo_meta, cargar_topes_canal
+from ml.recommend import recomendar_heuristico, aplicar_costeo_valor, enriquecer_con_forecast
 from ml.features import construir_series
 from ml.forecast import pronosticar
 from ml.optimize import asignar_volumenes_con_topes
@@ -63,14 +63,24 @@ def scraping_run(payload: ScrapingRequest):
 @app.post("/recomendaciones/generar", dependencies=[Depends(auth_dependency)])
 def generar_recomendaciones(payload: dict):
     negocio_id = payload.get("negocio_id")
+    lote_id = payload.get("lote_id")
     if not negocio_id:
         raise HTTPException(status_code=400, detail="negocio_id requerido")
     horizonte = int(payload.get("horizonte_dias", 7))
     try:
-        cortes = cargar_cortes_disponibles(negocio_id)
+        # Con lote: despiece teórico del lote (kg y costo reales del lote).
+        # Sin lote (p. ej. Liquidación, que solo quiere precios sugeridos): cortes del catálogo.
+        cortes = (cargar_cortes_disponibles(negocio_id, lote_id) if lote_id
+                  else cargar_cortes_catalogo(negocio_id))
         precios = cargar_precios_recientes(negocio_id)
         items = recomendar_heuristico(cortes, precios)
-        
+
+        # Costeo conjunto por valor de venta (solo con lote: reparte el costo real del lote
+        # entre los cortes en proporción a su valor de mercado, evitando pérdidas artificiales
+        # en los subproductos baratos como cuero/grasa/hueso).
+        if lote_id and cortes:
+            items = aplicar_costeo_valor(items, cortes[0].get("costo_total_lote"))
+
         series = construir_series(precios)
         forecasts = {}
         hay_forecast = False
@@ -89,7 +99,7 @@ def generar_recomendaciones(payload: dict):
         
         modo = "forecast" if hay_forecast else "heuristico"
         
-        rec_id = guardar_recomendacion(negocio_id, items_optimizados, modo, horizonte)
+        rec_id = guardar_recomendacion(negocio_id, lote_id, items_optimizados, modo, horizonte) if lote_id else None
         return {"id": rec_id, "modo": modo, "items": items_optimizados,
                 "resumen": {"ingreso_total": sum(i["ingreso_estimado"] for i in items_optimizados),
                             "margen_total": sum(i.get("margen_total", 0) for i in items_optimizados)}}

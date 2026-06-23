@@ -23,7 +23,10 @@ export const getLotes = async (req, res) => {
                 SELECT SUM(b.monto)
                 FROM bitacora_lote b
                 WHERE b.lote_id = l.id AND b.es_baja = false AND b.tipo = 'Mano de obra' AND b.monto IS NOT NULL
-              ), 0) AS costo_mo
+              ), 0) AS costo_mo,
+              EXISTS(
+                SELECT 1 FROM despiece_cortes dc WHERE dc.lote_id = l.id
+              ) AS tiene_despiece
        FROM lotes l
        WHERE l.negocio_id = $1
        ORDER BY l.created_at DESC`,

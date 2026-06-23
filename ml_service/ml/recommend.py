@@ -41,6 +41,40 @@ def recomendar_heuristico(cortes: list[dict], precios: list[dict]) -> list[dict]
     return items
 
 
+def aplicar_costeo_valor(items: list[dict], costo_total_lote: float) -> list[dict]:
+    """Costeo conjunto por VALOR DE VENTA: reparte el costo total del lote entre los cortes
+    en proporción a su valor de mercado (precio × kg), en vez de por peso físico.
+
+    cost_kg_i = costo_total_lote × precio_i / Σ(precio_j × kg_j)
+              = precio_i × k,   con k = costo_total_lote / valor_total_mercado
+
+    Así un corte premium (lomo) absorbe más costo y uno barato (cuero) casi nada, y el margen
+    de cada corte queda proporcional: margen_i = precio_i × (1 − k). Si el lote es rentable en
+    conjunto (k < 1), todos los cortes quedan con margen positivo — sin pérdidas artificiales.
+    """
+    if not costo_total_lote or costo_total_lote <= 0:
+        return items  # sin costo de lote (p. ej. modo catálogo): no se reparte nada
+
+    valor_total = sum(
+        it["precio_referencia"] * it["kg_disponibles"]
+        for it in items
+        if it.get("precio_referencia") and it.get("kg_disponibles")
+    )
+    if valor_total <= 0:
+        return items
+
+    k = costo_total_lote / valor_total
+    for it in items:
+        costo_kg = round(it["precio_referencia"] * k, 4)
+        it["costo_kg"] = costo_kg
+        it["margen_kg"] = round(it["precio_referencia"] - costo_kg, 4)
+        it["ingreso_estimado"] = round(it["precio_referencia"] * it["kg_disponibles"], 4)
+        it["margen_total"] = round(it["margen_kg"] * it["kg_disponibles"], 4)
+
+    items.sort(key=lambda x: x["margen_total"], reverse=True)
+    return items
+
+
 def enriquecer_con_forecast(items: list[dict], forecasts: dict[tuple, dict]) -> list[dict]:
     """Inyecta tendencia/accion/precio_pronosticado a cada item según el canal sugerido."""
     for it in items:
@@ -48,7 +82,10 @@ def enriquecer_con_forecast(items: list[dict], forecasts: dict[tuple, dict]) -> 
         if f:
             it["tendencia"] = f.get("tendencia")
             it["precio_pronosticado"] = f.get("precio_pronosticado")
+            it["precio_min"] = f.get("precio_min")
+            it["precio_max"] = f.get("precio_max")
             it["confianza"] = f.get("confianza")
+            it["confianza_nivel"] = f.get("confianza_nivel")
             
             if it["precio_pronosticado"] is not None:
                 it["margen_pronosticado"] = round(it["precio_pronosticado"] - it["costo_kg"], 4)

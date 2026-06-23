@@ -138,7 +138,8 @@ import {
 import {
   ejecutarScraping, listarFuentes, crearFuente, actualizarFuente, eliminarFuente,
   listarAlias, crearAlias, eliminarAlias, listarHistorico, listarScrapeRuns, getRecomendaciones,
-  getAlertasPrecios, recalcularAlertasPrecios, getModelosMeta, listarPreciosScrapeados, listarSeriePrecios
+  getAlertasPrecios, recalcularAlertasPrecios, getModelosMeta, listarPreciosScrapeados, listarSeriePrecios,
+  fijarRecomendacion, listarFichas, getFicha
 } from '../controllers/ventasMlController.js';
 import {
   listarCatalogoCortes, crearCatalogoCorte, actualizarCatalogoCorte, eliminarCatalogoCorte
@@ -319,6 +320,11 @@ router.post('/:negocioId/corte-alias',            authMiddleware, requireMembers
 router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembership('admin'), eliminarAlias);
 router.get('/:negocioId/precios-historico',       authMiddleware, requireMembership('admin'), listarHistorico);
 router.get('/:negocioId/scrape-runs',             authMiddleware, requireMembership('admin'), listarScrapeRuns);
+
+router.get( '/:negocioId/recomendaciones/fichas',          authMiddleware, requireMembership('admin'), listarFichas);
+router.get( '/:negocioId/recomendaciones/fichas/:recId',   authMiddleware, requireMembership('admin'), getFicha);
+router.post('/:negocioId/recomendaciones/:recId/fijar',    authMiddleware, requireMembership('admin'), fijarRecomendacion);
+
 router.get('/:negocioId/recomendaciones',         authMiddleware, requireMembership('admin'), getRecomendaciones);
 router.get('/:negocioId/recomendaciones/meta',    authMiddleware, requireMembership('admin'), getModelosMeta);
 router.get('/:negocioId/alertas-precio',          authMiddleware, requireMembership('admin'), getAlertasPrecios);

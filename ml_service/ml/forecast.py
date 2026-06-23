@@ -8,6 +8,13 @@ def _tendencia_y_accion(actual: float, pronosticado: float) -> tuple[str, str]:
     return "estable", "vender_ahora"
 
 
+def _nivel_confianza(mape: float | None) -> str:
+    if mape is None:        return "media"
+    if mape < 5:            return "alta"
+    if mape < 15:           return "media"
+    return "baja"
+
+
 def _pronosticar_prophet(serie: list[tuple[str, float]], horizonte: int) -> dict:
     import pandas as pd
     try:
@@ -44,15 +51,20 @@ def _pronosticar_prophet(serie: list[tuple[str, float]], horizonte: int) -> dict
         forecast_final = m_final.predict(future)
         
         pronosticado = round(float(forecast_final.iloc[-1]["yhat"]), 4)
+        precio_min = round(float(forecast_final.iloc[-1]["yhat_lower"]), 4)
+        precio_max = round(float(forecast_final.iloc[-1]["yhat_upper"]), 4)
         actual = serie[-1][1]
         tendencia, accion = _tendencia_y_accion(actual, pronosticado)
         
         return {
             "modelo": "prophet",
             "precio_pronosticado": pronosticado,
+            "precio_min": precio_min,
+            "precio_max": precio_max,
             "tendencia": tendencia,
             "accion": accion,
             "confianza": 0.85,
+            "confianza_nivel": _nivel_confianza(mape),
             "n_puntos": len(serie),
             "mae": round(mae, 4),
             "mape": round(mape, 4)
@@ -72,16 +84,34 @@ def _pronosticar_holt_winters(serie_y: list[float], horizonte: int) -> dict:
     except Exception:
         return _pronosticar_fallback(serie_y, horizonte)
     tendencia, accion = _tendencia_y_accion(actual, pronosticado)
-    return {"modelo": modelo_nombre, "precio_pronosticado": pronosticado,
-            "tendencia": tendencia, "accion": accion, "confianza": confianza, "n_puntos": len(serie_y)}
+    return {
+        "modelo": modelo_nombre,
+        "precio_pronosticado": pronosticado,
+        "precio_min": None,
+        "precio_max": None,
+        "tendencia": tendencia,
+        "accion": accion,
+        "confianza": confianza,
+        "confianza_nivel": "media",
+        "n_puntos": len(serie_y)
+    }
 
 def _pronosticar_fallback(serie_y: list[float], horizonte: int) -> dict:
     actual = serie_y[-1]
     pendiente = (serie_y[-1] - serie_y[0]) / max(len(serie_y) - 1, 1)
     pronosticado = round(actual + pendiente * horizonte, 4)
     tendencia, accion = _tendencia_y_accion(actual, pronosticado)
-    return {"modelo": "fallback", "precio_pronosticado": pronosticado,
-            "tendencia": tendencia, "accion": accion, "confianza": 0.3, "n_puntos": len(serie_y)}
+    return {
+        "modelo": "fallback",
+        "precio_pronosticado": pronosticado,
+        "precio_min": None,
+        "precio_max": None,
+        "tendencia": tendencia,
+        "accion": accion,
+        "confianza": 0.3,
+        "confianza_nivel": "baja",
+        "n_puntos": len(serie_y)
+    }
 
 def pronosticar(serie: list[tuple[str, float]], horizonte: int = 7, umbral: int = 21) -> dict:
     """Predice el precio a `horizonte` pasos."""
