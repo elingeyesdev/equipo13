@@ -3,6 +3,7 @@ import { Icon } from '../icons.jsx';
 import { useTheme } from '../layouts/AppLayout.jsx';
 import { Btn, RubroBadge } from '../components/ui.jsx';
 import { apiFetch } from '../config/api.js';
+import { PRESETS_PESAJE } from '../constants/pesaje.js';
 
 const MONEDAS = ['BOB (Bs)', 'USD ($)', 'ARS ($)', 'PEN (S/)'];
 const MONEDAS_OPTS = ['BOB', 'USD', 'ARS', 'PEN'];
@@ -529,11 +530,35 @@ const Configuracion = ({ negocioId, onNavigate, user, negocios = [], loadNegocio
   const [prevNombre, setPrevNombre] = useState(negocio.nombre);
   const [nombre, setNombre] = useState(negocio.nombre);
   const [moneda, setMoneda] = useState('BOB (Bs)');
+  const [pesajeIntervalo, setPesajeIntervalo] = useState(negocio.pesaje_intervalo_dias ?? 14);
+  const [savingDatos, setSavingDatos] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
 
   if (negocio.nombre !== prevNombre) {
     setPrevNombre(negocio.nombre);
     setNombre(negocio.nombre);
+    setPesajeIntervalo(negocio.pesaje_intervalo_dias ?? 14);
   }
+
+  const handleSaveDatos = async () => {
+    setSavingDatos(true); setSaveMsg('');
+    try {
+      await apiFetch(`/api/negocios/${negocio.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          nombre: nombre.trim(), 
+          moneda: moneda.split(' ')[0], 
+          pesaje_intervalo_dias: pesajeIntervalo 
+        }),
+      });
+      setSaveMsg('Cambios guardados con éxito.');
+      await loadNegocios();
+    } catch (e) {
+      setSaveMsg(e?.error || 'Error al guardar.');
+    } finally {
+      setSavingDatos(false);
+    }
+  };
 
   const SUB_MENU = [
     { id: 'negocios',   label: 'Mis negocios',      icon: 'building'    },
@@ -575,12 +600,35 @@ const Configuracion = ({ negocioId, onNavigate, user, negocios = [], loadNegocio
           </div>
         </FieldRow>
         <FieldRow label="Moneda" hint="Símbolo que aparece en todos los valores.">
-          <select value={moneda} onChange={e => setMoneda(e.target.value)} style={{ width: '180px' }}>
+          <select value={moneda} onChange={e => setMoneda(e.target.value)} style={{ width: '180px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)' }}>
             {MONEDAS.map(m => <option key={m}>{m}</option>)}
           </select>
         </FieldRow>
-        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-          <Btn accentColor={accentColor} icon="save">Guardar cambios</Btn>
+        <FieldRow label="Registrar peso del lote cada" hint="Default para todos los lotes.">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <select
+              value={PRESETS_PESAJE.some(p => p.dias === pesajeIntervalo) ? pesajeIntervalo : ''}
+              onChange={(e) => setPesajeIntervalo(e.target.value === '' ? pesajeIntervalo : Number(e.target.value))}
+              style={{ width: '180px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)' }}
+            >
+              {PRESETS_PESAJE.map(p => (
+                <option key={p.label} value={p.dias ?? ''}>{p.label}</option>
+              ))}
+            </select>
+            <input
+              type="number" min="1"
+              value={pesajeIntervalo}
+              onChange={(e) => setPesajeIntervalo(Number(e.target.value))}
+              style={{ width: '80px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '8px 12px', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)' }}
+            />
+            <span style={{ marginLeft: 6, color: 'var(--text-tertiary)', fontSize: '13px' }}>días</span>
+          </div>
+        </FieldRow>
+        <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px' }}>
+          {saveMsg && <span style={{ fontSize: '13px', color: saveMsg.includes('Error') ? 'var(--accent-danger)' : 'var(--accent-success)' }}>{saveMsg}</span>}
+          <Btn accentColor={accentColor} icon="save" onClick={handleSaveDatos} disabled={savingDatos}>
+            {savingDatos ? 'Guardando...' : 'Guardar cambios'}
+          </Btn>
         </div>
       </div>
     );
