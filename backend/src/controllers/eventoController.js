@@ -43,9 +43,9 @@ export async function crearEvento(req, res) {
     // y peso_actual_prom).
     if (tipo === 'pesaje') {
       await client.query(
-        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg)
-         VALUES ($1, CURRENT_DATE, $2)`,
-        [loteId, payload.peso_promedio]
+        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, origen, registrado_por)
+         VALUES ($1, CURRENT_DATE, $2, 'operario', $3)`,
+        [loteId, payload.peso_promedio, req.user.id]
       );
       await client.query(
         'UPDATE lotes SET peso_actual_prom = $1 WHERE id = $2 AND negocio_id = $3',

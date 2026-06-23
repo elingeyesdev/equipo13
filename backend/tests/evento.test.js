@@ -35,3 +35,16 @@ test('aprobarBaja descuenta cabezas y registra bitácora', async () => {
     assert.ok(qs.some(q => /INSERT INTO bitacora_lote/.test(q)));
   } finally { pool.connect = original; }
 });
+
+test('crearEvento pesaje → inserta en pesajes_lote con origen operario', async () => {
+  const original = pool.connect;
+  const qs = [];
+  pool.connect = async () => ({ query: async (sql) => { qs.push(sql); return { rows: [{ id: 'e1', estado: 'aplicado' }] }; }, release(){} });
+  const req = { params: { loteId: 'l1' }, user: { id: 'op1', negocio_id: 'n1' },
+    body: { tipo: 'pesaje', payload: { peso_promedio: 40 }, fotos: [] } };
+  const res = mockRes();
+  try {
+    await crearEvento(req, res);
+    assert.ok(qs.some(q => /INSERT INTO pesajes_lote/.test(q) && /operario/.test(q)));
+  } finally { pool.connect = original; }
+});
