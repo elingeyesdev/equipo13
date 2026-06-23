@@ -227,9 +227,9 @@ export async function seedEngordePorcino(negocioId, db) {
     // y la fecha base desde la que se cuenta el proximo pesaje del recordatorio.
     for (const p of pesajes) {
       await db.query(
-        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, origen)
-         VALUES ($1, $2, $3, 'dueno')`,
-        [loteId, dateOffset(p.offset), p.peso],
+        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, n_cabezas_muestra, notas, origen)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [loteId, dateOffset(p.offset), p.peso, p.muestras || null, p.notas || null, p.origen || 'dueno'],
       );
     }
 
@@ -356,10 +356,8 @@ export async function seedEngordePorcino(negocioId, db) {
     pesajeIntervalo: 10, // override propio del lote
     pesajeActivo: true,
     pesajes: [
-      { offset: -30, peso:  8.5 },
-      { offset: -24, peso: 12.0 },
-      { offset: -18, peso: 16.0 },
-      { offset: -14, peso: 20.0 }, // último: hace 14 días → vencido (cadencia 10)
+      { offset: -24, peso: 12.0, muestras: 10, notas: 'Llegaron bien', origen: 'dueno' },
+      { offset: -14, peso: 20.0, muestras: null, notas: 'Pesaje del encargado', origen: 'operario' }, // último: hace 14 días → vencido (cadencia 10)
     ],
   });
 
@@ -371,10 +369,9 @@ export async function seedEngordePorcino(negocioId, db) {
     pesajeIntervalo: null, // hereda la cadencia del negocio (15 días)
     pesajeActivo: true,
     pesajes: [
-      { offset: -30, peso:  8.5 },
-      { offset: -21, peso: 13.0 },
-      { offset: -12, peso: 18.5 },
-      { offset:  -3, peso: 24.0 }, // último: hace 3 días → al día (cadencia 15)
+      { offset: -25, peso: 12.0, muestras: 5, notas: '', origen: 'operario' },
+      { offset: -15, peso: 16.5, muestras: 5, notas: 'Comen bien', origen: 'operario' },
+      { offset:  -3, peso: 24.0, muestras: null, notas: 'Se pesan los más gordos', origen: 'dueno' }, // último: hace 3 días → al día (cadencia 15)
     ],
   });
 
