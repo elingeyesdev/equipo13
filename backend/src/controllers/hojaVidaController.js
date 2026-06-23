@@ -242,6 +242,17 @@ export async function getDetalleDia(req, res) {
       ? Number(pesRows[0].peso_prom_kg)
       : null;
 
+    // Pesaje registrado exactamente en la fecha vista (para mostrarlo / no duplicarlo)
+    const { rows: pdRows } = await pool.query(
+      `SELECT id, peso_prom_kg, n_cabezas_muestra, notas, origen
+       FROM pesajes_lote
+       WHERE lote_id = $1 AND fecha = $2`,
+      [loteId, fecha]
+    );
+    const pesajeDelDia = pdRows[0]
+      ? { ...pdRows[0], peso_prom_kg: Number(pdRows[0].peso_prom_kg) }
+      : null;
+
     res.json({
       lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal },
       fecha,
@@ -249,6 +260,7 @@ export async function getDetalleDia(req, res) {
       edad_actual_dias: edadActualDias,
       estandar,
       pesaje,
+      pesaje_del_dia: pesajeDelDia,
       registro: registro ? { ...registro, items } : null,
     });
   } catch (err) {
