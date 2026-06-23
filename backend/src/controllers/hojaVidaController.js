@@ -1,6 +1,7 @@
 import { pool } from '../config/database.js';
 import { getEstandarDia } from '../services/estandaresAnimales.js';
 import { calcularConsumoFIFO } from '../services/inventarioFIFO.js';
+import { calcularEstadoPesaje } from '../services/pesajeProgramado.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -216,12 +217,32 @@ export async function getDetalleDia(req, res) {
       items = await loadItemsConDetalle(registro.id);
     }
 
+    // Estado del recordatorio de pesaje
+    const { rows: pesRows } = await pool.query(
+      'SELECT MAX(fecha) AS ultimo FROM pesajes_lote WHERE lote_id = $1',
+      [loteId]
+    );
+    const { rows: negRows } = await pool.query(
+      'SELECT pesaje_intervalo_dias FROM negocios WHERE id = $1',
+      [negocioId]
+    );
+    const ultimoPesajeFecha = pesRows[0]?.ultimo
+      ? new Date(pesRows[0].ultimo).toISOString().split('T')[0]
+      : null;
+    const pesaje = calcularEstadoPesaje({
+      lote,
+      ultimoPesajeFecha,
+      intervaloNegocio: negRows[0]?.pesaje_intervalo_dias ?? 14,
+      hoy: fecha,
+    });
+
     res.json({
       lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal },
       fecha,
       dias_en_lote: diasEnLote,
       edad_actual_dias: edadActualDias,
       estandar,
+      pesaje,
       registro: registro ? { ...registro, items } : null,
     });
   } catch (err) {

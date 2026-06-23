@@ -10,6 +10,8 @@ export const getLotes = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT l.*,
+              (SELECT MAX(p.fecha) FROM pesajes_lote p WHERE p.lote_id = l.id)
+                AS ultimo_pesaje_fecha,
               l.costo_adquisicion + COALESCE((
                 SELECT SUM(b.monto)
                 FROM bitacora_lote b
