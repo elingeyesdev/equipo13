@@ -219,15 +219,18 @@ export async function getDetalleDia(req, res) {
 
     // Estado del recordatorio de pesaje
     const { rows: pesRows } = await pool.query(
-      'SELECT MAX(fecha) AS ultimo FROM pesajes_lote WHERE lote_id = $1',
+      `SELECT fecha, peso_prom_kg FROM pesajes_lote
+       WHERE lote_id = $1
+       ORDER BY fecha DESC, created_at DESC
+       LIMIT 1`,
       [loteId]
     );
     const { rows: negRows } = await pool.query(
       'SELECT pesaje_intervalo_dias FROM negocios WHERE id = $1',
       [negocioId]
     );
-    const ultimoPesajeFecha = pesRows[0]?.ultimo
-      ? new Date(pesRows[0].ultimo).toISOString().split('T')[0]
+    const ultimoPesajeFecha = pesRows[0]?.fecha
+      ? new Date(pesRows[0].fecha).toISOString().split('T')[0]
       : null;
     const pesaje = calcularEstadoPesaje({
       lote,
@@ -235,6 +238,9 @@ export async function getDetalleDia(req, res) {
       intervaloNegocio: negRows[0]?.pesaje_intervalo_dias ?? 14,
       hoy: fecha,
     });
+    pesaje.ultimo_peso_kg = pesRows[0]?.peso_prom_kg != null
+      ? Number(pesRows[0].peso_prom_kg)
+      : null;
 
     res.json({
       lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal },

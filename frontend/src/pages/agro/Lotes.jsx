@@ -170,6 +170,10 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor, intervaloNegocio }) => {
                 {PRESETS_PESAJE.filter(p => p.dias !== null).map(p => (
                   <option key={p.dias} value={p.dias}>{p.label}</option>
                 ))}
+                {form.pesaje_intervalo_dias != null
+                  && !PRESETS_PESAJE.some(p => p.dias === form.pesaje_intervalo_dias) && (
+                  <option value={form.pesaje_intervalo_dias}>Cada {form.pesaje_intervalo_dias} días</option>
+                )}
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '18px' }}>

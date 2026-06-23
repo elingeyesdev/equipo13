@@ -234,7 +234,7 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
       setPesoMsg('Peso registrado ✓');
       setReloadKey(k => k + 1);
     } catch (err) {
-      setPesoMsg(err.message || 'Error al registrar el peso');
+      setPesoMsg(err?.error || err?.message || 'Error al registrar el peso');
     } finally {
       setPesoSaving(false);
     }
@@ -326,7 +326,7 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
           <Label>Peso del lote</Label>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
             Último peso: {data?.pesaje?.ultimo_pesaje_fecha
-              ? `${activeLote?.peso_actual_prom ?? '—'} kg (${data.pesaje.ultimo_pesaje_fecha})`
+              ? `${data.pesaje.ultimo_peso_kg ?? '—'} kg (${data.pesaje.ultimo_pesaje_fecha})`
               : 'sin registros'}
             {data?.pesaje?.proximo_pesaje_fecha && ` · próximo: ${data.pesaje.proximo_pesaje_fecha}`}
           </div>

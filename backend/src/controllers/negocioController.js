@@ -5,7 +5,8 @@ import { provisionarNegocioNuevo } from '../services/provisionNegocio.js';
 export async function getAll(req, res) {
   const includeInactivos = req.query.includeInactivos === 'true';
   try {
-    let q = `SELECT id, nombre, rubro, sub_rubro, plantilla, moneda, activo, created_at
+    let q = `SELECT id, nombre, rubro, sub_rubro, plantilla, moneda, activo, created_at,
+                    pesaje_intervalo_dias
              FROM negocios WHERE user_id = $1`;
     if (!includeInactivos) q += ' AND activo = true';
     q += ' ORDER BY created_at ASC';
