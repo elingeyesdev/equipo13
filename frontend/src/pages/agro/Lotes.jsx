@@ -2,6 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '../../icons.jsx';
 import { MoneyDisplay, StatusBadge, Btn, InfoBanner, InfoTip, FormulaHint } from '../../components/ui.jsx';
 import { apiFetch } from '../../config/api.js';
+import { PRESETS_PESAJE, intervaloSugeridoPorEspecie } from '../../constants/pesaje.js';
+
+function estadoPesajeLote(lote, intervaloNegocio) {
+  if (lote.pesaje_activo === false) return { texto: 'Pesaje apagado', vencido: false };
+  const intervalo = lote.pesaje_intervalo_dias ?? intervaloNegocio ?? 14;
+  const base = lote.ultimo_pesaje_fecha
+    ? new Date(lote.ultimo_pesaje_fecha)
+    : (lote.fecha_entrada ? new Date(lote.fecha_entrada) : null);
+  if (!base) return { texto: 'Sin fecha', vencido: false };
+  const proximo = new Date(base); proximo.setDate(proximo.getDate() + intervalo);
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const vencido = proximo < hoy;
+  const proximoStr = proximo.toISOString().split('T')[0];
+  return { texto: vencido ? `Vencido (tocaba ${proximoStr})` : `Próximo: ${proximoStr}`, vencido };
+}
 
 export const LOTES_DATA = [];
 const TIPOS_ANIMAL = ['Cerdo', 'Bovino', 'Ovino', 'Caprino', 'Otro'];
@@ -59,7 +74,7 @@ const fetchPuntoEquilibrio = async (negocioId, loteUuid) => {
   }
 };
 
-const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
+const NuevoLoteModal = ({ onClose, onSave, accentColor, intervaloNegocio }) => {
   const [form, setForm] = useState({
     tipo: 'Cerdo',
     identificador: '',
@@ -68,6 +83,8 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
     cabezas_inicio: '50',
     peso_inicial_prom: '8.5',
     costo_unitario: '',
+    pesaje_activo: true,
+    pesaje_intervalo_dias: intervaloSugeridoPorEspecie('Cerdo'),
   });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -120,7 +137,7 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo de animal</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} style={{ height: '38px' }}>
+              <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, pesaje_intervalo_dias: intervaloSugeridoPorEspecie(e.target.value) }))} style={{ height: '38px' }}>
                 {TIPOS_ANIMAL.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
@@ -139,6 +156,31 @@ const NuevoLoteModal = ({ onClose, onSave, accentColor }) => {
               onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
             />
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Ej: lechones de 28 días → ingresar 28</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cadencia de pesaje</label>
+              <select
+                value={form.pesaje_intervalo_dias === null ? '' : form.pesaje_intervalo_dias}
+                onChange={e => set('pesaje_intervalo_dias', e.target.value === '' ? null : Number(e.target.value))}
+                style={{ height: '38px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', padding: '0 11px', fontSize: '14px', outline: 'none' }}
+              >
+                <option value="">Usar default ({intervaloNegocio} días)</option>
+                {PRESETS_PESAJE.filter(p => p.dias !== null).map(p => (
+                  <option key={p.dias} value={p.dias}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '18px' }}>
+              <input
+                type="checkbox"
+                checked={form.pesaje_activo}
+                onChange={e => set('pesaje_activo', e.target.checked)}
+                id="chk-pesaje"
+              />
+              <label htmlFor="chk-pesaje" style={{ fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>Activar recordatorios</label>
+            </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
@@ -199,7 +241,7 @@ const mapLoteFromApi = (l, costosDetalle, icaData, peData) => ({
 const ICA_COLOR = { verde: 'var(--accent-success)', ambar: 'var(--accent-warning)', rojo: 'var(--accent-danger)' };
 const ICA_LABEL = { verde: 'Eficiente', ambar: 'Aceptable', rojo: 'Revisar' };
 
-const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
+const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado, intervaloNegocio }) => {
   const [desgloseOpen, setDesgloseOpen] = useState(false);
   const totalCosto = lote.costosTotal != null
     ? lote.costosTotal
@@ -243,7 +285,17 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
               </span>
             )}
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{lote.dias} días en engorde · Entrada: {lote.entrada}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{lote.dias} días en engorde · Entrada: {lote.entrada}</span>
+            {(() => {
+              const est = estadoPesajeLote(lote, intervaloNegocio);
+              return (
+                <span style={{ fontSize: '12px', color: est.vencido ? 'var(--accent-warning)' : 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                  {est.vencido ? '⚠ ' : ''}{est.texto}
+                </span>
+              );
+            })()}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Ganancia de peso</div>
@@ -384,8 +436,10 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado }) => {
   );
 };
 
-const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
+const Lotes = ({ negocioId, negocios = [], onNavigate, setActiveLote }) => {
   const accentColor = 'var(--accent-agro)';
+  const negocioActivo = negocios.find(n => n.id === negocioId);
+  const intervaloNegocio = negocioActivo?.pesaje_intervalo_dias ?? 14;
   const [lotes, setLotes] = useState([]);
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -429,6 +483,8 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
         peso_inicial_prom: form.peso_inicial_prom,
         costo_adquisicion: form.costo_adquisicion,
         edad_promedio_dias: parseInt(form.edad_promedio_dias) || 0,
+        pesaje_activo:     form.pesaje_activo,
+        pesaje_intervalo_dias: form.pesaje_intervalo_dias,
       }),
     });
     const [detalle, ica, pe] = await Promise.all([
@@ -484,7 +540,7 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {lotesActivos.map(l => (
-          <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} />
+          <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} intervaloNegocio={intervaloNegocio} />
         ))}
       </div>
 
@@ -506,14 +562,14 @@ const Lotes = ({ negocioId, onNavigate, setActiveLote }) => {
           {showFaenados && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {lotesFaenados.map(l => (
-                <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} isCerrado />
+                <LoteCard key={l._id} lote={l} onBitacora={handleDiario} onLiquidar={handleLiquidar} accentColor={accentColor} isCerrado intervaloNegocio={intervaloNegocio} />
               ))}
             </div>
           )}
         </div>
       )}
 
-      {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={handleSaveLote} accentColor={accentColor} />}
+      {modal && <NuevoLoteModal onClose={() => setModal(false)} onSave={handleSaveLote} accentColor={accentColor} intervaloNegocio={intervaloNegocio} />}
     </div>
   );
 };
