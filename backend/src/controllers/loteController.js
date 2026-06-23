@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { intervaloSugeridoPorEspecie } from '../services/pesajeProgramado.js';
 
 // ──────────────────────────────────────────────
 // LOTES CRUD & LIFECYCLE
@@ -81,11 +82,17 @@ export const createLote = async (req, res) => {
     peso_inicial_prom,
     costo_adquisicion,
     edad_promedio_dias,
+    pesaje_intervalo_dias,
   } = req.body;
 
   if (!identificador || !tipo_animal) {
     return res.status(400).json({ error: 'identificador y tipo_animal son requeridos' });
   }
+
+  // Si no mandan override, usar el sugerido por especie (null = hereda el del negocio).
+  const intervaloLote = pesaje_intervalo_dias != null
+    ? parseInt(pesaje_intervalo_dias)
+    : intervaloSugeridoPorEspecie(tipo_animal);
 
   try {
     const { rows } = await pool.query(
@@ -93,8 +100,8 @@ export const createLote = async (req, res) => {
          (negocio_id, identificador, tipo_animal, fecha_entrada,
           cabezas_inicio, cabezas_activas,
           peso_inicial_prom, peso_actual_prom,
-          costo_adquisicion, edad_promedio_dias, activo)
-       VALUES ($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,true)
+          costo_adquisicion, edad_promedio_dias, pesaje_intervalo_dias, activo)
+       VALUES ($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,$9,true)
        RETURNING *`,
       [
         negocioId,
@@ -105,6 +112,7 @@ export const createLote = async (req, res) => {
         peso_inicial_prom || 0,
         costo_adquisicion || 0,
         edad_promedio_dias != null ? parseInt(edad_promedio_dias) : 0,
+        intervaloLote,
       ]
     );
     res.status(201).json(rows[0]);
@@ -116,15 +124,18 @@ export const createLote = async (req, res) => {
 
 export const updateLote = async (req, res) => {
   const { negocioId, id } = req.params;
-  const { peso_actual_prom, cabezas_activas } = req.body;
+  const { peso_actual_prom, cabezas_activas, pesaje_intervalo_dias, pesaje_activo } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE lotes
-       SET peso_actual_prom = COALESCE($1, peso_actual_prom),
-           cabezas_activas  = COALESCE($2, cabezas_activas)
-       WHERE id = $3 AND negocio_id = $4
+       SET peso_actual_prom      = COALESCE($1, peso_actual_prom),
+           cabezas_activas       = COALESCE($2, cabezas_activas),
+           pesaje_intervalo_dias = COALESCE($3, pesaje_intervalo_dias),
+           pesaje_activo         = COALESCE($4, pesaje_activo)
+       WHERE id = $5 AND negocio_id = $6
        RETURNING *`,
-      [peso_actual_prom, cabezas_activas, id, negocioId]
+      [peso_actual_prom ?? null, cabezas_activas ?? null,
+       pesaje_intervalo_dias ?? null, pesaje_activo ?? null, id, negocioId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Lote no encontrado' });
     res.json(rows[0]);

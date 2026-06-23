@@ -62,17 +62,19 @@ export async function getOne(req, res) {
 
 export async function update(req, res) {
   const { id } = req.params;
-  const { nombre, moneda, sub_rubro, activo } = req.body;
+  const { nombre, moneda, sub_rubro, activo, pesaje_intervalo_dias } = req.body;
   try {
     const result = await pool.query(
       `UPDATE negocios
-       SET nombre    = COALESCE($1, nombre),
-           moneda    = COALESCE($2, moneda),
-           sub_rubro = COALESCE($3, sub_rubro),
-           activo    = COALESCE($4, activo)
-       WHERE id = $5 AND user_id = $6
+       SET nombre                = COALESCE($1, nombre),
+           moneda                = COALESCE($2, moneda),
+           sub_rubro             = COALESCE($3, sub_rubro),
+           activo                = COALESCE($4, activo),
+           pesaje_intervalo_dias = COALESCE($5, pesaje_intervalo_dias)
+       WHERE id = $6 AND user_id = $7
        RETURNING *`,
-      [nombre ?? null, moneda ?? null, sub_rubro ?? null, activo ?? null, id, req.user.id]
+      [nombre ?? null, moneda ?? null, sub_rubro ?? null, activo ?? null,
+       pesaje_intervalo_dias ?? null, id, req.user.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Negocio no encontrado' });
     res.json(result.rows[0]);
