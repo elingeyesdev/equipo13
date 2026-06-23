@@ -111,12 +111,15 @@ export async function getVistaMensual(req, res) {
                   'unidad_id',       rdi.unidad_id,
                   'costo_real',      rdi.costo_real,
                   'servicio_nombre', rdi.servicio_nombre,
-                  'costo_servicio',  rdi.costo_servicio
+                  'costo_servicio',  rdi.costo_servicio,
+                  'categoria_tipo',  ci.tipo
                 )
                 ORDER BY rdi.created_at
               ) FILTER (WHERE rdi.id IS NOT NULL) AS items
        FROM registro_diario_lote rdl
        LEFT JOIN registro_diario_item rdi ON rdi.registro_diario_id = rdl.id
+       LEFT JOIN insumos i           ON i.id  = rdi.insumo_id
+       LEFT JOIN categorias_insumos ci ON ci.id = i.categoria_id
        WHERE rdl.lote_id = $1
          AND rdl.negocio_id = $2
          AND rdl.fecha >= $3
@@ -133,6 +136,16 @@ export async function getVistaMensual(req, res) {
         : String(r.fecha).split('T')[0];
       registrosPorFecha[key] = r;
     }
+
+    // Fechas con pesaje en el mes
+    const { rows: pesajeRows } = await pool.query(
+      `SELECT fecha FROM pesajes_lote
+       WHERE lote_id = $1 AND fecha >= $2 AND fecha <= $3`,
+      [loteId, fechaInicio, fechaFin]
+    );
+    const fechasConPesaje = new Set(
+      pesajeRows.map(p => (p.fecha instanceof Date ? p.fecha.toISOString().split('T')[0] : String(p.fecha).split('T')[0]))
+    );
 
     // Construir el array de días del mes
     const dias = [];
@@ -153,6 +166,12 @@ export async function getVistaMensual(req, res) {
 
       const registro = registrosPorFecha[fechaDia] || null;
 
+      const itemsDia = registro?.items || [];
+      const tieneAlimento = itemsDia.some(it => it.tipo === 'insumo' && it.categoria_tipo === 'alimento');
+      const tieneSanidad  = itemsDia.some(it => it.tipo === 'insumo' && it.categoria_tipo === 'sanidad');
+      const tieneServicio = itemsDia.some(it => it.tipo === 'servicio');
+      const tienePesaje   = fechasConPesaje.has(fechaDia);
+
       dias.push({
         fecha: fechaDia,
         dia_del_mes: d,
@@ -160,6 +179,10 @@ export async function getVistaMensual(req, res) {
         fase: estandar?.fase || null,
         confirmado: registro?.confirmado || false,
         tiene_registro: registro !== null,
+        tiene_alimento: tieneAlimento,
+        tiene_sanidad:  tieneSanidad,
+        tiene_servicio: tieneServicio,
+        tiene_pesaje:   tienePesaje,
         estandar_resumido: estandar
           ? { alimentacion: estandar.alimentacion, sanitario_hoy: estandar.sanitario_hoy }
           : null,
