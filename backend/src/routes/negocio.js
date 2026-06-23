@@ -85,6 +85,7 @@ import {
   cerrarLote,
   liquidarLote,
 } from '../controllers/loteController.js';
+import { registrarPesajeDueno, listarPesajes } from '../controllers/pesajeController.js';
 import {
   getDiario,
   createDiarioEntry,
@@ -249,6 +250,9 @@ router.delete('/:negocioId/lotes/:loteId/diario/:id', authMiddleware, negocioOwn
 // Consumo de insumos FIFO — T5
 router.post('/:negocioId/lotes/:loteId/consumir', authMiddleware, negocioOwner, consumirInsumo);
 router.get('/:negocioId/lotes/:loteId/consumos', authMiddleware, negocioOwner, listarConsumos);
+
+router.post('/:negocioId/lotes/:loteId/pesajes', authMiddleware, negocioOwner, registrarPesajeDueno);
+router.get('/:negocioId/lotes/:loteId/pesajes', authMiddleware, negocioOwner, listarPesajes);
 
 // Punto de Equilibrio — Motor dinámico
 router.get('/:negocioId/lotes/:loteId/punto-equilibrio', authMiddleware, negocioOwner, getPuntoEquilibrio);
