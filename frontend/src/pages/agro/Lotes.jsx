@@ -376,7 +376,7 @@ const LoteCard = ({ lote, onBitacora, onLiquidar, accentColor, isCerrado, interv
           {lote.peData.punto_equilibrio_bs_por_kg != null ? (
             <>
               <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px', fontWeight: 600, color: accentColor }}>
-                Bs {parseFloat(lote.peData.punto_equilibrio_bs_por_kg).toFixed(4)}
+                Bs {parseFloat(lote.peData.punto_equilibrio_bs_por_kg).toFixed(2)}
                 <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-tertiary)' }}> / kg útil</span>
               </span>
               {lote.peData.pesos?.merma_total_kg > 0 && (

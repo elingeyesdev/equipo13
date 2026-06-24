@@ -31,7 +31,7 @@ export const getLotes = async (req, res) => {
               ) AS tiene_despiece
        FROM lotes l
        WHERE l.negocio_id = $1
-       ORDER BY l.created_at DESC`,
+       ORDER BY l.created_at DESC, l.identificador ASC`,
       [negocioId]
     );
     res.json(rows);

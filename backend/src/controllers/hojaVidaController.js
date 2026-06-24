@@ -213,7 +213,7 @@ export async function getVistaMensual(req, res) {
     }
 
     res.json({
-      lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal },
+      lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal, pesaje_intervalo_dias: lote.pesaje_intervalo_dias, pesaje_activo: lote.pesaje_activo },
       mes,
       anio,
       fase_predominante: fasePredominante,
@@ -297,7 +297,7 @@ export async function getDetalleDia(req, res) {
       : null;
 
     res.json({
-      lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal },
+      lote: { id: lote.id, identificador: lote.identificador, tipo_animal: lote.tipo_animal, pesaje_intervalo_dias: lote.pesaje_intervalo_dias, pesaje_activo: lote.pesaje_activo },
       fecha,
       dias_en_lote: diasEnLote,
       edad_actual_dias: edadActualDias,

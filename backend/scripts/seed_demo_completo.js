@@ -121,8 +121,8 @@ async function seedMercadoYDespiece(db, negocioId) {
   const canalTotal = cabezas * pesoPie * rendCanal; // 1425 kg
   const { rows: [lote] } = await db.query(
     `INSERT INTO lotes (negocio_id, identificador, tipo_animal, cabezas_inicio, cabezas_activas,
-                        peso_inicial_prom, peso_actual_prom, costo_adquisicion)
-     VALUES ($1, 'LOTE-FAENA-001', 'Cerdo', $2, $2, 25, $3, $4) RETURNING id`,
+                        peso_inicial_prom, peso_actual_prom, costo_adquisicion, activo, fecha_entrada)
+     VALUES ($1, 'LOTE-FAENA-001', 'Cerdo', $2, $2, 25, $3, $4, false, CURRENT_DATE - 120) RETURNING id`,
     [negocioId, cabezas, pesoPie, 24000],
   );
   for (const c of CUTS) {

@@ -355,7 +355,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
     pesoInicial: 8.5,
-    costoAdq:    15000, // 50 × 300 Bs/cabeza
+    costoAdq:    9000, // 50 × 180 Bs/cabeza
     pesajeIntervalo: 10, // override propio del lote
     pesajeActivo: true,
     pesajes: [
@@ -368,7 +368,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-002',
     cabezas: 10,
     pesoInicial: 8.5,
-    costoAdq:    3000,  // 10 × 300 Bs/cabeza
+    costoAdq:    1800,  // 10 × 180 Bs/cabeza
     pesajeIntervalo: null, // hereda la cadencia del negocio (15 días)
     pesajeActivo: true,
     pesajes: [
@@ -382,7 +382,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-003',
     cabezas: 5,
     pesoInicial: 8.0,
-    costoAdq: 1500, // 5 * 300 Bs/cabeza
+    costoAdq: 900, // 5 * 180 Bs/cabeza
     pesajeIntervalo: 7, // override propio del lote
     pesajeActivo: true,
     diasDeRegistros: 20,

@@ -1,8 +1,14 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class AppConfig {
-  // En emulador Android usa 10.0.2.2 para alcanzar el host.
-  // Ajusta a la URL real del backend en despliegue.
-  static const String baseUrl = String.fromEnvironment(
-    'API_URL',
-    defaultValue: 'http://10.0.2.2:3000',
-  );
+  // Override con: flutter run --dart-define=API_URL=http://192.168.x.x:3000
+  static const String _override = String.fromEnvironment('API_URL');
+
+  static String get baseUrl {
+    if (_override.isNotEmpty) return _override;
+    if (kIsWeb) return 'http://localhost:3000';
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000'; // emulador
+    return 'http://localhost:3000'; // Windows, macOS, Linux, iOS sim
+  }
 }
