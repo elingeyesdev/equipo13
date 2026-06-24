@@ -66,7 +66,7 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
           const colors    = getDiaColors(dia, accentColor);
           const actividades = ACTIVIDAD.filter(a => dia?.[a.key]).map(a => a.label);
           const tooltip = dia
-            ? `${dia.fecha} · día ${dia.dias_en_lote} en lote · ${dia.confirmado ? 'Confirmado' : dia.tiene_registro ? 'Borrador' : 'Sin registro'}${actividades.length ? ` · ${actividades.join(', ')}` : ''}`
+            ? `${dia.fecha} · día ${dia.dias_en_lote} en lote · ${dia.confirmado ? 'Confirmado' : dia.tiene_registro ? 'Borrador' : 'Sin registro'}${actividades.length ? ` · ${actividades.join(', ')}` : ''}${dia.toca_pesaje ? ' · ⚖️ Toca pesaje' : dia.pesaje_atrasado && esHoy ? ' · ⚠️ Pesaje atrasado' : ''}`
             : '';
 
           return (
@@ -99,12 +99,12 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
                 {dayNum}
               </span>
               {dia && dia.dias_en_lote >= 0 && !hayFuturo && (
-                <span style={{ fontSize: '8px', lineHeight: 1, color: dia.confirmado || dia.tiene_registro ? 'rgba(255,255,255,0.85)' : 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
+                <span style={{ fontSize: '8px', lineHeight: 1, color: 'var(--text-tertiary)', fontFamily: 'IBM Plex Mono, monospace' }}>
                   d{dia.dias_en_lote}
                 </span>
               )}
               {dia?.fase && !hayFuturo && (
-                <span style={{ fontSize: '8px', lineHeight: 1, color: dia.confirmado || dia.tiene_registro ? 'rgba(255,255,255,0.75)' : 'var(--text-tertiary)', maxWidth: '95%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '8px', lineHeight: 1, color: 'var(--text-tertiary)', maxWidth: '95%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {dia.fase.length > 7 ? dia.fase.substring(0, 6) + '…' : dia.fase}
                 </span>
               )}
@@ -115,6 +115,12 @@ const CalendarioMes = ({ dias, hoy, anio, mes, onAbrirDia, accentColor }) => {
                       style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, display: 'inline-block' }} />
                   ))}
                 </span>
+              )}
+              {dia?.toca_pesaje && !hayFuturo && (
+                <span style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }} title="Toca pesaje">⚖️</span>
+              )}
+              {dia?.pesaje_atrasado && esHoy && (
+                <span style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '10px' }} title="Pesaje atrasado">⚠️</span>
               )}
             </button>
           );
@@ -212,6 +218,8 @@ const ListaMes = ({ dias, hoy, onAbrirDia, accentColor }) => {
                     {a.label}
                   </span>
                 ))}
+                {dia.toca_pesaje && !hayFuturo && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>⚖️ Toca pesaje</span>}
+                {dia.pesaje_atrasado && esHoy && <span style={{ fontSize: '11px', color: 'var(--accent-warning)' }}>⚠️ Pesaje atrasado</span>}
               </div>
               {alim && (
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

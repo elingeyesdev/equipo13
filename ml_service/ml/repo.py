@@ -6,7 +6,7 @@ from app.db import get_conn, fetch_all
 
 # Rendimiento de canal por defecto (peso canal / peso vivo). Coincide con el default
 # del sistema (analisisController.js usa 75% si no se especifica otro).
-RENDIMIENTO_CANAL = 0.75
+RENDIMIENTO_CANAL = 0.78
 
 
 def cargar_cortes_disponibles(negocio_id: str, lote_id: str) -> list[dict]:

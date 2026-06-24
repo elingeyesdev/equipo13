@@ -27,18 +27,18 @@ const DEMO_NEGOCIO = 'Granja Olmos';
 // Cortes porcinos con precio base minorista (Bs/kg) y rendimiento (% del canal).
 // Alineados con backend/seeds/catalogoCortesPorcino.js y ml_service/seed_demo.py.
 const CUTS = [
-  { nombre: 'Pierna',        base: 55, rend: 24 },
-  { nombre: 'Paleta',        base: 48, rend: 16 },
-  { nombre: 'Lomo',          base: 58, rend: 12 },
-  { nombre: 'Costilla',      base: 50, rend: 10 },
-  { nombre: 'Panceta',       base: 45, rend: 9  },
-  { nombre: 'Chuleta',       base: 46, rend: 8  },
-  { nombre: 'Hueso/Carnaza', base: 25, rend: 5  },
-  { nombre: 'Bondiola',      base: 50, rend: 4  },
-  { nombre: 'Grasa',         base: 15, rend: 4  },
-  { nombre: 'Cuero',         base: 12, rend: 3  },
-  { nombre: 'Recortes',      base: 30, rend: 3  },
-  { nombre: 'Patas',         base: 20, rend: 2  },
+  { nombre: 'Pierna',        base: 25, rend: 24 },
+  { nombre: 'Paleta',        base: 23, rend: 16 },
+  { nombre: 'Lomo',          base: 36, rend: 12 },
+  { nombre: 'Costilla',      base: 33, rend: 10 },
+  { nombre: 'Panceta',       base: 30, rend: 9  },
+  { nombre: 'Chuleta',       base: 32, rend: 8  },
+  { nombre: 'Hueso/Carnaza', base: 15, rend: 5  },
+  { nombre: 'Bondiola',      base: 35, rend: 4  },
+  { nombre: 'Grasa',         base: 8,  rend: 4  },
+  { nombre: 'Cuero',         base: 10, rend: 3  },
+  { nombre: 'Recortes',      base: 18, rend: 3  },
+  { nombre: 'Patas',         base: 15, rend: 2  },
 ];
 const PROPHET = new Set(['Pierna', 'Lomo']); // >=365 días → dispara Prophet
 const DIAS_PROPHET = 420;
@@ -117,13 +117,13 @@ async function seedMercadoYDespiece(db, negocioId) {
   );
 
   // Lote faenado con despiece real (el ML lee despiece_cortes para recomendar).
-  const cabezas = 20, pesoPie = 95, rendCanal = 0.75;
+  const cabezas = 20, pesoPie = 95, rendCanal = 0.78;
   const canalTotal = cabezas * pesoPie * rendCanal; // 1425 kg
   const { rows: [lote] } = await db.query(
     `INSERT INTO lotes (negocio_id, identificador, tipo_animal, cabezas_inicio, cabezas_activas,
                         peso_inicial_prom, peso_actual_prom, costo_adquisicion)
      VALUES ($1, 'LOTE-FAENA-001', 'Cerdo', $2, $2, 25, $3, $4) RETURNING id`,
-    [negocioId, cabezas, pesoPie, 28000],
+    [negocioId, cabezas, pesoPie, 24000],
   );
   for (const c of CUTS) {
     const peso = Math.round(canalTotal * (c.rend / 100) * 100) / 100;
@@ -138,6 +138,7 @@ async function seedMercadoYDespiece(db, negocioId) {
 
 async function seedOperariosRutinasTareas(db, negocioId, adminId, loteIds) {
   const loteMain = loteIds['LOTE-CERD-001'];
+  const loteNuevo = loteIds['LOTE-CERD-003'];
 
   // 2 operarios con login por PIN
   const ops = [
@@ -160,6 +161,13 @@ async function seedOperariosRutinasTareas(db, negocioId, adminId, loteIds) {
         `INSERT INTO operario_lote (operario_user_id, lote_id, negocio_id) VALUES ($1, $2, $3)
          ON CONFLICT DO NOTHING`,
         [u.id, loteMain, negocioId],
+      );
+    }
+    if (loteNuevo && o.username === 'juan') {
+      await db.query(
+        `INSERT INTO operario_lote (operario_user_id, lote_id, negocio_id) VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING`,
+        [u.id, loteNuevo, negocioId],
       );
     }
     opIds.push(u.id);
@@ -193,15 +201,37 @@ async function seedOperariosRutinasTareas(db, negocioId, adminId, loteIds) {
 
   // Tareas puntuales pendientes
   const tareas = [
-    { titulo: 'Aplicar refuerzo de vacuna Mycoplasma', desc: 'Segunda dosis al lote principal', dias: 2, op: 0 },
-    { titulo: 'Pesar muestra de 10 animales',          desc: 'Muestreo de pesos semanal',        dias: 1, op: 1 },
-    { titulo: 'Reparar bebedero del galpón 2',         desc: 'Fuga reportada por el turno noche', dias: 0, op: 0 },
+    { titulo: 'Aplicar refuerzo de vacuna Mycoplasma', desc: 'Segunda dosis al lote principal', dias: 2, op: 0, loteId: loteMain, estado: 'pendiente' },
+    { titulo: 'Pesar muestra de 10 animales',          desc: 'Muestreo de pesos semanal',        dias: 1, op: 1, loteId: loteMain, estado: 'pendiente' },
+    { titulo: 'Reparar bebedero del galpón 2',         desc: 'Fuga reportada por el turno noche', dias: 0, op: 0, loteId: loteMain, estado: 'pendiente' },
+    { titulo: 'Pesar muestra de 3 animales',           desc: 'Muestreo de pesos',               dias: -1, op: 0, loteId: loteNuevo, estado: 'completada' },
+    { titulo: 'Limpieza del galpón',                   desc: 'Limpieza de rutina',              dias: 1, op: 0, loteId: loteNuevo, estado: 'pendiente' },
   ];
   for (const t of tareas) {
+    if (!t.loteId) continue;
     await db.query(
-      `INSERT INTO tareas (negocio_id, lote_id, titulo, descripcion, fecha_objetivo, asignado_a, estado, created_by)
-       VALUES ($1, $2, $3, $4, CURRENT_DATE + ($5)::int, $6, 'pendiente', $7)`,
-      [negocioId, loteMain, t.titulo, t.desc, t.dias, opIds[t.op], adminId],
+      `INSERT INTO tareas (negocio_id, lote_id, titulo, descripcion, fecha_objetivo, asignado_a, estado, created_by, completada_en)
+       VALUES ($1, $2, $3, $4, CURRENT_DATE + ($5)::int, $6, $7, $8, $9)`,
+      [negocioId, t.loteId, t.titulo, t.desc, t.dias, opIds[t.op], t.estado, adminId, t.estado === 'completada' ? new Date() : null],
+    );
+  }
+
+  // Eventos de operario y mermas para LOTE-CERD-003
+  if (loteNuevo && opIds[0]) {
+    await db.query(
+      `INSERT INTO eventos_operario (negocio_id, lote_id, operario_user_id, tipo, estado, payload)
+       VALUES 
+       ($1, $2, $3, 'pesaje', 'aplicado', '{}'::jsonb),
+       ($1, $2, $3, 'incidente', 'aplicado', '{"descripcion": "Bebedero atascado en el corral"}'::jsonb),
+       ($1, $2, $3, 'stock_bajo', 'aplicado', '{"insumo": "Balanceado", "mensaje": "Queda poco balanceado"}'::jsonb),
+       ($1, $2, $3, 'baja', 'pendiente', '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb)`,
+      [negocioId, loteNuevo, opIds[0]]
+    );
+
+    await db.query(
+      `INSERT INTO registro_mermas (negocio_id, lote_id, tipo, peso_inicial, peso_final, fecha, operario)
+       VALUES ($1, $2, 'AYUNO', 18.5, 18.0, CURRENT_DATE, 'Juan Pérez')`,
+      [negocioId, loteNuevo]
     );
   }
 }
@@ -260,7 +290,7 @@ async function main() {
     console.log(`[seed-demo] Demo lista. Login: ${DEMO_EMAIL} / ${DEMO_PASS} (negocio: ${DEMO_NEGOCIO})`);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[seed-demo] Falló el sembrado, ROLLBACK aplicado:', err.message);
+    console.error('[seed-demo] Falló el sembrado, ROLLBACK aplicado:', err);
   } finally {
     client.release();
     await pool.end();

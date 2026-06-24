@@ -147,6 +147,15 @@ export async function getVistaMensual(req, res) {
       pesajeRows.map(p => (p.fecha instanceof Date ? p.fecha.toISOString().split('T')[0] : String(p.fecha).split('T')[0]))
     );
 
+    const { rows: todosPesajesRows } = await pool.query(
+      `SELECT fecha FROM pesajes_lote WHERE lote_id = $1 ORDER BY fecha ASC`,
+      [loteId]
+    );
+    const todosPesajes = todosPesajesRows.map(p => (p.fecha instanceof Date ? p.fecha.toISOString().split('T')[0] : String(p.fecha).split('T')[0]));
+
+    const { rows: negRows } = await pool.query('SELECT pesaje_intervalo_dias FROM negocios WHERE id = $1', [negocioId]);
+    const intervaloNegocio = negRows[0]?.pesaje_intervalo_dias ?? 14;
+
     // Construir el array de días del mes
     const dias = [];
     let fasePredominante = null;
@@ -172,6 +181,15 @@ export async function getVistaMensual(req, res) {
       const tieneServicio = itemsDia.some(it => it.tipo === 'servicio');
       const tienePesaje   = fechasConPesaje.has(fechaDia);
 
+      let ultimoPesajeFecha = null;
+      for (const p of todosPesajes) {
+        if (p < fechaDia) ultimoPesajeFecha = p;
+        else break;
+      }
+      const estadoPesaje = calcularEstadoPesaje({ lote, ultimoPesajeFecha, intervaloNegocio, hoy: fechaDia });
+      const tocaPesaje = estadoPesaje.activo && estadoPesaje.proximo_pesaje_fecha === fechaDia;
+      const pesajeAtrasado = estadoPesaje.activo && estadoPesaje.vencido && !tienePesaje;
+
       dias.push({
         fecha: fechaDia,
         dia_del_mes: d,
@@ -183,6 +201,8 @@ export async function getVistaMensual(req, res) {
         tiene_sanidad:  tieneSanidad,
         tiene_servicio: tieneServicio,
         tiene_pesaje:   tienePesaje,
+        toca_pesaje:    tocaPesaje,
+        pesaje_atrasado: pesajeAtrasado,
         estandar_resumido: estandar
           ? { alimentacion: estandar.alimentacion, sanitario_hoy: estandar.sanitario_hoy }
           : null,
@@ -511,7 +531,7 @@ export async function updateConfigPesaje(req, res) {
 
   try {
     const { rowCount } = await pool.query(
-      `UPDATE lotes SET pesaje_activo = $1, pesaje_intervalo_dias = $2, updated_at = NOW()
+      `UPDATE lotes SET pesaje_activo = $1, pesaje_intervalo_dias = $2
        WHERE id = $3 AND negocio_id = $4`,
       [pesaje_activo, pesaje_intervalo_dias, loteId, negocioId]
     );

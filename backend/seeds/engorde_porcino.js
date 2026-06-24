@@ -77,12 +77,12 @@ export async function seedEngordePorcino(negocioId, db) {
 
   // ───────── 4. Insumos del engorde porcino ─────────
   const insumosData = [
-    { key: 'bal_inicio',   nombre: 'Balanceado iniciador porcino',         precio:  8.50, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
-    { key: 'bal_crecim',   nombre: 'Balanceado crecimiento porcino',       precio:  7.80, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
-    { key: 'bal_desarr',   nombre: 'Balanceado desarrollo porcino',        precio:  7.30, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
-    { key: 'bal_engorde',  nombre: 'Balanceado engorde porcino',           precio:  7.00, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
-    { key: 'vac_myco',     nombre: 'Vacuna Mycoplasma hyopneumoniae',      precio: 12.00, unidad: 'dosis', categoria: 'sanidad',    proveedor: 'veterinaria' },
-    { key: 'vac_peste',    nombre: 'Vacuna Peste Porcina Clásica',         precio: 15.00, unidad: 'dosis', categoria: 'sanidad',    proveedor: 'veterinaria' },
+    { key: 'bal_inicio',   nombre: 'Balanceado iniciador porcino',         precio:  4.50, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
+    { key: 'bal_crecim',   nombre: 'Balanceado crecimiento porcino',       precio:  4.20, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
+    { key: 'bal_desarr',   nombre: 'Balanceado desarrollo porcino',        precio:  4.00, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
+    { key: 'bal_engorde',  nombre: 'Balanceado engorde porcino',           precio:  3.80, unidad: 'kg',    categoria: 'balanceado', proveedor: 'nutricion'   },
+    { key: 'vac_myco',     nombre: 'Vacuna Mycoplasma hyopneumoniae',      precio:  9.00, unidad: 'dosis', categoria: 'sanidad',    proveedor: 'veterinaria' },
+    { key: 'vac_peste',    nombre: 'Vacuna Peste Porcina Clásica',         precio:  8.00, unidad: 'dosis', categoria: 'sanidad',    proveedor: 'veterinaria' },
     { key: 'ivermectina',  nombre: 'Ivermectina 1% inyectable',            precio:  0.80, unidad: 'mL',    categoria: 'sanidad',    proveedor: 'veterinaria' },
     { key: 'vit_ade',      nombre: 'Vitaminas A+D+E inyectable',           precio:  1.20, unidad: 'mL',    categoria: 'sanidad',    proveedor: 'agroquim'    },
     { key: 'electrolitos', nombre: 'Electrolitos en polvo (oral)',         precio: 28.00, unidad: 'kg',    categoria: 'sanidad',    proveedor: 'agroquim'    },
@@ -113,11 +113,12 @@ export async function seedEngordePorcino(negocioId, db) {
   //   dia 21-30: 1.3 kg × 60 cab × 10 dias = 780 kg
   //   Total: 1620 kg → se compran 1750 kg (margen ~8%).
   const comprasData = [
-    { insumo: 'bal_inicio',   cantidad: 1000, precio: 8.50, dias_antes: 35, proveedor: 'nutricion',   factura: 'GN-001' },
-    { insumo: 'bal_inicio',   cantidad:  750, precio: 8.70, dias_antes: 15, proveedor: 'nutricion',   factura: 'GN-014' },
-    { insumo: 'bal_crecim',   cantidad:  600, precio: 7.80, dias_antes:  5, proveedor: 'nutricion',   factura: 'GN-019' },
-    { insumo: 'vac_myco',     cantidad:  150, precio:12.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
-    { insumo: 'vac_peste',    cantidad:   60, precio:15.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
+    { insumo: 'bal_inicio',   cantidad: 1000, precio: 4.50, dias_antes: 35, proveedor: 'nutricion',   factura: 'GN-001' },
+    { insumo: 'bal_inicio',   cantidad:  750, precio: 4.70, dias_antes: 15, proveedor: 'nutricion',   factura: 'GN-014' },
+    { insumo: 'bal_inicio',   cantidad:  150, precio: 4.60, dias_antes: 10, proveedor: 'nutricion',   factura: 'GN-015' },
+    { insumo: 'bal_crecim',   cantidad:  600, precio: 4.20, dias_antes:  5, proveedor: 'nutricion',   factura: 'GN-019' },
+    { insumo: 'vac_myco',     cantidad:  150, precio: 9.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
+    { insumo: 'vac_peste',    cantidad:   60, precio: 8.00, dias_antes: 40, proveedor: 'veterinaria', factura: 'VP-008' },
     { insumo: 'ivermectina',  cantidad:  250, precio: 0.80, dias_antes: 45, proveedor: 'veterinaria', factura: 'VP-005' },
     { insumo: 'vit_ade',      cantidad:  200, precio: 1.20, dias_antes: 40, proveedor: 'agroquim',    factura: 'AS-022' },
     { insumo: 'electrolitos', cantidad:   10, precio:28.00, dias_antes: 40, proveedor: 'agroquim',    factura: 'AS-022' },
@@ -203,8 +204,9 @@ export async function seedEngordePorcino(negocioId, db) {
       pesajeIntervalo = null,  // override del lote; null = hereda el del negocio
       pesajeActivo = true,
       pesajes,                 // [{ offset, peso }] — el último define peso_actual y la base del recordatorio
+      diasDeRegistros = 30,    // override de los días de registro, por defecto 30
     } = config;
-    const FECHA_ENTRADA_OFFSET = 30;
+    const FECHA_ENTRADA_OFFSET = diasDeRegistros;
     const pesoActual = pesajes[pesajes.length - 1].peso;
 
     const { rows: [lote] } = await db.query(
@@ -217,7 +219,8 @@ export async function seedEngordePorcino(negocioId, db) {
         negocioId, identificador, 'Cerdo',
         dateOffset(-FECHA_ENTRADA_OFFSET),
         cabezas, cabezas, pesoInicial, pesoActual,
-        costoAdq, 30, // edad biologica al ingreso: 30 dias
+        costoAdq, diasDeRegistros, // edad biologica al ingreso: diasDeRegistros (si asumimos 1 a 1)
+
         pesajeIntervalo, pesajeActivo,
       ],
     );
@@ -281,9 +284,9 @@ export async function seedEngordePorcino(negocioId, db) {
       return 1.3;
     };
 
-    // Loop dia 1..30 (dia 1 = hace 29 dias, dia 30 = hoy)
-    for (let dia = 1; dia <= 30; dia++) {
-      const fecha = dateOffset(-(30 - dia));
+    // Loop dia 1..diasDeRegistros (dia 1 = hace (diasDeRegistros-1) dias, ultimo = hoy)
+    for (let dia = 1; dia <= diasDeRegistros; dia++) {
+      const fecha = dateOffset(-(diasDeRegistros - dia));
 
       const { rows: [registro] } = await db.query(
         `INSERT INTO registro_diario_lote (negocio_id, lote_id, fecha, confirmado, confirmado_en, notas_del_dia)
@@ -352,7 +355,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
     pesoInicial: 8.5,
-    costoAdq:    17500, // 50 × 350 Bs/cabeza
+    costoAdq:    15000, // 50 × 300 Bs/cabeza
     pesajeIntervalo: 10, // override propio del lote
     pesajeActivo: true,
     pesajes: [
@@ -365,13 +368,28 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-002',
     cabezas: 10,
     pesoInicial: 8.5,
-    costoAdq:    3500,  // 10 × 350 Bs/cabeza
+    costoAdq:    3000,  // 10 × 300 Bs/cabeza
     pesajeIntervalo: null, // hereda la cadencia del negocio (15 días)
     pesajeActivo: true,
     pesajes: [
       { offset: -25, peso: 12.0, muestras: 5, notas: '', origen: 'operario' },
       { offset: -15, peso: 16.5, muestras: 5, notas: 'Comen bien', origen: 'operario' },
       { offset:  -3, peso: 24.0, muestras: null, notas: 'Se pesan los más gordos', origen: 'dueno' }, // último: hace 3 días → al día (cadencia 15)
+    ],
+  });
+
+  await createLoteConRegistros({
+    identificador: 'LOTE-CERD-003',
+    cabezas: 5,
+    pesoInicial: 8.0,
+    costoAdq: 1500, // 5 * 300 Bs/cabeza
+    pesajeIntervalo: 7, // override propio del lote
+    pesajeActivo: true,
+    diasDeRegistros: 20,
+    pesajes: [
+      { offset: -19, peso: 10.0, muestras: 2, notas: 'Entrada adaptada', origen: 'dueno' },
+      { offset: -12, peso: 14.0, muestras: 2, notas: 'Pesaje semana 1', origen: 'operario' },
+      { offset: -5, peso: 18.0, muestras: 2, notas: 'Crecen bien', origen: 'operario' }, // último: hace 5 días → próximo en 2 días (cadencia 7)
     ],
   });
 

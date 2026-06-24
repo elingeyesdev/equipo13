@@ -26,10 +26,10 @@ CANALES = ("minorista", "mayorista")
 FACTOR_MAYORISTA = 0.82
 # Precio base minorista por corte (Bs/kg) — ajustá a la realidad boliviana.
 BASE = {
-    "Pierna": 52.0, "Paleta": 42.0, "Lomo": 55.0, "Costilla": 48.0, 
-    "Panceta": 45.0, "Chuleta": 46.0, "Hueso/Carnaza": 25.0, 
-    "Bondiola": 50.0, "Grasa": 15.0, "Cuero": 12.0, 
-    "Recortes": 20.0, "Patas": 10.0
+    "Pierna": 25.0, "Paleta": 23.0, "Lomo": 36.0, "Costilla": 33.0, 
+    "Panceta": 30.0, "Chuleta": 32.0, "Hueso/Carnaza": 15.0, 
+    "Bondiola": 35.0, "Grasa": 8.0, "Cuero": 10.0, 
+    "Recortes": 18.0, "Patas": 15.0
 }
 # Días de histórico por corte. >=365 dispara Prophet; el resto, Holt-Winters.
 HISTORIAL = {"Pierna": 420, "Lomo": 420}
@@ -40,7 +40,7 @@ TOPES = {"minorista": 150, "mayorista": 500}
 # estos números para que sea físicamente coherente con el lote, en vez de aleatorio.
 CABEZAS_DEMO = 20
 PESO_PROM_PIE = 95.0          # kg de peso vivo por cabeza al momento de faenar
-RENDIMIENTO_CANAL = 0.75      # cerdo: ~75% del peso vivo queda como canal aprovechable
+RENDIMIENTO_CANAL = 0.78      # cerdo: ~78% del peso vivo queda como canal aprovechable
 COSTO_ADQUISICION_DEMO = 28000.0
 # Reparto del canal por corte (fracción del peso canal; debe sumar 1.0).
 # Rendimientos de despiece porcino de la plantilla real.

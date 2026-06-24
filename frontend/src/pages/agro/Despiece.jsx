@@ -119,7 +119,7 @@ const Despiece = ({ negocioId, onNavigate, activeLote, setActiveLote }) => {
   const loteData = lotes.find(l => l.id === selectedLoteId);
   const cabezasLote = parseFloat(loteData?.cabezas_activas) || 0;
   const pesoPromLote = parseFloat(loteData?.peso_actual_prom) || 0;
-  const RENDIMIENTO_CANAL_REF = 0.75; // estándar cerdo (72-78%); ver Liquidación para ajustarlo por lote.
+  const RENDIMIENTO_CANAL_REF = 0.78; // estándar cerdo (72-80%); ver Liquidación para ajustarlo por lote.
   const canalEsperado = cabezasLote > 0 && pesoPromLote > 0
     ? cabezasLote * pesoPromLote * RENDIMIENTO_CANAL_REF
     : null;
