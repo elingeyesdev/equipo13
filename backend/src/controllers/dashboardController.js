@@ -37,16 +37,43 @@ export async function getDashboard(req, res) {
   const fechaDesde = fechaDesdePorRango(rango);
 
   try {
+    // KPIs agregados de lotes activos
+    const kpisResult = await pool.query(
+      `SELECT
+         COUNT(*)::int AS lotes_activos,
+         COALESCE(SUM(l.cabezas_inicio), 0)::int AS cabezas_inicio,
+         COALESCE(SUM(l.cabezas_activas), 0)::int AS cabezas_activas,
+         COALESCE(SUM(l.costo_adquisicion), 0)::float AS costo_adquisicion_total,
+         COALESCE((
+           SELECT SUM(b.monto)
+           FROM bitacora_lote b
+           JOIN lotes l2 ON l2.id = b.lote_id
+           WHERE l2.negocio_id = $1
+             AND l2.activo = TRUE
+             AND b.es_baja = false
+             AND b.monto IS NOT NULL
+         ), 0)::float AS costo_bitacora_total
+       FROM lotes l
+       WHERE l.negocio_id = $1 AND l.activo = TRUE`,
+      [negocioId]
+    );
+    const k = kpisResult.rows[0];
+    const cabezasActivas = Number(k.cabezas_activas);
+    const cabezasInicio = Number(k.cabezas_inicio);
+    const costoTotal = Number(k.costo_adquisicion_total) + Number(k.costo_bitacora_total);
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
       kpis: {
-        lotes_activos: 0,
-        cabezas_activas: 0,
-        cabezas_inicio: 0,
-        mortandad_pct: 0,
-        costo_total: 0,
-        costo_por_cabeza: 0,
+        lotes_activos: Number(k.lotes_activos),
+        cabezas_activas: cabezasActivas,
+        cabezas_inicio: cabezasInicio,
+        mortandad_pct: cabezasInicio > 0
+          ? +(((cabezasInicio - cabezasActivas) / cabezasInicio) * 100).toFixed(2)
+          : 0,
+        costo_total: +costoTotal.toFixed(2),
+        costo_por_cabeza: cabezasActivas > 0 ? +(costoTotal / cabezasActivas).toFixed(2) : 0,
         ica_promedio: null,
       },
       pesos_por_lote: [],
