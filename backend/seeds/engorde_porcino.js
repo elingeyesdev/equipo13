@@ -351,6 +351,29 @@ export async function seedEngordePorcino(negocioId, db) {
         await registrarServicio(registroId, fecha, 'Retiro de estiércol/purín', 'Equipo de granja');
       }
     }
+
+    // Eventos de baja distribuidos: una baja en el día 8 y otra en el día 22.
+    // Esto puebla `eventos_operario` para que la gráfica de mortandad muestre
+    // datos reales en el dashboard, sin depender de bajas manuales del operario.
+    // Estado 'aplicado' es lo que el dashboard cuenta (estado='pendiente' se filtra).
+    // Además decrementamos cabezas_activas para que el KPI de mortandad % no quede en 0.
+    const bajasFechas = [8, 22].filter(d => d <= diasDeRegistros);
+    for (const diaBaja of bajasFechas) {
+      const fechaBaja = dateOffset(-(diasDeRegistros - diaBaja));
+      await db.query(
+        `INSERT INTO eventos_operario (negocio_id, lote_id, tipo, estado, payload, created_at)
+         VALUES ($1, $2, 'baja', 'aplicado',
+                 '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb,
+                 $3::date + INTERVAL '10 hours')`,
+        [negocioId, loteId, fechaBaja]
+      );
+    }
+    if (bajasFechas.length > 0) {
+      await db.query(
+        `UPDATE lotes SET cabezas_activas = GREATEST(cabezas_activas - $2, 0) WHERE id = $1`,
+        [loteId, bajasFechas.length]
+      );
+    }
   }
 
   // ───────── 10. Crear los dos lotes ─────────
