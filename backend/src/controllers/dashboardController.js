@@ -270,6 +270,44 @@ export async function getDashboard(req, res) {
       fecha: l.created_at,
     }));
 
+    // Resumen de lotes activos con últimos pesajes para la tabla del dashboard.
+    const resumenResult = await pool.query(
+      `SELECT l.id, l.identificador, l.tipo_animal, l.cabezas_inicio,
+              l.cabezas_activas, l.fecha_entrada,
+              l.costo_adquisicion + COALESCE((
+                SELECT SUM(b.monto)
+                FROM bitacora_lote b
+                WHERE b.lote_id = l.id AND b.es_baja = false AND b.monto IS NOT NULL
+              ), 0)::float AS costo_total,
+              COALESCE((
+                SELECT array_agg(peso_prom_kg ORDER BY fecha DESC)
+                FROM (
+                  SELECT peso_prom_kg, fecha
+                  FROM pesajes_lote
+                  WHERE lote_id = l.id
+                  ORDER BY fecha DESC
+                  LIMIT 8
+                ) ult
+              ), '{}') AS pesajes_recientes
+       FROM lotes l
+       WHERE l.negocio_id = $1 AND l.activo = TRUE
+       ORDER BY l.created_at DESC`,
+      [negocioId]
+    );
+    const icaByLoteId = new Map(ica_por_lote.map(r => [r.lote_id, r.ica]));
+    const lotes_resumen = resumenResult.rows.map(r => ({
+      id: r.id,
+      identificador: r.identificador,
+      tipo_animal: r.tipo_animal,
+      cabezas_activas: Number(r.cabezas_activas),
+      cabezas_inicio: Number(r.cabezas_inicio),
+      dias: r.fecha_entrada ? Math.floor((Date.now() - new Date(r.fecha_entrada).getTime()) / 86400000) : 0,
+      costo_total: +Number(r.costo_total).toFixed(2),
+      ica: icaByLoteId.get(r.id) ?? null,
+      // Recharts y el sparkline esperan orden cronológico ascendente.
+      pesajes_recientes: (r.pesajes_recientes || []).map(Number).reverse(),
+    }));
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
@@ -288,7 +326,7 @@ export async function getDashboard(req, res) {
       costos_categoria,
       ica_por_lote,
       mortandad_serie,
-      lotes_resumen: [],
+      lotes_resumen,
       ultimo_liquidado,
       actividad_reciente,
     });
