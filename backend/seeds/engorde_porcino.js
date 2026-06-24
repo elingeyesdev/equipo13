@@ -357,14 +357,21 @@ export async function seedEngordePorcino(negocioId, db) {
     // datos reales en el dashboard, sin depender de bajas manuales del operario.
     // Estado 'aplicado' es lo que el dashboard cuenta (estado='pendiente' se filtra).
     // Además decrementamos cabezas_activas para que el KPI de mortandad % no quede en 0.
+    // operario_user_id es NOT NULL: usamos el dueño del negocio (siempre existe,
+    // se acaba de crear); funciona tanto desde seed_demo_completo como desde
+    // aplicarPlantilla cuando el negocio se crea desde la app.
     const bajasFechas = [8, 22].filter(d => d <= diasDeRegistros);
     for (const diaBaja of bajasFechas) {
       const fechaBaja = dateOffset(-(diasDeRegistros - diaBaja));
       await db.query(
-        `INSERT INTO eventos_operario (negocio_id, lote_id, tipo, estado, payload, created_at)
-         VALUES ($1, $2, 'baja', 'aplicado',
-                 '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb,
-                 $3::date + INTERVAL '10 hours')`,
+        `INSERT INTO eventos_operario (negocio_id, lote_id, operario_user_id, tipo, estado, payload, created_at)
+         VALUES (
+           $1, $2,
+           (SELECT user_id FROM negocios WHERE id = $1),
+           'baja', 'aplicado',
+           '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb,
+           $3::date + INTERVAL '10 hours'
+         )`,
         [negocioId, loteId, fechaBaja]
       );
     }
