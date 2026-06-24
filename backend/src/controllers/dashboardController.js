@@ -152,6 +152,62 @@ export async function getDashboard(req, res) {
         color: COLORES_CAT[r.categoria] || '#9CA3AF',
       }));
 
+    // ICA por lote: kg de alimento consumido / kg de ganancia.
+    // Usa el mismo patrón que analisisController.getIca (categoría + fallback ILIKE).
+    const icaResult = await pool.query(
+      `SELECT l.id AS lote_id, l.identificador,
+              l.peso_inicial_prom, l.peso_actual_prom, l.cabezas_activas,
+              COALESCE((
+                SELECT SUM(b.cantidad_kg)
+                FROM bitacora_lote b
+                LEFT JOIN categorias_insumos c
+                  ON c.nombre = b.tipo AND c.negocio_id = l.negocio_id
+                WHERE b.lote_id = l.id
+                  AND b.es_baja = false
+                  AND b.cantidad_kg IS NOT NULL
+                  AND COALESCE(
+                        c.tipo,
+                        CASE
+                          WHEN b.tipo ILIKE '%aliment%'
+                            OR b.tipo ILIKE '%balanceado%'
+                            OR b.tipo ILIKE '%forraje%'
+                            OR b.tipo ILIKE '%pastura%'
+                            OR b.tipo ILIKE '%silaje%'
+                            OR b.tipo ILIKE '%suplement%'
+                            OR b.tipo ILIKE '%grano%'
+                            OR b.tipo ILIKE '%maiz%'
+                            OR b.tipo ILIKE '%maíz%'
+                            OR b.tipo ILIKE '%heno%' THEN 'alimento'
+                          ELSE 'otros'
+                        END
+                      ) = 'alimento'
+              ), 0)::float AS kg_alimento
+       FROM lotes l
+       WHERE l.negocio_id = $1 AND l.activo = TRUE
+       ORDER BY l.identificador`,
+      [negocioId]
+    );
+    const ica_por_lote = icaResult.rows.map(r => {
+      const pesoActual = Number(r.peso_actual_prom) || 0;
+      const pesoInicial = Number(r.peso_inicial_prom) || 0;
+      const cabezas = Number(r.cabezas_activas) || 0;
+      const kgGanancia = (pesoActual - pesoInicial) * cabezas;
+      const kgAlimento = Number(r.kg_alimento);
+      const ica = kgGanancia > 0 ? +(kgAlimento / kgGanancia).toFixed(2) : null;
+      return {
+        lote_id: r.lote_id,
+        identificador: r.identificador,
+        ica,
+        kg_alimento: +kgAlimento.toFixed(2),
+        kg_ganancia: +kgGanancia.toFixed(2),
+        status: statusIca(ica),
+      };
+    });
+    // Promedio ponderado por kg de ganancia (más justo que media simple).
+    const totalGan = ica_por_lote.reduce((s, r) => s + (r.ica != null ? r.kg_ganancia : 0), 0);
+    const totalAli = ica_por_lote.reduce((s, r) => s + (r.ica != null ? r.kg_alimento : 0), 0);
+    const ica_promedio = totalGan > 0 ? +(totalAli / totalGan).toFixed(2) : null;
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
@@ -164,11 +220,11 @@ export async function getDashboard(req, res) {
           : 0,
         costo_total: +costoTotal.toFixed(2),
         costo_por_cabeza: cabezasActivas > 0 ? +(costoTotal / cabezasActivas).toFixed(2) : 0,
-        ica_promedio: null,
+        ica_promedio,
       },
       pesos_por_lote,
       costos_categoria,
-      ica_por_lote: [],
+      ica_por_lote,
       mortandad_serie: [],
       lotes_resumen: [],
       ultimo_liquidado: null,
