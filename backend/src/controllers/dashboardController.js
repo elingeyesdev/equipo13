@@ -208,6 +208,68 @@ export async function getDashboard(req, res) {
     const totalAli = ica_por_lote.reduce((s, r) => s + (r.ica != null ? r.kg_alimento : 0), 0);
     const ica_promedio = totalGan > 0 ? +(totalAli / totalGan).toFixed(2) : null;
 
+    // Mortandad acumulada por mes y por lote (área apilada en el frontend).
+    const mortResult = await pool.query(
+      `SELECT
+         to_char(date_trunc('month', e.created_at), 'YYYY-MM') AS mes,
+         l.identificador,
+         COUNT(*)::int AS bajas
+       FROM eventos_operario e
+       JOIN lotes l ON l.id = e.lote_id
+       WHERE e.negocio_id = $1
+         AND e.tipo = 'baja'
+         AND e.estado = 'aplicado'
+         AND ($2::date IS NULL OR e.created_at >= $2::date)
+       GROUP BY mes, l.identificador
+       ORDER BY mes`,
+      [negocioId, fechaDesde]
+    );
+    // Pivot a forma { mes, [identificador]: bajasAcumuladas }
+    const mortByMes = new Map();
+    const identsVistos = new Set();
+    for (const r of mortResult.rows) {
+      identsVistos.add(r.identificador);
+      if (!mortByMes.has(r.mes)) mortByMes.set(r.mes, { mes: r.mes });
+      mortByMes.get(r.mes)[r.identificador] = (mortByMes.get(r.mes)[r.identificador] || 0) + Number(r.bajas);
+    }
+    // Convertir a array ordenado y acumular por lote
+    const mesesOrdenados = Array.from(mortByMes.values()).sort((a, b) => a.mes.localeCompare(b.mes));
+    const acumPorLote = {};
+    const mortandad_serie = mesesOrdenados.map(row => {
+      const punto = { mes: row.mes };
+      for (const ident of identsVistos) {
+        acumPorLote[ident] = (acumPorLote[ident] || 0) + (row[ident] || 0);
+        punto[ident] = acumPorLote[ident];
+      }
+      return punto;
+    });
+
+    // Último lote cerrado y actividad reciente (resumen para las cards del pie).
+    const [liquidResult, actividadResult] = await Promise.all([
+      pool.query(
+        `SELECT id, identificador, tipo_animal, liquidacion_jsonb
+         FROM lotes
+         WHERE negocio_id = $1 AND activo = FALSE AND liquidacion_jsonb IS NOT NULL
+         ORDER BY (liquidacion_jsonb->>'liquidado_en')::timestamptz DESC
+         LIMIT 1`,
+        [negocioId]
+      ),
+      pool.query(
+        `SELECT id, identificador, tipo_animal, cabezas_inicio, created_at
+         FROM lotes
+         WHERE negocio_id = $1
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        [negocioId]
+      ),
+    ]);
+    const ultimo_liquidado = liquidResult.rows[0] || null;
+    const actividad_reciente = actividadResult.rows.map(l => ({
+      tipo: 'lote_creado',
+      texto: `Nuevo lote: ${l.identificador} · ${l.cabezas_inicio} ${l.tipo_animal === 'Cerdo' ? 'cerdos' : 'animales'}`,
+      fecha: l.created_at,
+    }));
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
@@ -225,10 +287,10 @@ export async function getDashboard(req, res) {
       pesos_por_lote,
       costos_categoria,
       ica_por_lote,
-      mortandad_serie: [],
+      mortandad_serie,
       lotes_resumen: [],
-      ultimo_liquidado: null,
-      actividad_reciente: [],
+      ultimo_liquidado,
+      actividad_reciente,
     });
   } catch (err) {
     console.error('getDashboard error:', err);
