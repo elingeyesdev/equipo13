@@ -99,6 +99,59 @@ export async function getDashboard(req, res) {
     }
     const pesos_por_lote = Array.from(pesosMap.values());
 
+    // Composición de costos: adquisición + categorías de bitácora_lote.
+    // Mapea cualquier tipo que contenga 'aliment', 'balanceado', 'forraje' a "Alimentación"
+    // para tolerar variaciones del seeder y del catálogo de servicios.
+    const costosResult = await pool.query(
+      `WITH bitac AS (
+         SELECT
+           CASE
+             WHEN b.tipo ILIKE '%aliment%'
+               OR b.tipo ILIKE '%balanceado%'
+               OR b.tipo ILIKE '%forraje%'
+               OR b.tipo ILIKE '%pastura%'
+               OR b.tipo ILIKE '%silaje%'
+               OR b.tipo ILIKE '%grano%' THEN 'Alimentación'
+             WHEN b.tipo ILIKE '%sanidad%' OR b.tipo ILIKE '%medic%' THEN 'Sanidad'
+             WHEN b.tipo ILIKE '%mano%obra%' OR b.tipo = 'Mano de obra' THEN 'Mano de obra'
+             ELSE 'Otros'
+           END AS categoria,
+           SUM(b.monto)::float AS monto
+         FROM bitacora_lote b
+         JOIN lotes l ON l.id = b.lote_id
+         WHERE l.negocio_id = $1
+           AND l.activo = TRUE
+           AND b.es_baja = false
+           AND b.monto IS NOT NULL
+           AND ($2::date IS NULL OR b.fecha >= $2)
+         GROUP BY categoria
+       ),
+       adq AS (
+         SELECT 'Adquisición' AS categoria, COALESCE(SUM(costo_adquisicion), 0)::float AS monto
+         FROM lotes
+         WHERE negocio_id = $1 AND activo = TRUE
+       )
+       SELECT * FROM adq
+       UNION ALL
+       SELECT * FROM bitac
+       ORDER BY monto DESC`,
+      [negocioId, fechaDesde]
+    );
+    const COLORES_CAT = {
+      'Adquisición':  '#6B7280',
+      'Alimentación': '#2E7D32',
+      'Sanidad':      '#1976D2',
+      'Mano de obra': '#ED6C02',
+      'Otros':        '#9CA3AF',
+    };
+    const costos_categoria = costosResult.rows
+      .filter(r => Number(r.monto) > 0)
+      .map(r => ({
+        categoria: r.categoria,
+        monto: +Number(r.monto).toFixed(2),
+        color: COLORES_CAT[r.categoria] || '#9CA3AF',
+      }));
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
@@ -114,7 +167,7 @@ export async function getDashboard(req, res) {
         ica_promedio: null,
       },
       pesos_por_lote,
-      costos_categoria: [],
+      costos_categoria,
       ica_por_lote: [],
       mortandad_serie: [],
       lotes_resumen: [],
