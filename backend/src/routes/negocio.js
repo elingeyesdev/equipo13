@@ -146,6 +146,7 @@ import {
 import {
   listarCatalogoCortes, crearCatalogoCorte, actualizarCatalogoCorte, eliminarCatalogoCorte
 } from '../controllers/catalogoCortesController.js';
+import { getDashboard } from '../controllers/dashboardController.js';
 
 const router = Router();
 
@@ -229,6 +230,9 @@ router.post('/:negocioId/lotes/:id/liquidar', authMiddleware, negocioOwner, liqu
 router.get('/:negocioId/lotes/:id/costos-detalle', authMiddleware, negocioOwner, getCostosDetalle);
 router.post('/:negocioId/lotes/:id/escenarios', authMiddleware, negocioOwner, getEscenarios);
 router.get('/:negocioId/lotes/:id/ica', authMiddleware, negocioOwner, getIca);
+
+// Dashboard agregador — un solo endpoint para todos los widgets del Dashboard Agro
+router.get('/:negocioId/dashboard', authMiddleware, negocioOwner, getDashboard);
 
 // Precios de Mercado
 router.get('/:negocioId/precios-mercado', authMiddleware, negocioOwner, getPreciosMercado);
