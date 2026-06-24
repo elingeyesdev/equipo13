@@ -62,6 +62,43 @@ export async function getDashboard(req, res) {
     const cabezasInicio = Number(k.cabezas_inicio);
     const costoTotal = Number(k.costo_adquisicion_total) + Number(k.costo_bitacora_total);
 
+    // Pesos históricos por lote activo, filtrados por rango.
+    // El punto inicial sintético (fecha_entrada, peso_inicial_prom) se inyecta
+    // siempre para que cada serie empiece desde el día 0 del lote.
+    const pesosResult = await pool.query(
+      `SELECT l.id AS lote_id, l.identificador, l.fecha_entrada, l.peso_inicial_prom,
+              p.fecha, p.peso_prom_kg
+       FROM lotes l
+       LEFT JOIN pesajes_lote p ON p.lote_id = l.id
+         AND ($2::date IS NULL OR p.fecha >= $2)
+       WHERE l.negocio_id = $1 AND l.activo = TRUE
+       ORDER BY l.identificador, p.fecha`,
+      [negocioId, fechaDesde]
+    );
+    // Agrupar por lote_id
+    const pesosMap = new Map();
+    for (const row of pesosResult.rows) {
+      if (!pesosMap.has(row.lote_id)) {
+        const fechaEntradaIso = row.fecha_entrada ? new Date(row.fecha_entrada).toISOString().slice(0, 10) : null;
+        const incluirInicial = fechaEntradaIso && (!fechaDesde || fechaEntradaIso >= fechaDesde);
+        pesosMap.set(row.lote_id, {
+          lote_id: row.lote_id,
+          identificador: row.identificador,
+          color: colorParaLote(pesosMap.size),
+          puntos: incluirInicial && row.peso_inicial_prom != null
+            ? [{ fecha: fechaEntradaIso, peso: Number(row.peso_inicial_prom) }]
+            : [],
+        });
+      }
+      if (row.fecha && row.peso_prom_kg != null) {
+        pesosMap.get(row.lote_id).puntos.push({
+          fecha: new Date(row.fecha).toISOString().slice(0, 10),
+          peso: Number(row.peso_prom_kg),
+        });
+      }
+    }
+    const pesos_por_lote = Array.from(pesosMap.values());
+
     res.json({
       rango,
       fecha_desde: fechaDesde,
@@ -76,7 +113,7 @@ export async function getDashboard(req, res) {
         costo_por_cabeza: cabezasActivas > 0 ? +(costoTotal / cabezasActivas).toFixed(2) : 0,
         ica_promedio: null,
       },
-      pesos_por_lote: [],
+      pesos_por_lote,
       costos_categoria: [],
       ica_por_lote: [],
       mortandad_serie: [],
