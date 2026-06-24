@@ -120,6 +120,7 @@ const App = () => {
 
   const navigate = (p, opts) => {
     if (opts?.productoId) setActiveProductoId(opts.productoId);
+    if (opts?.lote) setActiveLote(opts.lote);
     setPage(p);
   };
 
