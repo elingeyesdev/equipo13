@@ -236,7 +236,7 @@ export async function seedEngordePorcino(negocioId, db) {
       );
     }
 
-    // Helpers internos que mantienen las dos tablas sincronizadas
+    // Helpers internos que mantienen las tres tablas sincronizadas
     async function registrarInsumo(registroId, fecha, insumoKey, cantidad) {
       const ins = insumoMeta(insumoKey);
       const cat = categoriasData.find(c => c.key === ins.categoria);
@@ -256,6 +256,18 @@ export async function seedEngordePorcino(negocioId, db) {
           loteId, fecha, cat.nombre, ins.nombre, fifo.costoTotal,
           (cat.tipo === 'alimento' && ins.unidad === 'kg') ? cantidad : null,
           cantidad, precioU,
+        ],
+      );
+      // Reporte de consumo por insumo lee de consumos_lote — sembramos ahí
+      // también para que aparezca en /catalogo/:insumoId/consumos.
+      await db.query(
+        `INSERT INTO consumos_lote (
+           negocio_id, lote_id, insumo_id, fecha_consumo,
+           cantidad_total, costo_total, precio_promedio, detalle_fifo
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
+        [
+          negocioId, loteId, insumos[insumoKey], fecha,
+          cantidad, fifo.costoTotal, precioU, JSON.stringify(fifo.detalle),
         ],
       );
     }

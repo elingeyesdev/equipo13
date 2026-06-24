@@ -173,8 +173,8 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
 
         {/* Logo */}
         <div style={{ padding: collapsed ? '16px 0' : '16px', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: collapsed ? 'center' : 'flex-start', borderBottom: '1px solid var(--border-subtle)', minHeight: 56 }}>
-          <div style={{ width: 28, height: 28, background: rubroColor, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', fontWeight: 700, color: '#fff', fontFamily: 'IBM Plex Mono, monospace' }}>CU</div>
-          {!collapsed && <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>CosteoUniversal</span>}
+          <img src="/logo.png" style={{ width: 28, height: 28, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} alt="Logo" />
+          {!collapsed && <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Sistema de Costeo con ML</span>}
         </div>
 
         {/* Negocio selector */}
@@ -209,7 +209,7 @@ const AppLayout = ({ page, onNavigate, negocioId, onNegocioChange, negocios = []
         {/* Topbar */}
         <header style={{ height: 56, flexShrink: 0, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, fontSize: '13px', color: 'var(--text-tertiary)' }}>
-            <span>CosteoUniversal</span>
+            <span>Sistema de Costeo con ML</span>
             <Icon name="chevronRight" size={12} />
             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
               {(() => {

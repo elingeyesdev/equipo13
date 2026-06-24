@@ -182,7 +182,7 @@ const CompraDrawer = ({ onClose, onSaved, negocioId, insumos, proveedores }) => 
 
 const ReporteFilaConsumo = ({ c, expanded, onToggle }) => {
   const fechaStr = c.fecha_consumo
-    ? new Date(c.fecha_consumo + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? new Date(String(c.fecha_consumo).substring(0, 10) + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '—';
   const detalle = c.detalle_fifo
     ? (typeof c.detalle_fifo === 'string' ? JSON.parse(c.detalle_fifo) : c.detalle_fifo)
@@ -204,7 +204,7 @@ const ReporteFilaConsumo = ({ c, expanded, onToggle }) => {
           {parseFloat(c.cantidad_total).toFixed(2)}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Bs {parseFloat(c.precio_promedio).toFixed(4)}/{c.unidad_simbolo || 'u'}
+          Bs {parseFloat(c.precio_promedio).toFixed(2)}/{c.unidad_simbolo || 'u'}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)' }}>
           Bs {parseFloat(c.costo_total).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
@@ -225,13 +225,17 @@ const ReporteFilaConsumo = ({ c, expanded, onToggle }) => {
           <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '6px', overflow: 'hidden', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
             {detalle.map((l, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 12px', borderBottom: i < detalle.length - 1 ? '1px solid var(--border-subtle)' : 'none', color: 'var(--text-secondary)' }}>
-                <span>Compra del {new Date(l.fecha_compra + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                <span>
+                  {l.fecha_compra 
+                    ? `Compra del ${new Date(String(l.fecha_compra).substring(0, 10) + 'T12:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })}` 
+                    : 'Compra registrada'}
+                </span>
                 <span>{parseFloat(l.cantidad).toFixed(2)} × Bs {parseFloat(l.precio_unitario).toFixed(2)}</span>
                 <span style={{ color: 'var(--text-primary)' }}>= Bs {parseFloat(l.subtotal).toFixed(2)}</span>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-              <span>Precio promedio: <strong style={{ color: 'var(--text-primary)' }}>Bs {parseFloat(c.precio_promedio).toFixed(4)}/{c.unidad_simbolo || 'u'}</strong></span>
+              <span>Precio promedio: <strong style={{ color: 'var(--text-primary)' }}>Bs {parseFloat(c.precio_promedio).toFixed(2)}/{c.unidad_simbolo || 'u'}</strong></span>
               <span>Total: <strong style={{ color: 'var(--text-primary)' }}>Bs {parseFloat(c.costo_total).toLocaleString('es-BO', { minimumFractionDigits: 2 })}</strong></span>
             </div>
           </div>
@@ -493,7 +497,7 @@ const Compras = ({ negocioId }) => {
             {/* Tabla de consumos */}
             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '100px minmax(100px,1fr) 90px 130px 100px 36px', padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', gap: '10px' }}>
-                {['Fecha', 'Lote', 'Cantidad', 'Precio prom.', 'Total', ''].map((h, i) => (
+                {['Fecha', 'Lote', 'Cantidad', 'Precio promedio', 'Total', ''].map((h, i) => (
                   <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em' }}>{h}</div>
                 ))}
               </div>

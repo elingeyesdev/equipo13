@@ -171,9 +171,18 @@ const Proveedores = ({ negocioId, onNavigate, setActiveProveedor }) => {
               </div>}
             </div>
             <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-tertiary)' }}>
-                —
-              </span>
+              {pv.insumos && pv.insumos.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {pv.insumos.slice(0, 2).map((ins, idx) => (
+                    <span key={idx} style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{ins}</span>
+                  ))}
+                  {pv.insumos.length > 2 && (
+                    <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>+{pv.insumos.length - 2}</span>
+                  )}
+                </div>
+              ) : (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-tertiary)' }}>—</span>
+              )}
             </div>
             <div><StatusBadge label={pv.activo ? 'Activo' : 'Archivado'} color={pv.activo ? 'var(--accent-success)' : 'var(--text-tertiary)'} /></div>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

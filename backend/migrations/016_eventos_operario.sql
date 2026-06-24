@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS eventos_operario (
   payload           JSONB NOT NULL DEFAULT '{}'::jsonb,
   fotos             JSONB NOT NULL DEFAULT '[]'::jsonb,
   estado            VARCHAR(20) NOT NULL DEFAULT 'aplicado'
-                    CHECK (estado IN ('pendiente','aprobado','rechazado','aplicado')),
+                    CHECK (estado IN ('pendiente','aprobado','rechazado','aplicado','archivado')),
   notas_admin       TEXT,
   revisado_por      UUID REFERENCES users(id),
   revisado_en       TIMESTAMP,

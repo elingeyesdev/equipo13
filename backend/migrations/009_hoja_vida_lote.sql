@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS registro_diario_lote (
   confirmado      BOOLEAN NOT NULL DEFAULT FALSE,
   confirmado_en   TIMESTAMP,
   notas_del_dia   TEXT,
+  peso_promedio_kg NUMERIC,
   created_at      TIMESTAMP DEFAULT NOW(),
   CONSTRAINT uq_registro_lote_fecha UNIQUE (lote_id, fecha)
 );

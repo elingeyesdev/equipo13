@@ -5,7 +5,7 @@ export async function listarRegistrosPendientes(req, res) {
   const { negocioId } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT r.id, r.lote_id, r.fecha, r.notas_del_dia, r.created_at,
+      `SELECT r.id, r.lote_id, r.fecha, r.notas_del_dia, r.peso_promedio_kg, r.created_at,
               l.identificador AS lote_identificador,
               COUNT(i.id) AS items_count
          FROM registro_diario_lote r

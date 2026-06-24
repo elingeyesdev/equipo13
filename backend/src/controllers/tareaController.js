@@ -28,7 +28,8 @@ export async function getChecklistDia(req, res) {
       `SELECT cd.id, tpi.titulo, cd.completado, tpi.orden
          FROM checklist_dia cd
          JOIN tarea_plantilla_item tpi ON tpi.id = cd.plantilla_item_id
-        WHERE cd.lote_id = $1 AND cd.operario_user_id = $2 AND cd.fecha = $3::date
+         JOIN tarea_plantilla tp ON tp.id = tpi.plantilla_id
+        WHERE cd.lote_id = $1 AND cd.operario_user_id = $2 AND cd.fecha = $3::date AND tp.activo = true
         ORDER BY tpi.orden, tpi.titulo`,
       [loteId, userId, fecha]
     );

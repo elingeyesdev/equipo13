@@ -13,16 +13,21 @@ export async function getProveedores(req, res) {
   const { activo } = req.query;
 
   try {
-    let query = 'SELECT * FROM proveedores WHERE negocio_id = $1';
+    let query = `
+      SELECT p.*,
+             COALESCE((SELECT json_agg(i.nombre) FROM insumos i WHERE i.proveedor_id = p.id), '[]'::json) AS insumos
+      FROM proveedores p
+      WHERE p.negocio_id = $1
+    `;
     const params = [negocioId];
 
     if (activo === 'false') {
-      query += ' AND activo = false';
+      query += ' AND p.activo = false';
     } else if (activo === 'all') {
       // No filtrar por activo
     } else {
       // Default: solo activos
-      query += ' AND activo = true';
+      query += ' AND p.activo = true';
     }
 
     query += ' ORDER BY nombre';

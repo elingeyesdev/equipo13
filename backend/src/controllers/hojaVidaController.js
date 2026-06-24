@@ -391,6 +391,27 @@ export async function guardarRegistroDia(req, res) {
       );
     }
 
+    // Reflejar el peso al instante (sin esperar la confirmación del día):
+    // upsert en pesajes_lote + actualizar peso_actual_prom del lote.
+    // El registro de pesaje es independiente del consumo FIFO, que sí requiere
+    // confirmación. Esto evita que la web/admin no vea el peso reportado por el
+    // operario hasta que alguien confirme el día.
+    if (peso_promedio_kg) {
+      await client.query(
+        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, origen, registrado_por)
+         VALUES ($1, $2, $3, 'operario', $4)
+         ON CONFLICT (lote_id, fecha) DO UPDATE SET
+           peso_prom_kg   = EXCLUDED.peso_prom_kg,
+           origen         = EXCLUDED.origen,
+           registrado_por = EXCLUDED.registrado_por`,
+        [loteId, fecha, peso_promedio_kg, req.user.id]
+      );
+      await client.query(
+        'UPDATE lotes SET peso_actual_prom = $1 WHERE id = $2 AND negocio_id = $3',
+        [peso_promedio_kg, loteId, negocioId]
+      );
+    }
+
     await client.query('COMMIT');
     const { rows: regRows } = await pool.query(
       'SELECT * FROM registro_diario_lote WHERE id = $1',
@@ -496,6 +517,26 @@ export async function confirmarDia(req, res) {
          SET costo_real = $1, detalle_fifo = $2
          WHERE id = $3`,
         [resultado.costoTotal, JSON.stringify(resultado.lineasFIFO), item.id]
+      );
+
+      // Replicar el consumo en `consumos_lote` para que aparezca en el
+      // "Reporte de consumo por insumo" (que lee de esa tabla, no del
+      // registro diario). Es la misma fuente de verdad que usa el endpoint
+      // legacy de bitácora (diarioController.consumirInsumo).
+      const precioPromedio = parseFloat(item.cantidad) > 0
+        ? +(resultado.costoTotal / parseFloat(item.cantidad)).toFixed(4)
+        : 0;
+      await client.query(
+        `INSERT INTO consumos_lote
+           (negocio_id, lote_id, insumo_id, fecha_consumo,
+            cantidad_total, costo_total, precio_promedio, detalle_fifo, notas)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)`,
+        [
+          negocioId, loteId, item.insumo_id, fecha,
+          item.cantidad, resultado.costoTotal, precioPromedio,
+          JSON.stringify(resultado.lineasFIFO),
+          'Confirmado desde registro diario',
+        ]
       );
     }
 
