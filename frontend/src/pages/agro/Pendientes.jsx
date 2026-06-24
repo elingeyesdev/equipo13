@@ -86,6 +86,17 @@ export default function Pendientes({ negocioId }) {
     }
   }
 
+  async function archivarEvento(eventoId) {
+    setMsg(null);
+    try {
+      await apiFetch(`/api/negocios/${negocioId}/pendientes/eventos/${eventoId}/archivar`, { method: 'POST' });
+      setMsg({ tipo: 'ok', texto: 'Evento marcado como resuelto.' });
+      cargar();
+    } catch (e) {
+      setMsg({ tipo: 'error', texto: e.error || 'Error al archivar evento' });
+    }
+  }
+
   const incidentesYStock = [...incidentes, ...stockBajo].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const totalPendientes = registros.length + bajas.length;
   const msgColor = msg?.tipo === 'error' ? 'var(--accent-danger)' : 'var(--accent-success)';
@@ -135,7 +146,12 @@ export default function Pendientes({ negocioId }) {
                 <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{r.lote_identificador}</span>
                 <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{String(r.fecha).split('T')[0]}</span>
                 <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textAlign: 'right' }}>{r.items_count}</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.notas_del_dia || ''}>{r.notas_del_dia || '—'}</span>
+                <div style={{ overflow: 'hidden' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={r.notas_del_dia || ''}>{r.notas_del_dia || '—'}</span>
+                  {r.peso_promedio_kg && (
+                    <span style={{ display: 'inline-block', marginTop: '4px', background: 'var(--accent-warning)1A', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)33', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: 600 }}>+ Pesaje: {r.peso_promedio_kg} kg</span>
+                  )}
+                </div>
                 <div style={{ textAlign: 'right' }}>
                   <Btn size="sm" icon="check" accentColor={ACCENT} onClick={() => confirmar(r.lote_id, String(r.fecha).split('T')[0])}>Confirmar</Btn>
                 </div>
@@ -160,7 +176,7 @@ export default function Pendientes({ negocioId }) {
                 <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{new Date(b.created_at).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{b.lote_identificador}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{b.operario_nombre}</span>
-                <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--accent-danger)', textAlign: 'right', fontWeight: 600 }}>{b.payload?.cabezas}</span>
+                <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--accent-danger)', textAlign: 'right', fontWeight: 600 }}>{b.payload?.cabezas || b.payload?.cantidad || 0}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{b.payload?.causa}</span>
                 <Fotos fotos={b.fotos} />
                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
@@ -197,6 +213,9 @@ export default function Pendientes({ negocioId }) {
                       : `${e.payload?.nombre || 'Insumo'} a nivel ${e.payload?.nivel || ''}`}
                   </span>
                   <Fotos fotos={e.fotos} />
+                  <div style={{ textAlign: 'right' }}>
+                    <Btn size="sm" icon="check" variant="secondary" onClick={() => archivarEvento(e.id)}>Resuelto</Btn>
+                  </div>
                 </div>
               );
             })}

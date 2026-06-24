@@ -316,7 +316,7 @@ export async function getDetalleDia(req, res) {
 
 export async function guardarRegistroDia(req, res) {
   const { negocioId, loteId, fecha } = req.params;
-  const { notas_del_dia, items = [] } = req.body;
+  const { notas_del_dia, items = [], peso_promedio_kg } = req.body;
 
   const client = await pool.connect();
   try {
@@ -347,10 +347,10 @@ export async function guardarRegistroDia(req, res) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Este día ya fue confirmado y no puede modificarse' });
       }
-      // Actualizar notas y eliminar items anteriores
+      // Actualizar notas, peso y eliminar items anteriores
       await client.query(
-        'UPDATE registro_diario_lote SET notas_del_dia = $1 WHERE id = $2',
-        [notas_del_dia || null, reg.id]
+        'UPDATE registro_diario_lote SET notas_del_dia = $1, peso_promedio_kg = $2 WHERE id = $3',
+        [notas_del_dia || null, peso_promedio_kg || null, reg.id]
       );
       await client.query(
         'DELETE FROM registro_diario_item WHERE registro_diario_id = $1',
@@ -361,10 +361,10 @@ export async function guardarRegistroDia(req, res) {
       // Crear nuevo registro
       const { rows } = await client.query(
         `INSERT INTO registro_diario_lote
-           (negocio_id, lote_id, fecha, notas_del_dia)
-         VALUES ($1, $2, $3, $4)
+           (negocio_id, lote_id, fecha, notas_del_dia, peso_promedio_kg)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-        [negocioId, loteId, fecha, notas_del_dia || null]
+        [negocioId, loteId, fecha, notas_del_dia || null, peso_promedio_kg || null]
       );
       registroId = rows[0].id;
     }
@@ -507,6 +507,23 @@ export async function confirmarDia(req, res) {
        RETURNING *`,
       [registro.id]
     );
+
+    // 5. Registrar pesaje si hay peso_promedio_kg
+    if (registro.peso_promedio_kg) {
+      await client.query(
+        `INSERT INTO pesajes_lote (lote_id, fecha, peso_prom_kg, origen, registrado_por)
+         VALUES ($1, $2, $3, 'operario', $4)
+         ON CONFLICT (lote_id, fecha) DO UPDATE SET
+           peso_prom_kg   = EXCLUDED.peso_prom_kg,
+           origen         = EXCLUDED.origen,
+           registrado_por = EXCLUDED.registrado_por`,
+        [loteId, fecha, registro.peso_promedio_kg, req.user.id]
+      );
+      await client.query(
+        'UPDATE lotes SET peso_actual_prom = $1 WHERE id = $2 AND negocio_id = $3',
+        [registro.peso_promedio_kg, loteId, negocioId]
+      );
+    }
 
     await client.query('COMMIT');
 

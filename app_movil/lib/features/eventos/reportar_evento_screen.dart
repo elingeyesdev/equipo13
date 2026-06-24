@@ -38,10 +38,7 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
 
   // Devuelve un mensaje de error si el formulario no es válido, o null si lo es.
   String? _validar() {
-    if (_tipo == 'pesaje') {
-      final p = double.tryParse(_pesoCtrl.text);
-      if (p == null || p <= 0) return 'Ingresá un peso promedio válido (mayor a 0).';
-    } else if (_tipo == 'baja') {
+    if (_tipo == 'baja') {
       final c = int.tryParse(_cabezasCtrl.text);
       if (c == null || c <= 0) return 'Ingresá la cantidad de cabezas (mayor a 0).';
       if (_causaCtrl.text.trim().isEmpty) return 'Ingresá la causa de la baja.';
@@ -76,10 +73,6 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
         };
         final pb = double.tryParse(_pesoCtrl.text);
         if (pb != null) payload['peso_baja'] = pb;
-      } else if (_tipo == 'pesaje') {
-        payload = {
-          'peso_promedio': double.parse(_pesoCtrl.text),
-        };
       } else if (_tipo == 'incidente') {
         payload = {
           'categoria': _causaCtrl.text,
@@ -109,7 +102,6 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
   static const _tipos = [
     (value: 'incidente', label: 'Incidente', icon: Icons.warning_amber_rounded),
     (value: 'baja', label: 'Baja / Muerte', icon: Icons.heart_broken_rounded),
-    (value: 'pesaje', label: 'Pesaje', icon: Icons.monitor_weight_rounded),
     (value: 'stock_bajo', label: 'Stock bajo', icon: Icons.inventory_2_rounded),
   ];
 
@@ -168,10 +160,6 @@ class _ReportarEventoScreenState extends ConsumerState<ReportarEventoScreen> {
               TextField(controller: _causaCtrl, decoration: const InputDecoration(labelText: 'Causa')),
               const SizedBox(height: 14),
               TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso estimado (kg)'), keyboardType: TextInputType.number),
-            ],
-
-            if (_tipo == 'pesaje') ...[
-              TextField(controller: _pesoCtrl, decoration: const InputDecoration(labelText: 'Peso promedio (kg)', prefixIcon: Icon(Icons.scale_rounded)), keyboardType: TextInputType.number),
             ],
 
             if (_tipo == 'incidente') ...[

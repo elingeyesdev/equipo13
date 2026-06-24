@@ -15,8 +15,9 @@ class RegistroDiaScreen extends ConsumerStatefulWidget {
 
 class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
   List<Map<String, dynamic>> _insumos = [];
-  final List<ItemRegistro> _items = [];
+  final _items = <ItemRegistro>[];
   final _notas = TextEditingController();
+  final _pesoCtrl = TextEditingController();
   Map<String, dynamic>? _detalle;
   bool _cargando = true;
   bool _confirmado = false;
@@ -33,6 +34,10 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
     _detalle = await repo.detalleDia(widget.lote.id, widget.fecha);
     final reg = _detalle?['registro'];
     _confirmado = reg?['confirmado'] == true;
+    _notas.text = reg?['notas_del_dia'] ?? '';
+    if (reg?['peso_promedio_kg'] != null) {
+      _pesoCtrl.text = reg!['peso_promedio_kg'].toString();
+    }
     // Precargar los ítems del borrador existente: si no, abrir un día ya
     // registrado mostraría el formulario vacío y al guardar borraría todo.
     final existentes = reg?['items'];
@@ -72,7 +77,11 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
   Future<void> _guardar() async {
     try {
       await ref.read(registroRepoProvider).guardarBorrador(
-        widget.lote.id, widget.fecha, notas: _notas.text, items: _items);
+        widget.lote.id, widget.fecha,
+        notas: _notas.text,
+        pesoPromedioKg: _toDouble(_pesoCtrl.text),
+        items: _items,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Borrador guardado. El administrador lo confirmará.')));
@@ -132,8 +141,11 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
                               const Text('Guía del día (estándar)',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.info)),
                               const SizedBox(height: 2),
-                              Text('${estandar['alimentacion']}',
-                                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4)),
+                              if (estandar['alimentacion'] is List)
+                                ...(estandar['alimentacion'] as List).map((a) => Text(
+                                  '• ${a['descripcion']}: ${a['cantidad_por_cabeza_kg']} kg/cab (${a['frecuencia']})',
+                                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4),
+                                )),
                             ],
                           ),
                         ),
@@ -168,10 +180,16 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
                       Expanded(flex: 3, child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           isExpanded: true,
+                          itemHeight: null, // Permite altura dinámica para textos largos
                           value: item.insumoId,
                           borderRadius: BorderRadius.circular(12),
                           items: _insumos.map((ins) => DropdownMenuItem(
-                            value: ins['id'] as String, child: Text(ins['nombre'], overflow: TextOverflow.ellipsis))).toList(),
+                            value: ins['id'] as String,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Text(ins['nombre'], style: const TextStyle(height: 1.2)),
+                            ),
+                          )).toList(),
                           onChanged: (v) {
                             final ins = _insumos.firstWhere((x) => x['id'] == v);
                             setState(() => _items[i] = ItemRegistro(
@@ -206,6 +224,9 @@ class _RegistroDiaScreenState extends ConsumerState<RegistroDiaScreen> {
                   label: const Text('Agregar insumo'),
                 ),
                 const SizedBox(height: 18),
+                TextField(controller: _pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Peso promedio del lote (kg) - Opcional', prefixIcon: Icon(Icons.scale_rounded))),
+                const SizedBox(height: 14),
                 TextField(controller: _notas, maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Notas del día', alignLabelWithHint: true)),
                 const SizedBox(height: 20),

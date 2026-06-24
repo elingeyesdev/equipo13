@@ -59,10 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 4),
                   Text('Ingresá con tus credenciales de operario',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Text('Demo: GRANJA · juan/1234 · maria/5678',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 28),
 
                   // Tarjeta de acceso
                   Container(

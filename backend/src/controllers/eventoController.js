@@ -86,7 +86,7 @@ export async function aprobarBaja(req, res) {
       return res.status(404).json({ error: 'Baja pendiente no encontrada' });
     }
     const ev = evRes.rows[0];
-    const cabezas = parseInt(ev.payload.cabezas) || 0;
+    const cabezas = parseInt(ev.payload.cabezas) || parseInt(ev.payload.cantidad) || 0;
     const causa = ev.payload.causa || 'Baja reportada por operario';
     const pesoBaja = ev.payload.peso_baja ?? null;
 
@@ -141,6 +141,24 @@ export async function rechazarBaja(req, res) {
     res.json(rows[0]);
   } catch (err) {
     console.error('rechazarBaja error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/negocios/:negocioId/pendientes/eventos/:eventoId/archivar
+export async function archivarEvento(req, res) {
+  const { negocioId, eventoId } = req.params;
+  try {
+    const { rowCount, rows } = await pool.query(
+      `UPDATE eventos_operario SET estado = 'archivado', revisado_por = $1, revisado_en = NOW()
+        WHERE id = $2 AND negocio_id = $3 AND (tipo = 'incidente' OR tipo = 'stock_bajo') AND estado != 'archivado' RETURNING *`,
+      [req.user.id, eventoId, negocioId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Evento no encontrado o ya archivado' });
+    
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('archivarEvento error:', err);
     res.status(500).json({ error: err.message });
   }
 }

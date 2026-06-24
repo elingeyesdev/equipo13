@@ -224,7 +224,7 @@ async function seedOperariosRutinasTareas(db, negocioId, adminId, loteIds) {
        ($1, $2, $3, 'pesaje', 'aplicado', '{}'::jsonb),
        ($1, $2, $3, 'incidente', 'aplicado', '{"descripcion": "Bebedero atascado en el corral"}'::jsonb),
        ($1, $2, $3, 'stock_bajo', 'aplicado', '{"insumo": "Balanceado", "mensaje": "Queda poco balanceado"}'::jsonb),
-       ($1, $2, $3, 'baja', 'pendiente', '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb)`,
+       ($1, $2, $3, 'baja', 'pendiente', '{"causa": "Síndrome respiratorio", "cabezas": 1}'::jsonb)`,
       [negocioId, loteNuevo, opIds[0]]
     );
 

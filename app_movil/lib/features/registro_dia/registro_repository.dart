@@ -17,10 +17,11 @@ class RegistroRepository {
     return await api.get('/api/operario/lotes/$loteId/hoja-de-vida/$fecha');
   }
 
-  Future<void> guardarBorrador(String loteId, String fecha, {String? notas, required List<ItemRegistro> items}) async {
+  Future<void> guardarBorrador(String loteId, String fecha, {String? notas, double? pesoPromedioKg, required List<ItemRegistro> items}) async {
     final api = ref.read(apiClientProvider);
     await api.post('/api/operario/lotes/$loteId/hoja-de-vida/$fecha', data: {
       'notas_del_dia': notas,
+      'peso_promedio_kg': pesoPromedioKg,
       'items': items.map((e) => e.toJson()).toList(),
     });
   }

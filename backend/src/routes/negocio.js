@@ -8,7 +8,7 @@ import {
   setActivoOperario, asignarLote, desasignarLote,
 } from '../controllers/operarioAdminController.js';
 import { getReporteProductividad } from '../controllers/reporteOperarioController.js';
-import { listarEventos, aprobarBaja, rechazarBaja } from '../controllers/eventoController.js';
+import { listarEventos, aprobarBaja, rechazarBaja, archivarEvento } from '../controllers/eventoController.js';
 import {
   crearTarea,
   listarTareas,
@@ -303,6 +303,7 @@ router.delete('/:negocioId/operarios/:operarioId/lotes/:loteId', authMiddleware,
 router.get('/:negocioId/eventos', authMiddleware, requireMembership('admin'), listarEventos);
 router.post('/:negocioId/pendientes/bajas/:eventoId/aprobar',  authMiddleware, requireMembership('admin'), aprobarBaja);
 router.post('/:negocioId/pendientes/bajas/:eventoId/rechazar', authMiddleware, requireMembership('admin'), rechazarBaja);
+router.post('/:negocioId/pendientes/eventos/:eventoId/archivar', authMiddleware, requireMembership('admin'), archivarEvento);
 
 // Tareas y rutinas
 router.post('/:negocioId/tareas', authMiddleware, requireMembership('admin'), crearTarea);
