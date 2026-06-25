@@ -16,7 +16,7 @@ const IcaBarChart = ({ icaPorLote, onLoteClick }) => {
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 25, right: 30, left: 30, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
             <XAxis
               type="number"
