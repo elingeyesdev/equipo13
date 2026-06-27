@@ -205,6 +205,8 @@ export async function seedEngordePorcino(negocioId, db) {
       pesajeActivo = true,
       pesajes,                 // [{ offset, peso }] — el último define peso_actual y la base del recordatorio
       diasDeRegistros = 30,    // override de los días de registro, por defecto 30
+      bajasAplicadas = [],     // [{ dia, causa }] — bajas ya aprobadas; decrementan cabezas_activas
+      bajasPendientes = [],    // [{ dia, causa }] — bajas reportadas pendientes de aprobación (no decrementan)
     } = config;
     const FECHA_ENTRADA_OFFSET = diasDeRegistros;
     const pesoActual = pesajes[pesajes.length - 1].peso;
@@ -352,47 +354,56 @@ export async function seedEngordePorcino(negocioId, db) {
       }
     }
 
-    // Eventos de baja distribuidos: una baja en el día 8 y otra en el día 22.
-    // Esto puebla `eventos_operario` para que la gráfica de mortandad muestre
-    // datos reales en el dashboard, sin depender de bajas manuales del operario.
-    // Estado 'aplicado' es lo que el dashboard cuenta (estado='pendiente' se filtra).
-    // Además decrementamos cabezas_activas para que el KPI de mortandad % no quede en 0.
-    // operario_user_id es NOT NULL: usamos el dueño del negocio (siempre existe,
-    // se acaba de crear); funciona tanto desde seed_demo_completo como desde
-    // aplicarPlantilla cuando el negocio se crea desde la app.
-    const bajasFechas = [8, 22].filter(d => d <= diasDeRegistros);
-    for (const diaBaja of bajasFechas) {
-      const fechaBaja = dateOffset(-(diasDeRegistros - diaBaja));
+    // Eventos de baja parametrizados por lote.
+    // - bajasAplicadas: ya aprobadas → cuentan en mortandad y decrementan cabezas_activas.
+    // - bajasPendientes: aparecen en la bandeja "Pendientes" del admin, NO decrementan cabezas
+    //   activas hasta que se aprueben (el filtro estado='pendiente' las excluye de KPIs).
+    // operario_user_id es NOT NULL: usamos el dueño del negocio (siempre existe).
+    async function insertarBaja({ dia, causa, estado }) {
+      const fechaBaja = dateOffset(-(diasDeRegistros - dia));
       await db.query(
         `INSERT INTO eventos_operario (negocio_id, lote_id, operario_user_id, tipo, estado, payload, created_at)
          VALUES (
            $1, $2,
            (SELECT user_id FROM negocios WHERE id = $1),
-           'baja', 'aplicado',
-           '{"causa": "Síndrome respiratorio", "cantidad": 1}'::jsonb,
-           $3::date + INTERVAL '10 hours'
+           'baja', $3,
+           jsonb_build_object('causa', $4::text, 'cantidad', 1),
+           $5::date + INTERVAL '10 hours'
          )`,
-        [negocioId, loteId, fechaBaja]
+        [negocioId, loteId, estado, causa, fechaBaja]
       );
     }
-    if (bajasFechas.length > 0) {
+
+    const aplicadas = bajasAplicadas.filter(b => b.dia <= diasDeRegistros);
+    for (const b of aplicadas) {
+      await insertarBaja({ dia: b.dia, causa: b.causa, estado: 'aplicado' });
+    }
+    const pendientes = bajasPendientes.filter(b => b.dia <= diasDeRegistros);
+    for (const b of pendientes) {
+      await insertarBaja({ dia: b.dia, causa: b.causa, estado: 'pendiente' });
+    }
+    if (aplicadas.length > 0) {
       await db.query(
         `UPDATE lotes SET cabezas_activas = GREATEST(cabezas_activas - $2, 0) WHERE id = $1`,
-        [loteId, bajasFechas.length]
+        [loteId, aplicadas.length]
       );
     }
   }
 
-  // ───────── 10. Crear los dos lotes ─────────
-  // Pensados para la demo del recordatorio de pesaje:
+  // ───────── 10. Crear los tres lotes ─────────
+  // Pensados para la demo y la defensa:
   //
-  //   LOTE-CERD-001 → PESAJE VENCIDO. Cadencia propia de 10 días y último
-  //     pesaje hace 14 días → en la lista de Lotes aparece "⚠ Vencido" y, al
-  //     abrir el día de hoy en la Hoja de Vida, sale el banner para registrar
-  //     el peso. Es el lote ideal para mostrar el flujo de "Registrar peso".
+  //   LOTE-CERD-001 → 50 cabezas, SIN bajas. Lote "ideal" para mostrar al final
+  //     que es el mismo modelo del lote pequeño pero multiplicado por 50.
+  //     Pesaje vencido (cadencia 10 d / último hace 14 d) para demo de "Registrar peso".
   //
-  //   LOTE-CERD-002 → AL DÍA. Hereda la cadencia del negocio (15 días) y su
-  //     último pesaje fue hace 3 días → en la lista aparece "Próximo: <fecha>".
+  //   LOTE-CERD-002 → 10 cabezas, 1 baja aplicada + 1 baja PENDIENTE de aprobación.
+  //     Sirve para mostrar el flujo de aprobación en "Pendientes" sin saturar
+  //     la pantalla con múltiples casos. Pesaje al día (cadencia 15).
+  //
+  //   LOTE-CERD-003 → 1 cerdo, SIN bajas. Caso minimalista: todos los gastos
+  //     (alimento, sanidad, mano de obra) corresponden a UN solo animal,
+  //     facilita la defensa explicando cuentas claras antes de extrapolar al de 50.
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
@@ -404,6 +415,7 @@ export async function seedEngordePorcino(negocioId, db) {
       { offset: -24, peso: 12.0, muestras: 10, notas: 'Llegaron bien', origen: 'dueno' },
       { offset: -14, peso: 20.0, muestras: null, notas: 'Pesaje del encargado', origen: 'operario' }, // último: hace 14 días → vencido (cadencia 10)
     ],
+    // Sin bajas: el lote queda completo (50/50) para la defensa.
   });
 
   await createLoteConRegistros({
@@ -418,21 +430,28 @@ export async function seedEngordePorcino(negocioId, db) {
       { offset: -15, peso: 16.5, muestras: 5, notas: 'Comen bien', origen: 'operario' },
       { offset:  -3, peso: 24.0, muestras: null, notas: 'Se pesan los más gordos', origen: 'dueno' }, // último: hace 3 días → al día (cadencia 15)
     ],
+    bajasAplicadas: [
+      { dia: 8, causa: 'Síndrome respiratorio' }, // ya aprobada → 10/10 → 9/10
+    ],
+    bajasPendientes: [
+      { dia: 25, causa: 'Muerte súbita (pendiente de revisión)' }, // aparece en bandeja del admin
+    ],
   });
 
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-003',
-    cabezas: 5,
+    cabezas: 1,
     pesoInicial: 8.0,
-    costoAdq: 900, // 5 * 180 Bs/cabeza
+    costoAdq: 180, // 1 × 180 Bs/cabeza
     pesajeIntervalo: 7, // override propio del lote
     pesajeActivo: true,
     diasDeRegistros: 20,
     pesajes: [
-      { offset: -19, peso: 10.0, muestras: 2, notas: 'Entrada adaptada', origen: 'dueno' },
-      { offset: -12, peso: 14.0, muestras: 2, notas: 'Pesaje semana 1', origen: 'operario' },
-      { offset: -5, peso: 18.0, muestras: 2, notas: 'Crecen bien', origen: 'operario' }, // último: hace 5 días → próximo en 2 días (cadencia 7)
+      { offset: -19, peso: 10.0, muestras: 1, notas: 'Entrada adaptada', origen: 'dueno' },
+      { offset: -12, peso: 14.0, muestras: 1, notas: 'Pesaje semana 1', origen: 'operario' },
+      { offset: -5,  peso: 18.0, muestras: 1, notas: 'Crece bien', origen: 'operario' }, // último: hace 5 días → próximo en 2 días (cadencia 7)
     ],
+    // Sin bajas: caso minimalista para defensa "1 cerdo = costos claros".
   });
 
   // ───────── 11. Sincronizar cantidad_disponible final del FIFO ─────────
