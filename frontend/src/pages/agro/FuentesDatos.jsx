@@ -94,7 +94,16 @@ export default function FuentesDatos({ negocioId }) {
     setMsg({ tipo: 'info', texto: 'Ejecutando scraping…' });
     try {
       const data = await apiFetch(`/api/negocios/${negocioId}/scraping/run`, { method: 'POST' });
-      setMsg({ tipo: 'ok', texto: `Listo: ${data?.filas_insertadas || 0} precios guardados.` });
+      const lecturas = data?.filas_insertadas || 0;
+      let unicos = null;
+      try {
+        const scrapeados = await apiFetch(`/api/negocios/${negocioId}/precios-scrapeados`);
+        unicos = Array.isArray(scrapeados) ? scrapeados.length : null;
+      } catch {/* si falla, mostramos solo lecturas */}
+      const texto = unicos != null
+        ? `Listo: ${lecturas} lecturas guardadas (${unicos} cortes/fuentes únicos en la vista).`
+        : `Listo: ${lecturas} lecturas guardadas.`;
+      setMsg({ tipo: 'ok', texto });
       cargar();
     } catch (e) {
       setMsg({ tipo: 'error', texto: `Error: ${e.error || e.message}` });

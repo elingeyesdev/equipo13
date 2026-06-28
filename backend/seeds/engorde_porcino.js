@@ -197,7 +197,11 @@ export async function seedEngordePorcino(negocioId, db) {
   //   dia  1-10 → 0.5 kg/cab/dia
   //   dia 11-20 → 0.9 kg/cab/dia
   //   dia 21-30 → 1.3 kg/cab/dia
-  //   Promedio: 0.9 kg/cab/dia · ICa esperado ~1.6 (eficiente)
+  //   Promedio: 0.9 kg/cab/dia (≈27 kg de alimento/cab en el mes).
+  //   El ICa mostrado = alimento consumido / ganancia de peso REGISTRADA. Con el
+  //   último peso de CERD-001 (20 kg, pesaje vencido) da ~2.3 — normal en fase de
+  //   inicio. Al registrar el peso actual (~28-30 kg) baja a ~1.5: por eso el lote
+  //   tiene el recordatorio de "pesaje vencido" activo para la demo.
   async function createLoteConRegistros(config) {
     const {
       identificador, cabezas, pesoInicial, costoAdq,
@@ -408,7 +412,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
     pesoInicial: 8.5,
-    costoAdq:    9000, // 50 × 180 Bs/cabeza
+    costoAdq:    12500, // 50 × 250 Bs/cabeza (lechón destetado, mercado boliviano)
     pesajeIntervalo: 10, // override propio del lote
     pesajeActivo: true,
     pesajes: [
@@ -422,7 +426,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-002',
     cabezas: 10,
     pesoInicial: 8.5,
-    costoAdq:    1800,  // 10 × 180 Bs/cabeza
+    costoAdq:    2500,  // 10 × 250 Bs/cabeza (lechón destetado, mercado boliviano)
     pesajeIntervalo: null, // hereda la cadencia del negocio (15 días)
     pesajeActivo: true,
     pesajes: [
@@ -442,7 +446,7 @@ export async function seedEngordePorcino(negocioId, db) {
     identificador: 'LOTE-CERD-003',
     cabezas: 1,
     pesoInicial: 8.0,
-    costoAdq: 180, // 1 × 180 Bs/cabeza
+    costoAdq: 250, // 1 × 250 Bs/cabeza (lechón destetado, mercado boliviano)
     pesajeIntervalo: 7, // override propio del lote
     pesajeActivo: true,
     diasDeRegistros: 20,

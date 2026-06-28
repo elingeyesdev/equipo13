@@ -94,20 +94,23 @@ PESO_PROM_PIE = 95.0          # kg de peso vivo por cabeza al momento de faenar
 RENDIMIENTO_CANAL = 0.78      # cerdo: ~78% del peso vivo queda como canal aprovechable
 COSTO_ADQUISICION_DEMO = 28000.0
 # Reparto del canal por corte (fracción del peso canal; debe sumar 1.0).
-# Rendimientos de despiece porcino de la plantilla real.
+# DEBE coincidir con el rendimiento_pct del catálogo (backend/seeds/
+# catalogoCortesPorcino.js) y con CUTS en backend/scripts/seed_demo_completo.js,
+# para que el despiece de la demo (Granja Olmos) y el despiece que crea este seed
+# (Camino B, negocio sin despiece) cuenten la MISMA historia.
 RENDIMIENTO_CORTE = {
-    "Pierna":         0.25,   # corte primario premium, el más grande
-    "Paleta":         0.15,   # corte primario popular
-    "Panceta":        0.13,   # corte primario (subió: estaba subestimada)
-    "Costilla":       0.12,   # corte primario popular
-    "Lomo":           0.07,   # premium chico (bajó: estaba sobredimensionado)
-    "Chuleta":        0.06,   # parte del lomo, en cortes secundarios
-    "Bondiola":       0.05,   # premium chico
-    "Hueso/Carnaza":  0.07,   # estructura no vendible como filete
+    "Pierna":         0.24,   # corte primario premium, el más grande
+    "Paleta":         0.16,   # corte primario popular (brazuelo)
+    "Lomo":           0.12,   # primario premium (región del lomo)
+    "Costilla":       0.10,   # corte primario popular (costillar)
+    "Panceta":        0.09,   # tocino / pork belly
+    "Chuleta":        0.08,   # lomo con hueso
+    "Hueso/Carnaza":  0.05,   # estructura no vendible como filete
+    "Bondiola":       0.04,   # premium chico (cabeza de lomo)
     "Grasa":          0.04,   # tocino crudo / manteca
     "Cuero":          0.03,   # para chicharrón
-    "Recortes":       0.02,   # van a embutidos
-    "Patas":          0.01,   # subproducto menor
+    "Recortes":       0.03,   # van a embutidos
+    "Patas":          0.02,   # subproducto menor
 }
 
 

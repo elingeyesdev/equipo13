@@ -25,20 +25,25 @@ const DEMO_PASS = 'demo1234';
 const DEMO_NEGOCIO = 'Granja Olmos';
 
 // Cortes porcinos con precio base minorista (Bs/kg) y rendimiento (% del canal).
-// Alineados con backend/seeds/catalogoCortesPorcino.js y ml_service/seed_demo.py.
+// Precios calibrados a la realidad boliviana junio 2026, tomados de la misma fuente
+// que el sistema scrapea (Don Cerdo Bolivia, https://doncerdobolivia.com): p.ej.
+// Panceta 60.6-61.5, Lomo 56.8 (chuleta 44, solomillo 72), Costilla 45.8,
+// Pierna entera 35.4 / deshuesada 40, Paleta entera 34.2 / deshuesada 38.9.
+// DEBEN coincidir con ml_service/seed_demo.py (BASE + RENDIMIENTO_CORTE) y con
+// backend/seeds/catalogoCortesPorcino.js (rendimiento_pct). Rendimientos suman 100.
 const CUTS = [
-  { nombre: 'Pierna',        base: 25, rend: 24 },
-  { nombre: 'Paleta',        base: 23, rend: 16 },
-  { nombre: 'Lomo',          base: 36, rend: 12 },
-  { nombre: 'Costilla',      base: 33, rend: 10 },
-  { nombre: 'Panceta',       base: 30, rend: 9  },
-  { nombre: 'Chuleta',       base: 32, rend: 8  },
-  { nombre: 'Hueso/Carnaza', base: 15, rend: 5  },
-  { nombre: 'Bondiola',      base: 35, rend: 4  },
-  { nombre: 'Grasa',         base: 8,  rend: 4  },
-  { nombre: 'Cuero',         base: 10, rend: 3  },
-  { nombre: 'Recortes',      base: 18, rend: 3  },
-  { nombre: 'Patas',         base: 15, rend: 2  },
+  { nombre: 'Pierna',        base: 38, rend: 24 },
+  { nombre: 'Paleta',        base: 37, rend: 16 },
+  { nombre: 'Lomo',          base: 50, rend: 12 },
+  { nombre: 'Costilla',      base: 45, rend: 10 },
+  { nombre: 'Panceta',       base: 63, rend: 9  },
+  { nombre: 'Chuleta',       base: 50, rend: 8  },
+  { nombre: 'Hueso/Carnaza', base: 12, rend: 5  },
+  { nombre: 'Bondiola',      base: 40, rend: 4  },
+  { nombre: 'Grasa',         base: 6,  rend: 4  },
+  { nombre: 'Cuero',         base: 8,  rend: 3  },
+  { nombre: 'Recortes',      base: 25, rend: 3  },
+  { nombre: 'Patas',         base: 12, rend: 2  },
 ];
 const PROPHET = new Set(['Pierna', 'Lomo']); // >=365 días → dispara Prophet
 const DIAS_PROPHET = 420;
