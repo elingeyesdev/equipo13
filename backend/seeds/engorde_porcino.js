@@ -211,6 +211,11 @@ export async function seedEngordePorcino(negocioId, db) {
       diasDeRegistros = 30,    // override de los días de registro, por defecto 30
       bajasAplicadas = [],     // [{ dia, causa }] — bajas ya aprobadas; decrementan cabezas_activas
       bajasPendientes = [],    // [{ dia, causa }] — bajas reportadas pendientes de aprobación (no decrementan)
+      modoFamiliar = false,    // productor familiar (1-2 cabezas): NO contrata servicios externos fijos
+                               // (visita vet, retiro de purín, muestreo pagado). Solo paga lo que
+                               // escala por cabeza (vacunas, vitaminas, ivermectina, areteo). Evita
+                               // que los costos fijos del calendario comercial sobre-castiguen a un
+                               // lote chico (caso tutorial: 1 cerdo en CERD-003).
     } = config;
     const FECHA_ENTRADA_OFFSET = diasDeRegistros;
     const pesoActual = pesajes[pesajes.length - 1].peso;
@@ -317,15 +322,20 @@ export async function seedEngordePorcino(negocioId, db) {
       const cantBalanceado = +(kgPorCabDia(dia) * cabezas).toFixed(4);
       await registrarInsumo(registroId, fecha, 'bal_inicio', cantBalanceado);
 
-      // Eventos sanitarios realistas (calendario tipico de engorde porcino confinamiento)
+      // Eventos sanitarios realistas (calendario tipico de engorde porcino confinamiento).
+      // En modoFamiliar se omiten los servicios externos de costo FIJO (visita vet, retiro
+      // de purín, muestreo pagado) — un productor de 1 cerdo no los contrata. Se mantiene
+      // todo lo que escala por cabeza: vacunas, vitaminas, ivermectina y el areteo.
       if (dia === 1) {
         // Llegada: anti-estres + chequeo
         await registrarInsumo(registroId, fecha, 'vit_ade',      2 * cabezas);
         await registrarInsumo(registroId, fecha, 'electrolitos', 0.001 * cabezas);
-        await registrarServicio(registroId, fecha, 'Visita veterinaria', 'Dr. Iván Soto');
+        if (!modoFamiliar) {
+          await registrarServicio(registroId, fecha, 'Visita veterinaria', 'Dr. Iván Soto');
+        }
       }
       if (dia === 3) {
-        // Vacuna Mycoplasma dosis 1 + identificacion
+        // Vacuna Mycoplasma dosis 1 + identificacion (areteo cobra por cabeza, escala bien)
         await registrarInsumo(registroId, fecha, 'vac_myco', cabezas);
         await registrarServicio(registroId, fecha, 'Areteo / Identificación', 'Equipo de granja', 8 * cabezas);
       }
@@ -333,25 +343,27 @@ export async function seedEngordePorcino(negocioId, db) {
         // Desparasitacion interna
         await registrarInsumo(registroId, fecha, 'ivermectina', 0.3 * cabezas);
       }
-      if (dia === 10) {
+      if (dia === 10 && !modoFamiliar) {
         await registrarServicio(registroId, fecha, 'Retiro de estiércol/purín', 'Equipo de granja');
       }
-      if (dia === 14) {
+      if (dia === 14 && !modoFamiliar) {
         await registrarServicio(registroId, fecha, 'Muestreo de pesos', 'Equipo de granja');
       }
       if (dia === 17) {
         // Vacuna Mycoplasma dosis 2 (refuerzo)
         await registrarInsumo(registroId, fecha, 'vac_myco', cabezas);
-        await registrarServicio(registroId, fecha, 'Visita veterinaria', 'Dr. Iván Soto');
+        if (!modoFamiliar) {
+          await registrarServicio(registroId, fecha, 'Visita veterinaria', 'Dr. Iván Soto');
+        }
       }
-      if (dia === 20) {
+      if (dia === 20 && !modoFamiliar) {
         await registrarServicio(registroId, fecha, 'Retiro de estiércol/purín', 'Equipo de granja');
       }
       if (dia === 25) {
         // Desparasitacion externa
         await registrarInsumo(registroId, fecha, 'desp_ext', 0.5 * cabezas);
       }
-      if (dia === 30) {
+      if (dia === 30 && !modoFamiliar) {
         // Cierre del mes: muestreo final + limpieza
         await registrarServicio(registroId, fecha, 'Muestreo de pesos', 'Equipo de granja');
         await registrarServicio(registroId, fecha, 'Retiro de estiércol/purín', 'Equipo de granja');
@@ -405,9 +417,12 @@ export async function seedEngordePorcino(negocioId, db) {
   //     Sirve para mostrar el flujo de aprobación en "Pendientes" sin saturar
   //     la pantalla con múltiples casos. Pesaje al día (cadencia 15).
   //
-  //   LOTE-CERD-003 → 1 cerdo, SIN bajas. Caso minimalista: todos los gastos
-  //     (alimento, sanidad, mano de obra) corresponden a UN solo animal,
-  //     facilita la defensa explicando cuentas claras antes de extrapolar al de 50.
+  //   LOTE-CERD-003 → 1 cerdo, SIN bajas. Caso "productor familiar" (modoFamiliar).
+  //     Solo paga lo que escala por cabeza: alimento, vacunas, vitaminas, ivermectina y
+  //     areteo. NO contrata servicios externos de costo fijo (visita vet 250, retiro de
+  //     purín 220, muestreo 120) — un productor de 1 cerdo los hace él mismo. Si se
+  //     incluyeran enteros, 1.060 Bs caerían sobre 1 cabeza (vs 21 Bs/cab en el de 50)
+  //     y confundirían el ejercicio "extrapolemos de 1 a 50".
   await createLoteConRegistros({
     identificador: 'LOTE-CERD-001',
     cabezas: 50,
@@ -450,6 +465,7 @@ export async function seedEngordePorcino(negocioId, db) {
     pesajeIntervalo: 7, // override propio del lote
     pesajeActivo: true,
     diasDeRegistros: 20,
+    modoFamiliar: true, // productor familiar: solo gastos que escalan por cabeza
     pesajes: [
       { offset: -19, peso: 10.0, muestras: 1, notas: 'Entrada adaptada', origen: 'dueno' },
       { offset: -12, peso: 14.0, muestras: 1, notas: 'Pesaje semana 1', origen: 'operario' },

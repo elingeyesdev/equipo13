@@ -122,7 +122,7 @@ const Onboarding = ({ onComplete }) => {
 
   // Rubros que el wizard va a crear (1 si single, 2 si "ambos")
   const rubrosActivos = rubro === 'ambos'
-    ? ['industrial', 'agro_ganadero']
+    ? ['agro_ganadero', 'industrial']
     : (rubro ? [rubro] : []);
 
   const accentColor = rubro === 'agro_ganadero'
