@@ -195,6 +195,29 @@ const RegistroDia = ({ negocioId, activeLote, fecha, onNavigate }) => {
   const handleConfirmar = async () => {
     setConfirming(true); setConfirmError(null);
     try {
+      // 1. Guardar primero el borrador con los datos actuales en pantalla
+      await apiFetch(
+        `/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida/${fecha}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            notas_del_dia: notas || null,
+            items: items.map(it => ({
+              tipo:            it.tipo,
+              insumo_id:       it.tipo === 'insumo'   ? it.insumo_id        : undefined,
+              cantidad:        it.tipo === 'insumo'   ? parseFloat(it.cantidad) : undefined,
+              unidad_id:       it.tipo === 'insumo'   ? it.unidad_id        : undefined,
+              servicio_id:     it.tipo === 'servicio' ? (it.servicio_id    || undefined) : undefined,
+              servicio_nombre: it.tipo === 'servicio' ? it.servicio_nombre  : undefined,
+              costo_servicio:  it.tipo === 'servicio' && it.costo_servicio
+                ? parseFloat(it.costo_servicio) : undefined,
+              realizado_por:   it.tipo === 'servicio' ? (it.realizado_por  || undefined) : undefined,
+            })),
+          }),
+        }
+      );
+
+      // 2. Confirmar el día (ejecuta el FIFO de insumos)
       const res = await apiFetch(
         `/api/negocios/${negocioId}/lotes/${loteId}/hoja-de-vida/${fecha}/confirmar`,
         { method: 'POST' }
