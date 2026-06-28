@@ -2356,62 +2356,6 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
           )}
 
           <div data-tour="boton-liquidar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {['gancho', 'despiece'].includes(escenarioElegido) ? (
-              <>
-                <button
-                  onClick={() => { setConfirmError(null); setShowConfirm(true); }}
-                  disabled={!puedeLiquidar}
-                  title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
-                  style={{
-                    padding: '14px 20px',
-                    borderRadius: '8px',
-                    border: `2px solid var(--border-subtle)`,
-                    background: 'var(--bg-secondary)',
-                    color: puedeLiquidar ? 'var(--text-secondary)' : 'var(--text-tertiary)',
-                    cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
-                    opacity: puedeLiquidar ? 1 : 0.6,
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    transition: 'all 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <Icon name="checkSquare" size={16} /> Liquidar directamente
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveLote(loteData);
-                    onNavigate('despiece');
-                  }}
-                  disabled={!puedeLiquidar}
-                  title={puedeLiquidar ? '' : motivosBloqueo.join(' ')}
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    borderRadius: '8px',
-                    border: `2px solid ${puedeLiquidar ? accentColor : 'var(--border-subtle)'}`,
-                    background: puedeLiquidar ? accentColor : 'var(--bg-tertiary)',
-                    color: puedeLiquidar ? '#fff' : 'var(--text-tertiary)',
-                    cursor: puedeLiquidar ? 'pointer' : 'not-allowed',
-                    opacity: puedeLiquidar ? 1 : 0.6,
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    transition: 'all 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  Siguiente: registrar despiece <Icon name="chevronRight" size={16} />
-                </button>
-              </>
-            ) : (
               <button
                 onClick={() => { setConfirmError(null); setShowConfirm(true); }}
                 disabled={!puedeLiquidar}
@@ -2437,7 +2381,6 @@ const Liquidacion = ({ negocioId, activeLote, onNavigate, setActiveLote }) => {
               >
                 <Icon name="checkSquare" size={16} /> Registrar liquidación y cerrar lote
               </button>
-            )}
             {!puedeLiquidar && (
               <InfoTip
                 width={280}

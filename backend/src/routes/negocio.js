@@ -272,40 +272,40 @@ router.put('/:negocioId/lotes/:loteId/config-pesaje', authMiddleware, negocioOwn
 
 // CIF — Sprint 2 Entregable 1
 // La ruta de prorrateo va antes que /cif/:id para que Express no la trate como un id.
-router.get   ('/:negocioId/cif',                   authMiddleware, negocioOwner, getGastosCIF);
-router.post  ('/:negocioId/cif',                   authMiddleware, negocioOwner, createGastoCIF);
-router.get   ('/:negocioId/cif/prorrateo/:loteId', authMiddleware, negocioOwner, getProrrateoCIF);
-router.put   ('/:negocioId/cif/:id',               authMiddleware, negocioOwner, updateGastoCIF);
-router.patch ('/:negocioId/cif/:id/archivar',      authMiddleware, negocioOwner, archivarGastoCIF);
-router.delete('/:negocioId/cif/:id',               authMiddleware, negocioOwner, deleteGastoCIF);
+router.get('/:negocioId/cif', authMiddleware, negocioOwner, getGastosCIF);
+router.post('/:negocioId/cif', authMiddleware, negocioOwner, createGastoCIF);
+router.get('/:negocioId/cif/prorrateo/:loteId', authMiddleware, negocioOwner, getProrrateoCIF);
+router.put('/:negocioId/cif/:id', authMiddleware, negocioOwner, updateGastoCIF);
+router.patch('/:negocioId/cif/:id/archivar', authMiddleware, negocioOwner, archivarGastoCIF);
+router.delete('/:negocioId/cif/:id', authMiddleware, negocioOwner, deleteGastoCIF);
 
 // Mermas — 4 Nodos (AYUNO, FRIO, DESPOSTE, HORNO)
 // Rutas de lista/detalle general
-router.get   ('/:negocioId/mermas',                           authMiddleware, negocioOwner, getMermas);
-router.get   ('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, getMermaById);
-router.put   ('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, updateMerma);
-router.delete('/:negocioId/mermas/:id',                       authMiddleware, negocioOwner, deleteMerma);
+router.get('/:negocioId/mermas', authMiddleware, negocioOwner, getMermas);
+router.get('/:negocioId/mermas/:id', authMiddleware, negocioOwner, getMermaById);
+router.put('/:negocioId/mermas/:id', authMiddleware, negocioOwner, updateMerma);
+router.delete('/:negocioId/mermas/:id', authMiddleware, negocioOwner, deleteMerma);
 
 // Rutas anidadas en lote (registro de pesaje + resumen)
-router.post  ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, registrarPesaje);
-router.get   ('/:negocioId/lotes/:loteId/mermas/resumen',     authMiddleware, negocioOwner, getResumenMermas);
-router.get   ('/:negocioId/lotes/:loteId/mermas',             authMiddleware, negocioOwner, getMermas);
+router.post('/:negocioId/lotes/:loteId/mermas', authMiddleware, negocioOwner, registrarPesaje);
+router.get('/:negocioId/lotes/:loteId/mermas/resumen', authMiddleware, negocioOwner, getResumenMermas);
+router.get('/:negocioId/lotes/:loteId/mermas', authMiddleware, negocioOwner, getMermas);
 
 // Bandeja de pendientes para el admin
 router.get('/:negocioId/pendientes/registros', authMiddleware, requireMembership('admin'), listarRegistrosPendientes);
 
 // Gestión de operarios (todas exigen rol admin)
-router.get   ('/:negocioId/operarios',                            authMiddleware, requireMembership('admin'), listarOperarios);
-router.post  ('/:negocioId/operarios',                            authMiddleware, requireMembership('admin'), crearOperario);
-router.get   ('/:negocioId/operarios/reportes',                   authMiddleware, requireMembership('admin'), getReporteProductividad);
-router.post  ('/:negocioId/operarios/:operarioId/reset-pin',      authMiddleware, requireMembership('admin'), resetPin);
-router.patch ('/:negocioId/operarios/:operarioId',               authMiddleware, requireMembership('admin'), setActivoOperario);
-router.post  ('/:negocioId/operarios/:operarioId/lotes',          authMiddleware, requireMembership('admin'), asignarLote);
+router.get('/:negocioId/operarios', authMiddleware, requireMembership('admin'), listarOperarios);
+router.post('/:negocioId/operarios', authMiddleware, requireMembership('admin'), crearOperario);
+router.get('/:negocioId/operarios/reportes', authMiddleware, requireMembership('admin'), getReporteProductividad);
+router.post('/:negocioId/operarios/:operarioId/reset-pin', authMiddleware, requireMembership('admin'), resetPin);
+router.patch('/:negocioId/operarios/:operarioId', authMiddleware, requireMembership('admin'), setActivoOperario);
+router.post('/:negocioId/operarios/:operarioId/lotes', authMiddleware, requireMembership('admin'), asignarLote);
 router.delete('/:negocioId/operarios/:operarioId/lotes/:loteId', authMiddleware, requireMembership('admin'), desasignarLote);
 
 // Eventos (bajas, incidentes, etc)
 router.get('/:negocioId/eventos', authMiddleware, requireMembership('admin'), listarEventos);
-router.post('/:negocioId/pendientes/bajas/:eventoId/aprobar',  authMiddleware, requireMembership('admin'), aprobarBaja);
+router.post('/:negocioId/pendientes/bajas/:eventoId/aprobar', authMiddleware, requireMembership('admin'), aprobarBaja);
 router.post('/:negocioId/pendientes/bajas/:eventoId/rechazar', authMiddleware, requireMembership('admin'), rechazarBaja);
 router.post('/:negocioId/pendientes/eventos/:eventoId/archivar', authMiddleware, requireMembership('admin'), archivarEvento);
 
@@ -318,27 +318,27 @@ router.patch('/:negocioId/plantillas/:id', authMiddleware, requireMembership('ad
 
 // Inteligencia de ventas (ML + Scraping)
 router.post('/:negocioId/scraping/run', authMiddleware, requireMembership('admin'), ejecutarScraping);
-router.get('/:negocioId/fuentes-scraping',        authMiddleware, requireMembership('admin'), listarFuentes);
-router.post('/:negocioId/fuentes-scraping',       authMiddleware, requireMembership('admin'), crearFuente);
-router.put('/:negocioId/fuentes-scraping/:id',    authMiddleware, requireMembership('admin'), actualizarFuente);
+router.get('/:negocioId/fuentes-scraping', authMiddleware, requireMembership('admin'), listarFuentes);
+router.post('/:negocioId/fuentes-scraping', authMiddleware, requireMembership('admin'), crearFuente);
+router.put('/:negocioId/fuentes-scraping/:id', authMiddleware, requireMembership('admin'), actualizarFuente);
 router.delete('/:negocioId/fuentes-scraping/:id', authMiddleware, requireMembership('admin'), eliminarFuente);
 
 router.get('/:negocioId/precios-scrapeados', authMiddleware, requireMembership('admin'), listarPreciosScrapeados);
 router.get('/:negocioId/precios-serie', authMiddleware, requireMembership('admin'), listarSeriePrecios);
 
-router.get('/:negocioId/corte-alias',             authMiddleware, requireMembership('admin'), listarAlias);
-router.post('/:negocioId/corte-alias',            authMiddleware, requireMembership('admin'), crearAlias);
-router.delete('/:negocioId/corte-alias/:id',      authMiddleware, requireMembership('admin'), eliminarAlias);
-router.get('/:negocioId/precios-historico',       authMiddleware, requireMembership('admin'), listarHistorico);
-router.get('/:negocioId/scrape-runs',             authMiddleware, requireMembership('admin'), listarScrapeRuns);
+router.get('/:negocioId/corte-alias', authMiddleware, requireMembership('admin'), listarAlias);
+router.post('/:negocioId/corte-alias', authMiddleware, requireMembership('admin'), crearAlias);
+router.delete('/:negocioId/corte-alias/:id', authMiddleware, requireMembership('admin'), eliminarAlias);
+router.get('/:negocioId/precios-historico', authMiddleware, requireMembership('admin'), listarHistorico);
+router.get('/:negocioId/scrape-runs', authMiddleware, requireMembership('admin'), listarScrapeRuns);
 
-router.get( '/:negocioId/recomendaciones/fichas',          authMiddleware, requireMembership('admin'), listarFichas);
-router.get( '/:negocioId/recomendaciones/fichas/:recId',   authMiddleware, requireMembership('admin'), getFicha);
-router.post('/:negocioId/recomendaciones/:recId/fijar',    authMiddleware, requireMembership('admin'), fijarRecomendacion);
+router.get('/:negocioId/recomendaciones/fichas', authMiddleware, requireMembership('admin'), listarFichas);
+router.get('/:negocioId/recomendaciones/fichas/:recId', authMiddleware, requireMembership('admin'), getFicha);
+router.post('/:negocioId/recomendaciones/:recId/fijar', authMiddleware, requireMembership('admin'), fijarRecomendacion);
 
-router.get('/:negocioId/recomendaciones',         authMiddleware, requireMembership('admin'), getRecomendaciones);
-router.get('/:negocioId/recomendaciones/meta',    authMiddleware, requireMembership('admin'), getModelosMeta);
-router.get('/:negocioId/alertas-precio',          authMiddleware, requireMembership('admin'), getAlertasPrecios);
+router.get('/:negocioId/recomendaciones', authMiddleware, requireMembership('admin'), getRecomendaciones);
+router.get('/:negocioId/recomendaciones/meta', authMiddleware, requireMembership('admin'), getModelosMeta);
+router.get('/:negocioId/alertas-precio', authMiddleware, requireMembership('admin'), getAlertasPrecios);
 router.post('/:negocioId/alertas-precio/recalcular', authMiddleware, requireMembership('admin'), recalcularAlertasPrecios);
 
 export default router;
