@@ -9,6 +9,7 @@ import VistaDecision from './recomendaciones/VistaDecision.jsx';
 import VistaTabla from './recomendaciones/VistaTabla.jsx';
 import BandaAlertas from './recomendaciones/BandaAlertas.jsx';
 import PanelFichas from './recomendaciones/PanelFichas.jsx';
+import PanelModeloML from './recomendaciones/PanelModeloML.jsx';
 import { apiFetch } from '../../config/api.js';
 
 const ACCENT = 'var(--accent-agro)';
@@ -193,21 +194,7 @@ export default function RecomendacionesVenta({ negocioId }) {
 
             <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Horizonte:
-              <ChipSelector 
-                value={horizonte} onChange={setHorizonte}
-                options={[
-                  { value: 3, label: '3d' },
-                  { value: 7, label: '7d' },
-                  { value: 14, label: '14d' },
-                  { value: 30, label: '30d' },
-                ]} 
-              />
-            </div>
-            
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
               Vista:
               <ChipSelector 
@@ -238,6 +225,7 @@ export default function RecomendacionesVenta({ negocioId }) {
       )}
 
       {/* Contenido Principal */}
+      {!cargando && !error && items.length > 0 && <PanelModeloML metaModelos={metaModelos} />}
       <div style={{ minHeight: '300px' }}>
         {!loteId && !fichaActiva ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1.6, background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>

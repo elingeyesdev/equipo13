@@ -143,7 +143,7 @@ const Proveedores = ({ negocioId, onNavigate, setActiveProveedor }) => {
       )}
 
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 130px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.5fr 80px 130px', padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', gap: '12px' }}>
           {['Proveedor', 'Contacto', 'Insumos', 'Estado', ''].map((h, i) => (
             <div key={i} style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.05em' }}>{h}</div>
           ))}
@@ -156,7 +156,7 @@ const Proveedores = ({ negocioId, onNavigate, setActiveProveedor }) => {
 
         {!loading && visibles.map((pv, i) => (
           <div key={pv.id}
-            style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 100px 80px 130px', padding: '13px 20px', borderBottom: i < visibles.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: pv.activo ? 1 : 0.5 }}
+            style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.5fr 80px 130px', padding: '13px 20px', borderBottom: i < visibles.length - 1 ? '1px solid var(--border-subtle)' : 'none', gap: '12px', alignItems: 'center', transition: 'background 0.1s', opacity: pv.activo ? 1 : 0.5 }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
@@ -174,7 +174,7 @@ const Proveedores = ({ negocioId, onNavigate, setActiveProveedor }) => {
               {pv.insumos && pv.insumos.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                   {pv.insumos.slice(0, 2).map((ins, idx) => (
-                    <span key={idx} style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{ins}</span>
+                    <span key={idx} style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', display: 'inline-block' }}>{ins}</span>
                   ))}
                   {pv.insumos.length > 2 && (
                     <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>+{pv.insumos.length - 2}</span>

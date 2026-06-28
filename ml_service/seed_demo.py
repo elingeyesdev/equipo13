@@ -21,15 +21,66 @@ import random
 import datetime as dt
 
 from app.db import get_conn, fetch_all
+import json as _json
+
+# Fuentes de scraping reales (junio 2026). Ambas son Shopify y exponen products.json,
+# que el adapter json_api ya parsea correctamente (campos title, price, grams, available).
+# Config alineada con json_api_adapter.py (claves: products_path / title_key / price_path / grams_path).
+# Para Shopify products.json el price y grams viven en la primera variant.
+_SHOPIFY_PRODUCTS_JSON_CONFIG = {
+    "products_path": "products",
+    "title_key":     "title",
+    "price_path":    "variants.0.price",
+    "grams_path":    "variants.0.grams",
+}
+
+FUENTES_SCRAPING_SEED = [
+    {
+        "nombre": "Don Cerdo Bolivia",
+        "url":    "https://doncerdobolivia.com/collections/cortes/products.json",
+        "tipo":   "json_api",
+        "canal":  "minorista",
+        "config": _SHOPIFY_PRODUCTS_JSON_CONFIG,
+    },
+    {
+        "nombre": "Amarket Cerdo",
+        "url":    "https://amarket.com.bo/collections/cerdo/products.json",
+        "tipo":   "json_api",
+        "canal":  "minorista",
+        "config": _SHOPIFY_PRODUCTS_JSON_CONFIG,
+    },
+]
+
+# Alias para mapear títulos REALES del scraping a cortes canónicos. Substring
+# match en minúsculas — el normalizador toma el primer alias que matchea.
+ALIAS_COMERCIALES_SEED = [
+    # Nombres anglo y comerciales que aparecen en Don Cerdo + Amarket
+    ("pork belly", "Panceta"),   # premium boliviano de panceta
+    ("ribs",       "Costilla"),
+    ("rack",       "Costilla"),
+    ("tomahawk",   "Lomo"),
+    ("solomillo",  "Lomo"),
+    ("matambre",   "Panceta"),   # matambre porcino viene de la panceta
+    ("molida",     "Recortes"),  # "Carne molida de cerdo"
+    ("colita",     "Recortes"),
+]
 
 CANALES = ("minorista", "mayorista")
 FACTOR_MAYORISTA = 0.82
 # Precio base minorista por corte (Bs/kg) — ajustá a la realidad boliviana.
 BASE = {
-    "Pierna": 25.0, "Paleta": 23.0, "Lomo": 36.0, "Costilla": 33.0, 
-    "Panceta": 30.0, "Chuleta": 32.0, "Hueso/Carnaza": 15.0, 
-    "Bondiola": 35.0, "Grasa": 8.0, "Cuero": 10.0, 
-    "Recortes": 18.0, "Patas": 15.0
+    "Pierna":         38.0,  # Pierna entera 35.4, deshuesada 40
+    "Paleta":         37.0,  # Paleta entera 34.2, deshuesada 38.9, chuleta 37
+    "Lomo":           50.0,  # Don Cerdo 56.8, Chuleta 44, Amarket 65 → ~52
+    "Costilla":       45.0,  # Costilla en tiras 45.8 (varias variantes)
+    "Panceta":        63.0,  # Don Cerdo 60.6, Pork Belly 61.5, Amarket 76
+    "Chuleta":        50.0,  # chuleta de lomo, se equipara al Lomo
+    "Bondiola":       40.0,  # Bondiola carne 40, chuleta 39, Amarket 42.6
+    "Hueso/Carnaza":  12.0,  # mercado: carnaza 10-15
+    "Grasa":           6.0,  # subproducto bajo valor
+    "Cuero":           8.0,  # para chicharrón
+    "Recortes":       25.0,  # mejor que crudo, van a chorizo
+    "Patas":          12.0,  # subproducto
 }
 # Días de histórico por corte. >=365 dispara Prophet; el resto, Holt-Winters.
 HISTORIAL = {"Pierna": 420, "Lomo": 420}
@@ -45,9 +96,18 @@ COSTO_ADQUISICION_DEMO = 28000.0
 # Reparto del canal por corte (fracción del peso canal; debe sumar 1.0).
 # Rendimientos de despiece porcino de la plantilla real.
 RENDIMIENTO_CORTE = {
-    "Pierna": 0.24, "Paleta": 0.16, "Lomo": 0.12, "Costilla": 0.10, "Panceta": 0.09,
-    "Chuleta": 0.08, "Hueso/Carnaza": 0.05, "Bondiola": 0.04, "Grasa": 0.04, 
-    "Cuero": 0.03, "Recortes": 0.03, "Patas": 0.02
+    "Pierna":         0.25,   # corte primario premium, el más grande
+    "Paleta":         0.15,   # corte primario popular
+    "Panceta":        0.13,   # corte primario (subió: estaba subestimada)
+    "Costilla":       0.12,   # corte primario popular
+    "Lomo":           0.07,   # premium chico (bajó: estaba sobredimensionado)
+    "Chuleta":        0.06,   # parte del lomo, en cortes secundarios
+    "Bondiola":       0.05,   # premium chico
+    "Hueso/Carnaza":  0.07,   # estructura no vendible como filete
+    "Grasa":          0.04,   # tocino crudo / manteca
+    "Cuero":          0.03,   # para chicharrón
+    "Recortes":       0.02,   # van a embutidos
+    "Patas":          0.01,   # subproducto menor
 }
 
 
@@ -105,6 +165,37 @@ def serie(base, dias):
         yield fecha, round(precio, 2)
 
 
+def sembrar_fuentes_scraping(cur, negocio_id):
+    """Inserta las dos fuentes reales (Don Cerdo + Amarket). Idempotente:
+    borra cualquier fuente con el mismo nombre antes de insertar, así re-correr
+    el seed actualiza la config sin duplicar (la tabla no tiene UNIQUE)."""
+    for f in FUENTES_SCRAPING_SEED:
+        cur.execute(
+            "DELETE FROM fuentes_scraping WHERE negocio_id = %s AND nombre = %s",
+            (negocio_id, f["nombre"]),
+        )
+        cur.execute(
+            """INSERT INTO fuentes_scraping
+                 (negocio_id, nombre, url, tipo, canal, config, activo)
+               VALUES (%s, %s, %s, %s, %s, %s, TRUE)""",
+            (negocio_id, f["nombre"], f["url"], f["tipo"], f["canal"],
+             _json.dumps(f["config"])),
+        )
+
+
+def sembrar_alias_comerciales(cur, negocio_id):
+    """Inserta los alias de nombres comerciales (Pork Belly, Tomahawk, etc.) que
+    aparecen en Don Cerdo y Amarket. Idempotente con ON CONFLICT."""
+    for alias, canonico in ALIAS_COMERCIALES_SEED:
+        cur.execute(
+            """INSERT INTO corte_alias (negocio_id, alias_texto, corte_canonico)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (negocio_id, alias_texto)
+               DO UPDATE SET corte_canonico = EXCLUDED.corte_canonico""",
+            (negocio_id, alias, canonico),
+        )
+
+
 def main():
     if len(sys.argv) < 2:
         print("Negocios disponibles (pasá el ID como argumento):\n")
@@ -151,6 +242,10 @@ def main():
                     )
                     total += 1
 
+        # Fuentes reales de scraping (Don Cerdo + Amarket) + alias comerciales
+        sembrar_fuentes_scraping(cur, negocio_id)
+        sembrar_alias_comerciales(cur, negocio_id)
+
         for canal, kg in TOPES.items():
             cur.execute(
                 """INSERT INTO tope_canal (negocio_id, canal, kg_max_semana)
@@ -164,6 +259,8 @@ def main():
     print(f"  Prophet (>=365 días): {', '.join(prophet) or '—'}")
     print(f"  Holt-Winters (<365): {', '.join(c for c in cortes if c not in prophet)}")
     print("  Topes de canal definidos. Alerta forzada en Pierna/minorista (+15%).")
+    print(f"  Fuentes de scraping sembradas: {len(FUENTES_SCRAPING_SEED)} (Don Cerdo + Amarket).")
+    print(f"  Alias comerciales sembrados: {len(ALIAS_COMERCIALES_SEED)} (pork belly, tomahawk, etc.).")
     print("\nSiguiente: POST /recomendaciones/generar y POST /alertas/recalcular para este negocio.")
 
 

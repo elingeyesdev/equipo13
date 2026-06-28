@@ -37,7 +37,7 @@ export default function FuentesDatos({ negocioId }) {
   const [fuentes, setFuentes] = useState([]);
   const [alias, setAlias] = useState([]);
   const [runs, setRuns] = useState([]);
-  const [form, setForm] = useState({ nombre: '', url: '', tipo: 'static', canal: 'minorista', config: '{}' });
+  const [form, setForm] = useState({ nombre: '', url: '', tipo: 'json_api', canal: 'minorista', config: '{}' });
   const [aliasForm, setAliasForm] = useState({ alias_texto: '', corte_canonico: '' });
   const [msg, setMsg] = useState(null);
   const [ejecutando, setEjecutando] = useState(false);
@@ -64,7 +64,7 @@ export default function FuentesDatos({ negocioId }) {
         method: 'POST', body: JSON.stringify(payload)
       });
       setFuentes([...fuentes, data]);
-      setForm({ nombre: '', url: '', tipo: 'static', canal: 'minorista', config: '{}' });
+      setForm({ nombre: '', url: '', tipo: 'json_api', canal: 'minorista', config: '{}' });
       setMsg({ tipo: 'ok', texto: 'Fuente agregada.' });
     } catch (e) { setMsg({ tipo: 'error', texto: e.error || 'No se pudo crear la fuente.' }); }
   }
@@ -132,7 +132,7 @@ export default function FuentesDatos({ negocioId }) {
       {/* Fuentes de scraping */}
       <SectionCard title="Fuentes de scraping">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) minmax(200px,2fr) 140px 130px auto', gap: '10px', alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) minmax(200px,2fr) 140px auto', gap: '10px', alignItems: 'end' }}>
             <div>
               <Label>Nombre</Label>
               <input style={{ ...fieldStyle, width: '100%' }} placeholder="Ej. Boletín SEDEM" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
@@ -144,27 +144,12 @@ export default function FuentesDatos({ negocioId }) {
             <div>
               <Label>Tipo</Label>
               <select style={{ ...fieldStyle, width: '100%' }} value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
-                <option value="static">HTML estático</option>
                 <option value="json_api">JSON API</option>
-                <option value="js">JS dinámico</option>
-                <option value="pdf">PDF</option>
-              </select>
-            </div>
-            <div>
-              <Label>Canal</Label>
-              <select style={{ ...fieldStyle, width: '100%' }} value={form.canal} onChange={e => setForm({ ...form, canal: e.target.value })}>
-                <option value="minorista">Minorista</option>
-                <option value="mayorista">Mayorista</option>
               </select>
             </div>
             <Btn icon="plus" accentColor={ACCENT} onClick={crearFuente}>Agregar</Btn>
           </div>
-          <div>
-            <Label extra={<InfoTip text="JSON con los selectores CSS, el endpoint o la configuración de parseo según el tipo de fuente." />}>Config (JSON)</Label>
-            <textarea placeholder='{ "selector": ".precio", "endpoint": "…" }' value={form.config}
-              onChange={e => setForm({ ...form, config: e.target.value })}
-              style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', minHeight: '60px' }} />
-          </div>
+
 
           {/* Lista de fuentes */}
           {fuentes.length === 0 ? (
@@ -176,11 +161,10 @@ export default function FuentesDatos({ negocioId }) {
               {fuentes.map((f, i) => {
                 const tm = TIPO_META[f.tipo] || { label: f.tipo, color: 'var(--text-tertiary)' };
                 return (
-                  <div key={f.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) minmax(160px,2fr) 120px 100px 64px 32px', gap: '10px', alignItems: 'center', padding: '10px 14px', borderBottom: i < fuentes.length - 1 ? '1px solid var(--border-subtle)' : 'none', opacity: f.activo ? 1 : 0.5 }}>
+                  <div key={f.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) minmax(160px,2fr) 120px 64px 32px', gap: '10px', alignItems: 'center', padding: '10px 14px', borderBottom: i < fuentes.length - 1 ? '1px solid var(--border-subtle)' : 'none', opacity: f.activo ? 1 : 0.5 }}>
                     <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{f.nombre}</span>
                     <a href={f.url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }} title={f.url}>{f.url}</a>
                     <div><StatusBadge label={tm.label} color={tm.color} /></div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{f.canal}</span>
                     <span style={{ fontSize: '11px', color: f.activo ? 'var(--accent-success)' : 'var(--text-tertiary)', textAlign: 'right' }}>{f.activo ? 'Activa' : 'Inactiva'}</span>
                     <button onClick={() => eliminarFuente(f.id, f.nombre)} title="Eliminar fuente"
                       style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s, background 0.15s' }}

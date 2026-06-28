@@ -227,12 +227,6 @@ async function seedOperariosRutinasTareas(db, negocioId, adminId, loteIds) {
        ($1, $2, $3, 'baja', 'pendiente', '{"causa": "Síndrome respiratorio", "cabezas": 1}'::jsonb)`,
       [negocioId, loteNuevo, opIds[0]]
     );
-
-    await db.query(
-      `INSERT INTO registro_mermas (negocio_id, lote_id, tipo, peso_inicial, peso_final, fecha, operario)
-       VALUES ($1, $2, 'AYUNO', 18.5, 18.0, CURRENT_DATE, 'Juan Pérez')`,
-      [negocioId, loteNuevo]
-    );
   }
 }
 
